@@ -1,0 +1,53 @@
+<!-- Web app for ORCA Document Search
+     blah blah blah
+     -->
+<!DOCTYPE html>
+<html lang=en>
+
+<head>
+  <meta charset=UTF-8>
+  <meta name=viewport content="width=device-width, initial-scale=1.0">
+  <meta name=description content="ORCA Document Query Interface for searching and managing documents.">
+  <title>ORCA Search</title>
+  <link rel=stylesheet href=./styles.css>
+</head>
+
+<body>
+  <header>
+    <h1>ORCA Search</h1>
+    <p>
+    <h3 id=subheading><span id=docTotal></span> documents</h3>
+    <form id=searchForm>
+      <input type=text name=searchInput id=searchInput required>
+      <button id=submitButton type=submit>🔍</button>
+    </form>
+    <nav>
+      <ul class=navLinks>
+        <li><a href=#>Query syntax guide</a></li>
+        <li><a href=#>Photo library</a></li>
+      </ul>
+    </nav>
+  </header>
+  <hr aria-hidden=true>
+  <main>
+    <p>
+    <dl id=searchList></dl>
+  </main>
+  <hr aria-hidden=true>
+  <footer>
+    <p>
+    <section id=options>
+      <input type=checkbox name=pollCheckbox id=pollCheckbox checked>
+      <label for=pollCheckbox>Automatically refresh results (5 sec)</label>
+    </section>
+    <div>
+      <span id=clientVersion>2024-07-27d</span>
+      <span id=apiConnectionStatus></span>
+      ORCA API <span id=apiVersion></span>
+    </div>
+    <p id=errorMessage class=error>Connecting...
+  </footer>
+  <script src=./orca.js></script>
+</body>
+
+</html>

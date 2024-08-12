@@ -34,10 +34,12 @@ def load_documents(self, path: str, session=None):
         # Commit & log every n files, making sure to always hit the last file,
         # otherwise just add the file to the batch
         if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
-            log.info(f"Loading {i + 1}/{total} from {path}")
+            log.info(f"Loading documents ({i + 1}/{total})")
             Image.create_from_file(file, session=session)
         else:
             Image.create_from_file(file, batch_only=True, session=session)
+
+    log.info(f"Done loading documents from {path}")
 
 
 @celery.task(bind=True)
@@ -78,7 +80,7 @@ def index_documents(self, _, session=None):
 
     for i, doc in enumerate(documents):
         if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
-            log.info(f"Indexing {i + 1}/{total} documents to {config.INDEX_PATH}")
+            log.info(f"Indexing documents ({i + 1}/{total})")
 
         text_path = config.DATA_PATH / doc.text_path
         try:
@@ -91,4 +93,4 @@ def index_documents(self, _, session=None):
 
     log.info(f"Finalizing index at {config.INDEX_PATH}, this could take some time")
     writer.commit()
-    log.info("Indexing complete!")
+    log.info("Done indexing")

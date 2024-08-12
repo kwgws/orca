@@ -230,7 +230,7 @@ class CommonMixin:
         for column in self.__table__.columns:
             value = getattr(self, column.name)
             if isinstance(value, datetime):
-                value = f"{value.isoformat()}+00:00"  # Values stored in UTC
+                value = value.isoformat() + "Z"  # Values stored in UTC
             rows[column.name] = value
         return rows
 
@@ -271,7 +271,7 @@ class StatusMixin:
 corpus_table = Table(
     "corpus_table",
     Base.metadata,
-    Column("corpus_id", String, ForeignKey("corpuses.id"), primary_key=True),
+    Column("corpus_hash", String, ForeignKey("corpuses.hash"), primary_key=True),
     Column("document_id", String, ForeignKey("documents.id"), primary_key=True),
 )
 

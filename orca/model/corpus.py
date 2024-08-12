@@ -1,17 +1,17 @@
 import hashlib
 import logging
 
-from sqlalchemy import Column, String, desc
+from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
 
 from orca import config
-from orca.model.base import Base, CommonMixin, corpus_table, with_session
+from orca.model.base import Base, corpus_table, get_utcnow, with_session
 from orca.model.document import Document
 
 log = logging.getLogger(config.APP_NAME)
 
 
-class Corpus(Base, CommonMixin):
+class Corpus(Base):
     """We can use Corpuses to take a snapshot of the collection, compare
     versions, and generate diffs. This is important to maintain the integrity
     of a given set of search results, since any changes to the corpus will
@@ -19,14 +19,15 @@ class Corpus(Base, CommonMixin):
     """
 
     __tablename__ = "corpuses"
+    hash = Column(String, primary_key=True)
+    created = Column(DateTime, nullable=False, default=get_utcnow)
+    total = Column(Integer, nullable=False)
     documents = relationship(
         "Document", back_populates="corpuses", secondary=corpus_table
     )
     searches = relationship(
         "Search", back_populates="corpus", cascade="all, delete-orphan"
     )
-    hash = Column(String, unique=True)
-    hash_color = Column(String)
 
     @classmethod
     @with_session
@@ -34,26 +35,22 @@ class Corpus(Base, CommonMixin):
         """Take a snapshot of the current tables and save."""
         documents = Document.get_all(session=session)
         total = len(documents)
-        log.info(
-            f"Creating a corpus snapshot and hash value for {total} documents,"
-            " this may take some time"
-        )
-
-        corpus = cls(documents=documents)
 
         # Generate and store hash value
-        raw = "".join([d.id for d in corpus.documents])
-        corpus.hash = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
-        corpus.hash_color = f"#{corpus.hash[:6]}"
+        log.info(f"Hashing {total} documents")
+        hash = hashlib.sha256(
+            "".join([d.id for d in documents]).encode(),
+            usedforsecurity=False,
+        ).hexdigest()
 
+        log.info(f"Adding {total} documents to corpus")
+        corpus = cls(hash=hash, documents=documents, total=len(documents))
         session.add(corpus)
-        log.info(f"Adding {total} documents to corpus snapshot")
-
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
             if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or (i + 1) == total:
-                log.info(f"Adding document {i + 1}/{total} to corpus snapshot")
+                log.info(f"Adding documents to corpus ({i + 1}/{total})")
                 session.commit()
 
         log.info("Done creating corpus")
@@ -69,7 +66,9 @@ class Corpus(Base, CommonMixin):
         return result
 
     def as_dict(self):
-        rows = super().as_dict()
-        rows["documents"] = len(self.documents)
-        rows["searches"] = [s.as_dict() for s in self.searches]
-        return rows
+        return {
+            "hash": self.hash,
+            "color": "#" + self.hash[:6],
+            "documents": self.total,
+            "searches": [s.as_dict() for s in self.searches],
+        }

@@ -56,4 +56,4 @@ def test_results(session):
     assert doc.id in corpus.as_dict()["documents"]
     assert search.id in corpus.as_dict()["searches"]
     assert len(corpus.hash) == 64
-    assert corpus.hash_color.startswith("#")
+    assert corpus.color.startswith("#")

@@ -142,3 +142,8 @@ def not_found(error):
 @flask.errorhandler(500)
 def internal_server_error(error):
     return jsonify(error=error.description), 500
+
+
+@flask.errorhandler(503)
+def busy_error(error):
+    return jsonify(error=error.description), 503

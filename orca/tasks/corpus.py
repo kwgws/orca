@@ -52,7 +52,7 @@ class Corpus(Base, CommonMixin):
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
-            if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or (i + 1) == total:
+            if (i + 1) % config.APP_NAME0 == 0 or (i + 1) == total:
                 log.info(f"Adding document {i + 1}/{total} to corpus snapshot")
                 session.commit()
 

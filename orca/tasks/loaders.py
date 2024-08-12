@@ -28,11 +28,12 @@ def load_documents(self, path: str, session=None):
     path = Path(path)
     files = natsorted(path.glob("*.json"))
     total = len(files)
+    log.info(f"Loading {total} documents from {path}")
 
     for i, file in enumerate(files):
         # Commit & log every n files, making sure to always hit the last file,
         # otherwise just add the file to the batch
-        if i == 0 or (i + 1) % 1000 == 0 or i + 1 == total:
+        if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
             log.info(f"Loading {i + 1}/{total} from {path}")
             Image.create_from_file(file, session=session)
         else:
@@ -76,7 +77,7 @@ def index_documents(self, _, session=None):
     writer = AsyncWriter(ix)
 
     for i, doc in enumerate(documents):
-        if (i + 1) % 10000 == 0 or i + 1 == total:
+        if (i + 1) % config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
             log.info(f"Indexing {i + 1}/{total} documents to {config.INDEX_PATH}")
 
         text_path = config.DATA_PATH / doc.text_path

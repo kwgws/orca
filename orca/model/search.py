@@ -37,6 +37,8 @@ class Search(Base, CommonMixin, StatusMixin):
     megadocs = relationship(
         "Megadoc", back_populates="search", cascade="all, delete-orphan"
     )
+    corpus_id = Column(String, ForeignKey("corpuses.id"), nullable=False)
+    corpus = relationship("Corpus", back_populates="searches")
 
     @classmethod
     @with_session
@@ -48,8 +50,8 @@ class Search(Base, CommonMixin, StatusMixin):
         corpus = Corpus.get_latest(session=session)
         search.corpus = corpus
         corpus.searches.append(search)
-        session.add(corpus)
 
+        session.add(corpus)
         session.add(search)
         session.commit()
         return search
@@ -85,7 +87,6 @@ class Search(Base, CommonMixin, StatusMixin):
 
     def as_dict(self):
         rows = super().as_dict()
-        rows["corpus"] = {"hash": self.corpus.hash, "color": self.corpus.hash_color}
         rows.pop("corpus_id")
         rows["results"] = len(self.documents)
         rows["megadocs"] = [md.as_dict() for md in self.megadocs]

@@ -19,11 +19,7 @@ CORS(flask)
 
 @flask.before_request
 def before_request():
-    # Stop if we have a loading lockout flagged on the database
-    # if r.hget("orca:flags", "loading") == b"1":
-    #    abort(503, description="Database is updating, try again later")
-
-    # Otherwise open a new session if we don't already have one
+    # Open a new session if we don't already have one
     if "session" not in g:
         g.session = get_session().__enter__()
 
@@ -50,6 +46,9 @@ def teardown_request(exception=None):
 
 @flask.route("/", methods=["GET"])
 def api_status():
+    if r.hget("orca:flags", "loading") == b"1":
+        abort(503, description="Database is updating, try again later")
+
     try:
         corpus = Corpus.get_latest(session=g.session).as_dict()
         corpus["documents"] = len(corpus.pop("documents"))
@@ -61,6 +60,9 @@ def api_status():
 
 @flask.route("/search", methods=["POST"])
 def create_search():
+    if r.hget("orca:flags", "loading") == b"1":
+        abort(503, description="Database is updating, try again later")
+
     if not request.json or "search_str" not in request.json:
         abort(400, description='Invalid request, missing "search_str" field')
     try:
@@ -82,6 +84,9 @@ def create_search():
 
 @flask.route("/search/<search_id>", methods=["GET"])
 def get_search(search_id):
+    if r.hget("orca:flags", "loading") == b"1":
+        abort(503, description="Database is updating, try again later")
+
     try:
         search = Search.get(search_id, session=g.session)
         if not search:
@@ -94,6 +99,9 @@ def get_search(search_id):
 
 @flask.route("/search/<search_id>", methods=["DELETE"])
 def delete_search(search_id):
+    if r.hget("orca:flags", "loading") == b"1":
+        abort(503, description="Database is updating, try again later")
+
     try:
         search = Search.get(search_id, session=g.session)
         if not search:

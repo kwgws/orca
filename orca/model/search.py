@@ -37,8 +37,6 @@ class Search(Base, CommonMixin, StatusMixin):
     megadocs = relationship(
         "Megadoc", back_populates="search", cascade="all, delete-orphan"
     )
-    corpus_id = Column(String, ForeignKey("corpuses.id"))
-    corpus = relationship("Corpus", back_populates="searches")
 
     @classmethod
     @with_session

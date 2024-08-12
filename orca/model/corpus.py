@@ -22,7 +22,6 @@ class Corpus(Base, CommonMixin):
     documents = relationship(
         "Document", back_populates="corpuses", secondary=corpus_table
     )
-    searches = relationship("Search", back_populates="corpus")
     hash = Column(String, unique=True)
     hash_color = Column(String)
 
@@ -40,8 +39,7 @@ class Corpus(Base, CommonMixin):
         corpus = cls(documents=documents)
 
         # Generate and store hash value
-        rows = corpus.as_dict()
-        raw = "".join(rows["documents"]) + "".join(rows["searches"])
+        raw = "".join([d.id for d in corpus.documents])
         corpus.hash = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
         corpus.hash_color = f"#{corpus.hash[:6]}"
 
@@ -68,6 +66,5 @@ class Corpus(Base, CommonMixin):
 
     def as_dict(self):
         rows = super().as_dict()
-        rows["documents"] = [d.as_dict().pop("corpus") for d in self.documents]
-        rows["searches"] = [s.as_dict().pop("corpus") for s in self.searches]
+        rows["documents"] = [d.as_dict() for d in self.documents]
         return rows

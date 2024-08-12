@@ -14,7 +14,7 @@ from sqlalchemy.orm import relationship
 from unidecode import unidecode
 
 from orca import config
-from orca.model.db import (  # noqa: F401
+from orca.model.base import (  # noqa: F401
     Base,
     CommonMixin,
     corpus_table,
@@ -22,7 +22,7 @@ from orca.model.db import (  # noqa: F401
     with_session,
 )
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 
 
 class Image(Base, CommonMixin):
@@ -117,7 +117,7 @@ class Image(Base, CommonMixin):
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("image_path")
-        rows["documents"] = [doc.as_dict() for doc in self.documents]
+        rows["documents"] = [doc.id for doc in self.documents]
         return rows
 
 
@@ -277,5 +277,16 @@ class Document(Base, CommonMixin):
         rows.pop("json_path")
         rows.pop("text_path")
         rows.pop("image_id")
-        rows["corpuses"] = [c.id for c in self.corpuses]
+        rows["stem"] = self.stem
+        rows["title"] = self.title
+        rows["album"] = self.album
+        rows["index"] = self.index
+        rows["media_archive"] = self.media_archive
+        rows["media_collection"] = self.media_collection
+        rows["media_box"] = self.media_box
+        rows["media_folder"] = self.media_folder
+        rows["media_type"] = self.media_type
+        rows["media_created"] = self.media_created
+        rows["image_url"] = self.image_url
+        rows["thumb_url"] = self.thumb_url
         return rows

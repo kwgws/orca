@@ -10,7 +10,7 @@ from orca import config
 from orca.model import Document, Megadoc, Search, with_session
 from orca.tasks.celery import celery
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 
 
 @celery.task(bind=True)

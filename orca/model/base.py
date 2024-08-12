@@ -19,17 +19,13 @@ from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sess
 
 from orca import config
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 
 
 # SQLite database initialization
 Base = declarative_base()
 engine = create_engine(config.DATABASE_URI)
 SessionLocal = scoped_session(sessionmaker(bind=engine))
-
-
-def create_tables():
-    Base.metadata.create_all(engine)
 
 
 # Database session management
@@ -131,6 +127,10 @@ def with_session(func):
 
 
 # Helper functions
+def create_tables():
+    Base.metadata.create_all(engine)
+
+
 def get_uuid():
     """Create random, url-safe, UUID for long-term object storage."""
     uuid_new = uuid.uuid4()

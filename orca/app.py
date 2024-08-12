@@ -1,44 +1,35 @@
 import logging
 from pathlib import Path
 
-import click
-from celery import chain, chord, group
+from celery import chain, chord, group, shared_task
 
 from orca import config
 from orca.model import create_tables, get_redis_client
 from orca.tasks.celery import celery  # noqa: F401
-from orca.tasks.load import index_documents, load_documents, reset_lock
-from orca.tasks.search import create_megadoc, run_search, upload_megadoc
+from orca.tasks.loaders import index_documents, load_documents
+from orca.tasks.searchers import create_megadoc, run_search, upload_megadoc
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 r = get_redis_client()
 
 
-@click.group()
-def cli():
-    """Command line interface for the application."""
-    pass
-
-
-@cli.command
-def reset():
+def reset_db():
     """Reset database, create metadata.
 
     This needs to be run at least once before anything else happens.
     """
-    click.echo(f"Deleting databsae at {config.DATABASE_PATH}")
+    r.flushdb(asynchronous=True)
     config.DATABASE_PATH.unlink()
-    click.echo(f"Creating database and metadata at {config.DATABASE_PATH}")
     create_tables()
-    click.echo("Ok!")
 
 
-@cli.command
-@click.argument(
-    "path",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-)
-def load(path):
+@shared_task
+def reset_lock(request, exc, traceback):
+    """Reset loading flag in Redis."""
+    r.hset("orca:flags", "loading", int(False))
+
+
+def start_load(path):
     """Load documents from path into the database.
 
     Each document needs to be in an album subdirectory and named according to
@@ -62,16 +53,13 @@ def load(path):
         raise IOError(f"No albums in path: {path}")
 
     r.hset("orca:flags", "loading", int(True))
-    load_tasks = [load_documents.s(p.as_posix()) for p in subdirs]
-    result = chord(load_tasks)(index_documents.s()).then(reset_lock.s())
-    return result
+    return chord([load_documents.s(str(p)).on_error(reset_lock.s()) for p in subdirs])(
+        chain(index_documents.s().on_error(reset_lock.s()), reset_lock.s())
+    )
 
 
-@cli.command
-@click.argument("search_str")
-def search(search_str):
-    log.info(f"Starting search for `{search_str}`")
-
+def start_search(search_str):
+    """ """
     megadoc_tasks = group(
         chain(create_megadoc.s(filetype), upload_megadoc.s())
         for filetype in config.MEGADOC_FILETYPES

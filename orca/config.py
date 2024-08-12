@@ -20,38 +20,40 @@ for var in [
 
 
 # App metadata
-APP_NAME = "ORCA Document Query API"
+APP_NAME = "orca"
 APP_VERSION = "2024-08-08f"
 CLIENT_URL = os.getenv("ORCA_CLIENT_URL").rstrip("/")
 
 # Logging configuration
-LOG_PATH: Path = Path(os.getenv("ORCA_LOG_PATH", "/var/log/orca"))
-LOG_FILE: Path = LOG_PATH / "orca.log"
-LOG_FORMAT: str = "%(asctime)s - %(levelname)s - %(message)s"
-LOG_FORMAT_TASK: str = "%(asctime)s - %(levelname)s - %(task_name)s - %(message)s"
+LOG_PATH = Path(os.getenv("ORCA_LOG_PATH", "/var/log/orca"))
+LOG_FILE = LOG_PATH / "orca.log"
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_FORMAT_TASK = "%(asctime)s - %(levelname)s - %(task_name)s - %(message)s"
 LOG_BACKUPS: int = 9
+LOG_OPEN = True if os.getenv("ORCA_LOG_OPEN", "false") == "true" else False
 
 # Base paths
-ROOT_PATH: Path = Path.home()
-DATA_PATH: Path = Path(os.getenv("ORCA_DATA_PATH", f"{ROOT_PATH / 'data'}"))
+ROOT_PATH = Path.home()
+ROOT_PATH.mkdir(parents=True, exist_ok=True)
+DATA_PATH = Path(os.getenv("ORCA_DATA_PATH", f"{ROOT_PATH / 'data'}"))
 DATA_PATH.mkdir(parents=True, exist_ok=True)
 BATCH_NAME = os.getenv("ORCA_BATCH_NAME", "00")
-BATCH_PATH: Path = Path(BATCH_NAME)
-INDEX_PATH: Path = DATA_PATH / BATCH_PATH / "index"
+BATCH_PATH = Path(BATCH_NAME)
+INDEX_PATH = DATA_PATH / BATCH_PATH / "index"
 
 # Database configuration
-DATABASE_PATH: Path = ROOT_PATH / "orca.db"
+DATABASE_PATH = ROOT_PATH / "orca.db"
 DATABASE_URI = f"sqlite:///{DATABASE_PATH}"
-DATABASE_RETRIES: int = 10
+DATABASE_RETRIES = 10
 
 # Redis configuration
-REDIS_SOCKET: Path = Path(os.getenv("ORCA_REDIS_SOCKET"))
+REDIS_SOCKET = Path(os.getenv("ORCA_REDIS_SOCKET"))
 if not REDIS_SOCKET.exists():
     raise EnvironmentError(f"Cannot find redis socket at {REDIS_SOCKET}")
 
 # Megadoc configuration
-MEGADOC_FILETYPES: list[str] = [".txt", ".docx"]
-MEGADOC_PATH: Path = BATCH_PATH / "megadocs"
+MEGADOC_FILETYPES = [".txt", ".docx"]
+MEGADOC_PATH = BATCH_PATH / "megadocs"
 
 # CDN configuraiton
 CDN_ACCESS_KEY = os.getenv("ORCA_CDN_ACCESS_KEY")
@@ -65,27 +67,21 @@ CDN_URL = os.getenv("ORCA_CDN_URL").rstrip("/")
 # Celery configuration
 class CeleryConfig:
     broker_url = f"redis+socket://{REDIS_SOCKET}"
-    broker_connection_retry_on_startup: bool = True
+    broker_connection_retry_on_startup = True
     result_backend = f"redis+socket://{REDIS_SOCKET}"
+    result_extended = True
+    task_send_sent_event = True
     task_track_started = True
     worker_send_task_events = True
-    task_send_sent_event = True
-    result_extended = True
     worker_cancel_long_running_tasks_on_connection_loss = True
 
 
 # Flask configuration
-class FLASK:
-    def __init__(self, redis_client):
-        self.SECRET_KEY = os.getenv("ORCA_FLASK_KEY", str(uuid.uuid4()))
-        self.SQLALCHEMY_DATABASE_URI = DATABASE_URI
-        self.SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
-        self.SESSION_TYPE = "redis"
-        self.SESSION_REDIS: redis_client
-        self.SESSION_PERMANENT: bool = False
-        self.SESSION_USE_SIGNER: bool = True
-        self.SESSION_KEY_PREFIX = "session:"
-        self.DEBUG: bool = os.getenv("ORCA_FLASK_DEBUG", "False")
+class FlaskConfig:
+    SECRET_KEY = os.getenv("ORCA_FLASK_KEY", str(uuid.uuid4()))
+    SESSION_TYPE = "redis"
+    SESSION_KEY_PREFIX = "orca:session:"
+    DEBUG = True if os.getenv("ORCA_FLASK_DEBUG", "false") == "true" else False
 
 
 def setup_logger(name: str, level=logging.INFO):
@@ -113,4 +109,4 @@ def setup_logger(name: str, level=logging.INFO):
 
 
 # Initialize root logger
-setup_logger("orca")
+setup_logger(APP_NAME)

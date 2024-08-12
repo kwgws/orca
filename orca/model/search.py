@@ -2,7 +2,6 @@
 produced by ORCA as intended output.
 """
 
-import hashlib
 import logging
 import os
 
@@ -12,19 +11,19 @@ from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from orca import config
-from orca.model.db import (
+from orca.model.base import (
     Base,
     CommonMixin,
     StatusMixin,
-    corpus_table,
     get_utcnow,
     get_uuid,
     result_table,
     with_session,
 )
-from orca.model.documents import Document
+from orca.model.corpus import Corpus
+from orca.model.document import Document
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 
 
 class Search(Base, CommonMixin, StatusMixin):
@@ -46,6 +45,13 @@ class Search(Base, CommonMixin, StatusMixin):
     def create(cls, search_str: str, session=None):
         """Create a new instance and commit it to the table."""
         search = cls(search_str=search_str)
+
+        # Tag with most recent hash value
+        corpus = Corpus.get_latest(session=session)
+        search.corpus = corpus
+        corpus.searches.append(search)
+        session.add(corpus)
+
         session.add(search)
         session.commit()
         return search
@@ -79,18 +85,11 @@ class Search(Base, CommonMixin, StatusMixin):
         session.commit()
         return megadoc
 
-    @property
-    def json(self):
-        pass
-
-    @property
-    def text(self):
-        pass
-
     def as_dict(self):
         rows = super().as_dict()
-        rows["corpus"] = rows.pop("corpus_id")
-        rows["results"] = self.results
+        rows["corpus"] = {"hash": self.corpus.hash, "color": self.corpus.hash_color}
+        rows.pop("corpus_id")
+        rows["results"] = len(self.documents)
         rows["megadocs"] = [md.as_dict() for md in self.megadocs]
         return rows
 
@@ -141,44 +140,4 @@ class Megadoc(Base, CommonMixin, StatusMixin):
         rows.pop("path")
         rows.pop("search_id")
         rows["filesize"] = self.filesize
-        return rows
-
-
-class Corpus(Base, CommonMixin):
-    """We can use Corpuses to take a snapshot of the collection, compare
-    versions, and generate diffs. This is important to maintain the integrity
-    of a given set of search results, since any changes to the corpus will
-    necessarily change those results.
-    """
-
-    __tablename__ = "corpuses"
-    documents = relationship(
-        "Document", back_populates="corpuses", secondary=corpus_table
-    )
-    searches = relationship("Search", back_populates="corpus")
-    hash = Column(String, unique=True)
-    hash_color = Column(String)
-
-    @classmethod
-    @with_session
-    def create(cls, session=None):
-        """Take a snapshot of the current tables and save."""
-        documents = Document.get_all(session=session)
-        searches = Search.get_all(session=session)
-        corpus = cls(documents=documents, searches=searches)
-
-        # Generate and store hash value
-        rows = corpus.as_dict()
-        raw = "".join(rows["documents"]) + "".join(rows["searches"])
-        corpus.hash = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
-        corpus.hash_color = f"#{corpus.hash[:6]}"
-
-        session.add(corpus)
-        session.commit()
-        return corpus
-
-    def as_dict(self):
-        rows = super().as_dict()
-        rows["documents"] = [d.id for d in self.documents]
-        rows["searches"] = [s.id for s in self.searches]
         return rows

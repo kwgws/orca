@@ -11,7 +11,7 @@ from orca import config
 from orca.model import Corpus, Document, Image, get_redis_client, with_session
 from orca.tasks.celery import celery
 
-log = logging.getLogger("orca")
+log = logging.getLogger(config.APP_NAME)
 r = get_redis_client()
 
 
@@ -48,13 +48,14 @@ def index_documents(self, _, session=None):
     Nb this should only be run inside a single thread.
     """
 
-    log.info("Building corpus snapshot")
     documents = Document.get_all(session=session)
     total = len(documents)
+    log.info(f"Indexing {total} documents to {config.INDEX_PATH}")
+
     Corpus.create(session=session)
 
     if any(config.INDEX_PATH.iterdir()):
-        log.info("Previous index found, deleting")
+        log.info(f"Previous index found at {config.INDEX_PATH}, resetting")
 
         def rmdir(path: Path):
             for item in path.iterdir():
@@ -75,7 +76,7 @@ def index_documents(self, _, session=None):
     writer = AsyncWriter(ix)
 
     for i, doc in enumerate(documents):
-        if i == 0 or (i + 1) % 10000 == 0 or i + 1 == total:
+        if (i + 1) % 10000 == 0 or i + 1 == total:
             log.info(f"Indexing {i + 1}/{total} documents to {config.INDEX_PATH}")
 
         text_path = config.DATA_PATH / doc.text_path
@@ -90,8 +91,3 @@ def index_documents(self, _, session=None):
     log.info(f"Finalizing index at {config.INDEX_PATH}, this could take some time")
     writer.commit()
     log.info("Indexing complete!")
-
-
-@celery.task
-def reset_lock(self):
-    r.hset("orca:flags", "loading", int(False))

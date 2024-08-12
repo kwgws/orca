@@ -3,6 +3,7 @@ produced by ORCA as intended output.
 """
 
 import hashlib
+import logging
 import os
 
 import regex as re
@@ -24,7 +25,7 @@ from .db import (
 )
 from .documents import Document
 
-log = config.get_logger("__name__")
+log = logging.getLogger("orca")
 
 
 class Search(Base, CommonMixin, StatusMixin):

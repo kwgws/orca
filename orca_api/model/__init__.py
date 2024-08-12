@@ -4,6 +4,8 @@ from .db import (  # noqa: F401
     SessionLocal,
     StatusMixin,
     corpus_table,
+    create_tables,
+    get_redis_client,
     get_session,
     get_utcnow,
     get_uuid,

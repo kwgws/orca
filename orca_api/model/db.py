@@ -2,6 +2,7 @@
 """
 
 import base64
+import logging
 import math
 import time
 import uuid
@@ -18,13 +19,17 @@ from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sess
 
 from orca_api import config
 
-log = config.get_logger(__name__)
+log = logging.getLogger("orca")
 
 
 # SQLite database initialization
 Base = declarative_base()
 engine = create_engine(config.DATABASE_URI)
 SessionLocal = scoped_session(sessionmaker(bind=engine))
+
+
+def create_tables():
+    Base.metadata.create_all(engine)
 
 
 # Database session management

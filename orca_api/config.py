@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Validate critical parameters
+load_dotenv()
 for var in [
     "ORCA_CLIENT_URL",
     "ORCA_CDN_ACCESS_KEY",
@@ -18,8 +19,6 @@ for var in [
         raise EnvironmentError(f"Missing environment variable: {var}")
 
 
-load_dotenv()
-
 # App metadata
 APP_NAME = "ORCA Document Query API"
 APP_VERSION = "2024-08-08f"
@@ -27,6 +26,9 @@ CLIENT_URL = os.getenv("ORCA_CLIENT_URL").rstrip("/")
 
 # Logging configuration
 LOG_PATH: Path = Path(os.getenv("ORCA_LOG_PATH", "/var/log/orca"))
+LOG_FILE: Path = LOG_PATH / "orca.log"
+LOG_FORMAT: str = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_FORMAT_TASK: str = "%(asctime)s - %(levelname)s - %(task_name)s - %(message)s"
 LOG_BACKUPS: int = 9
 
 # Base paths
@@ -66,7 +68,10 @@ class CeleryConfig:
     broker_connection_retry_on_startup: bool = True
     result_backend = f"redis+socket://{REDIS_SOCKET}"
     task_track_started = True
+    worker_send_task_events = True
+    task_send_sent_event = True
     result_extended = True
+    worker_cancel_long_running_tasks_on_connection_loss = True
 
 
 # Flask configuration
@@ -83,16 +88,15 @@ class FLASK:
         self.DEBUG: bool = os.getenv("ORCA_FLASK_DEBUG", "False")
 
 
-def get_logger(name, level=logging.INFO):
+def setup_logger(name: str, level=logging.INFO):
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
     # Create console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
-    console_handler.setFormatter(
-        logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-    )
+    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(console_handler)
 
     # Create file handler
@@ -102,13 +106,11 @@ def get_logger(name, level=logging.INFO):
         backupCount=LOG_BACKUPS,
     )
     file_handler.setLevel(level)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
+    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(file_handler)
 
     return logger
 
 
 # Initialize root logger
-log = get_logger(APP_NAME)
+setup_logger("orca")

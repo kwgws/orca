@@ -1,6 +1,7 @@
 """Model to track documents, anything to do with ORCA's corpus.
 """
 
+import logging  # noqa: F401
 from pathlib import Path
 
 from dateutil.parser import parse as parse_datetime
@@ -9,9 +10,15 @@ from sqlalchemy.orm import relationship
 
 from orca_api import config
 
-from .db import Base, CommonMixin, corpus_table, result_table, with_session
+from .db import (  # noqa: F401
+    Base,
+    CommonMixin,
+    corpus_table,
+    result_table,
+    with_session,
+)
 
-log = config.get_logger("__name__")
+log = logging.getLogger("orca")
 
 
 class Image(Base, CommonMixin):
@@ -79,7 +86,7 @@ class Image(Base, CommonMixin):
 
         # These paths need to be relative so we can make them portable
         json_path = Path(config.BATCH_NAME) / "json" / album / f"{stem}.json"
-        text_path = Path(config.BATCH_NAME) / "text" / album / f"{stem}/txt"
+        text_path = Path(config.BATCH_NAME) / "text" / album / f"{stem}.txt"
         image_path = Path("img") / album / f"{stem}.webp"
 
         image = Image(

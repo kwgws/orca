@@ -1,50 +1,18 @@
 import logging
 from pathlib import Path
 
-from celery import chord
 from natsort import natsorted
 from unidecode import unidecode
 from whoosh import index
 from whoosh.fields import ID, TEXT, Schema
 from whoosh.writing import AsyncWriter
 
-from orca_api import config
-from orca_api.model import Corpus, Document, Image, get_redis_client
-
-from .controller import celery, with_session
+from orca import config
+from orca.model import Corpus, Document, Image, get_redis_client, with_session
+from orca.tasks.celery import celery
 
 log = logging.getLogger("orca")
 r = get_redis_client()
-
-
-def start_load_documents(path):
-    """Load documents from path into the database.
-
-    Each document needs to be in an album subdirectory and named according to
-    the schema laid out in `Image.create_from_file()`.
-
-    We start a Redis chord with one `load_documents()` task per subdirectory,
-    then finish by creating a `Corpus` snapshot and building a Whoosh index
-    with `index_documents()`.
-    """
-
-    if r.hget("orca:flags", "loading") == b"1":
-        log.warning("Load documents is already flagged as running")
-        # raise RuntimeError("Tried loading documents but process already running")
-
-    if not isinstance(path, Path):
-        path = Path(path)
-    if not path.is_dir():
-        raise IOError(f"Bad path: {path}")
-
-    subdirs = [p for p in path.iterdir() if p.is_dir()]
-    if not subdirs:
-        raise IOError(f"No albums in path: {path}")
-
-    r.hset("orca:flags", "loading", int(True))
-    load_tasks = [load_documents.s(p.as_posix()) for p in subdirs]
-    result = chord(load_tasks)(index_documents.s()).then(reset_lock.s())
-    return result
 
 
 @celery.task(bind=True)

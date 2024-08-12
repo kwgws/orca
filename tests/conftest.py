@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from orca_api.model import (  # noqa: F401
+from orca.model import (  # noqa: F401
     Base,
     CommonMixin,
     Document,

@@ -1,4 +1,4 @@
-from .db import (  # noqa: F401
+from orca.model.db import (  # noqa: F401
     Base,
     CommonMixin,
     SessionLocal,
@@ -13,5 +13,5 @@ from .db import (  # noqa: F401
     result_table,
     with_session,
 )
-from .documents import Document, Image  # noqa: F401
-from .results import Corpus, Megadoc, Search  # noqa: F401
+from orca.model.documents import Document, Image  # noqa: F401
+from orca.model.results import Corpus, Megadoc, Search  # noqa: F401

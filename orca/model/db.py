@@ -17,7 +17,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, String, Table, create_engin
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
 
-from orca_api import config
+from orca import config
 
 log = logging.getLogger("orca")
 
@@ -124,6 +124,7 @@ def with_session(func):
         if session and session is not None:
             return handle_sql_errors(func, *args, **kwargs)
         with get_session() as session:
+            kwargs["session"] = session
             return handle_sql_errors(func, *args, **kwargs)
 
     return wrapper

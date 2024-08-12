@@ -1,16 +1,20 @@
 """Model to track documents, anything to do with ORCA's corpus.
 """
 
+import json
 import logging  # noqa: F401
 from pathlib import Path
 
 from dateutil.parser import parse as parse_datetime
+from docx import Document as Docx
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, inspect
 from sqlalchemy.orm import relationship
+from unidecode import unidecode
 
-from orca_api import config
-
-from .db import (  # noqa: F401
+from orca import config
+from orca.model.db import (  # noqa: F401
     Base,
     CommonMixin,
     corpus_table,
@@ -52,10 +56,10 @@ class Image(Base, CommonMixin):
         # Get a list of keys and filter out anything we want here
         mapper = inspect(self.__class__)
         columns = {column.key for column in mapper.columns}
-        img_kwargs = {key: kwargs.pop(key) for key in columns if key in kwargs}
+        image_kwargs = {key: kwargs.pop(key) for key in columns if key in kwargs}
 
         """Create an image and its first document."""
-        super().__init__(*args, **img_kwargs)
+        super().__init__(*args, **image_kwargs)
 
         # Otherwise pass the other kwargs along to our first document
         document = Document(**kwargs)
@@ -70,7 +74,7 @@ class Image(Base, CommonMixin):
         commiting outright.
 
         This is based on a very specific kind of filename, which typically
-        looks like this: `000001_2022-09-27_13-12-42_IMG_5992.json`. The data
+        looks like this: `000001_2022-09-27_13-12-42_image_5992.json`. The data
         is separated by underscores. The first part is the index. The second
         two are the date and time. Any remaining parts are the title.
         """
@@ -139,6 +143,134 @@ class Document(Base, CommonMixin):
     searches = relationship(
         "Search", back_populates="documents", secondary=result_table
     )
+
+    @property
+    def stem(self):
+        return self.image.stem
+
+    @property
+    def title(self):
+        return self.image.title
+
+    @property
+    def album(self):
+        return self.image.album
+
+    @property
+    def index(self):
+        return self.image.index
+
+    @property
+    def media_archive(self):
+        return self.image.media_archive
+
+    @property
+    def media_collection(self):
+        return self.image.media_collection
+
+    @property
+    def media_box(self):
+        return self.image.media_box
+
+    @property
+    def media_folder(self):
+        return self.image.media_folder
+
+    @property
+    def media_type(self):
+        return self.image.media_type
+
+    @property
+    def media_created(self):
+        return self.image.media_created
+
+    @property
+    def image_path(self):
+        return self.image.image_path
+
+    @property
+    def image_url(self):
+        return self.image.image_url
+
+    @property
+    def thumb_url(self):
+        return self.image.thumb_url
+
+    @property
+    def json(self):
+        with (config.DATA_PATH / self.json_path).open as f:
+            return json.load(f)
+
+    @property
+    def content(self):
+        with (config.DATA_PATH / self.text_path).open() as f:
+            return unidecode(f.read().strip())
+
+    def to_markdown(self, path: Path):
+        with path.open("a") as f:
+            f.write(
+                "\n".join(
+                    [
+                        "---",
+                        f"date: {self.created.strftime('%B %d, %Y at %-I:%M %p')}",
+                        f"album: {self.title} - {self.index} of {self.album}",
+                        f"image: {self.image_url}",
+                        "---",
+                        "",
+                        self.content,
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+            )
+
+    def to_docx(self, path: Path):
+        x = Docx(path.as_posix()) if path.exists() else Docx()
+
+        x.add_heading(self.created.strftime("%B %d, %Y at %-I:%M %p"), level=1)
+
+        p = x.add_paragraph()
+        run = p.add_run()
+        run.text = f"{self.title} - {self.index} of {self.album}\n"
+        run.font.bold = True
+
+        # To add a link we need to manipulate the underlying XML directly.
+        run = OxmlElement("w:r")
+
+        link = OxmlElement("w:hyperlink")  # Create link
+        link.set(
+            qn("r:id"),
+            x.part.relate_to(
+                self.image_url,
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",  # noqa: E501
+                is_external=True,
+            ),
+        )
+
+        rPr = OxmlElement("w:rPr")  # Format
+        color = OxmlElement("w:color")
+        color.set(qn("w:val"), "0000FF")
+        rPr.append(color)
+        underline = OxmlElement("w:u")
+        underline.set(qn("w:val"), "single")
+        rPr.append(underline)
+        bold = OxmlElement("w:b")
+        rPr.append(bold)
+        run.append(rPr)
+
+        text_tag = OxmlElement("w:t")  # Set text
+        text_tag.text = self.image_url
+        run.append(text_tag)
+
+        link.append(run)  # Add to paragraph
+        p._p.append(link)  # Done!
+
+        x.add_paragraph("-----")
+        x.add_paragraph(self.content)
+        x.add_page_break()
+
+        x.save(path)
 
     def as_dict(self):
         rows = super().as_dict()

@@ -1,4 +1,4 @@
-from orca_api.model import Corpus, Document, Image, Megadoc, Search
+from orca.model import Corpus, Document, Image, Megadoc, Search
 
 
 def test_document(session):

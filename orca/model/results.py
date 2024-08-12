@@ -11,9 +11,8 @@ from slugify import slugify
 from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
-from orca_api import config
-
-from .db import (
+from orca import config
+from orca.model.db import (
     Base,
     CommonMixin,
     StatusMixin,
@@ -23,7 +22,7 @@ from .db import (
     result_table,
     with_session,
 )
-from .documents import Document
+from orca.model.documents import Document
 
 log = logging.getLogger("orca")
 
@@ -81,8 +80,12 @@ class Search(Base, CommonMixin, StatusMixin):
         return megadoc
 
     @property
-    def results(self):
-        return len(self.documents)
+    def json(self):
+        pass
+
+    @property
+    def text(self):
+        pass
 
     def as_dict(self):
         rows = super().as_dict()

@@ -4,8 +4,8 @@ from zoneinfo import ZoneInfo
 from flask import Flask, abort, g, jsonify, make_response, request, url_for
 from flask_cors import CORS
 
-from orca_api import config, tasks
-from orca_api.db import Document, Search, get_session, redis_client
+from orca import config, tasks
+from orca.db import Document, Search, get_session, redis_client
 
 log = config.get_logger(__name__)
 flask = Flask(__name__)

@@ -80,7 +80,7 @@ def index_documents(self, _, session=None):
     Nb this should only be run inside a single thread.
     """
 
-    log.info("Loading documents, creating corpus snapshot")
+    log.info("Building corpus snapshot")
     documents = Document.get_all(session=session)
     total = len(documents)
     Corpus.create(session=session)

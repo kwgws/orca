@@ -159,7 +159,7 @@ class CommonMixin:
 
     @property
     def redis_key(self):
-        return f"{self.__tablename__}:{self.id}"
+        return f"orca:{self.__tablename__}:{self.id}"
 
     @classmethod
     @with_session

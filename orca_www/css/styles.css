@@ -32,6 +32,12 @@ header hgroup > h1 {
     margin-bottom: 0;
 }
 
+@media (max-width: 480px) {
+    header hgroup > h1 {
+        font-size: x-large;
+    }
+}
+
 header hgroup > h1 + p {
     margin-top: 2px;
     font-size: larger;

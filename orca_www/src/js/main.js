@@ -1,9 +1,9 @@
-import { State } from "./state.js";
+import { StateManager } from "./state.js";
 import { startPolling } from "./api.js";
 import { initializeUI, updateUI } from "./ui.js";
 
 const pollingInterval = 5000;
-const state = new State({
+const stateManager = new StateManager({
     isPollingEnabled: true,
     isStillLoading: true,
     isConnected: false,
@@ -12,7 +12,8 @@ const state = new State({
 })
 
 document.addEventListener("DOMContentLoaded", async () => {
-    state.subscribe(updateUI);
-    initializeUI(state);
-    startPolling(state, pollingInterval);
+    console.log("DOM content loaded");
+    stateManager.subscribe(updateUI);
+    initializeUI(stateManager);
+    startPolling(stateManager, pollingInterval);
 });

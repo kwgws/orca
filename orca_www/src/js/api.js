@@ -1,18 +1,16 @@
 const apiUrl = "https://api.orca.wgws.dev/";
 
-export async function pollAPI(state) {
-    const { isPollingEnabled } = state.get();
-    if (!isPollingEnabled) return;
-
+export async function pollAPI(stateManager) {
     try {
+        console.log(`Polling API at ${apiUrl}`);
+
         const response = await fetch(apiUrl);
         if (!response.ok) {
             throw new Error(`Error: ${response.statusText}`);
         }
-
         const data = await response.json();
 
-        state.update({
+        stateManager.update({
             isStillLoading: false,
             isConnected: true,
             lastChecked: new Date(),
@@ -23,7 +21,9 @@ export async function pollAPI(state) {
             error: null,
         });
     } catch (error) {
-        state.update({
+        console.log(`Error polling API: ${error.message}`);
+    
+        stateManager.update({
             isStillLoading: false,
             isConnected: false,
             lastChecked: new Date(),
@@ -32,10 +32,11 @@ export async function pollAPI(state) {
     }
 }
 
-export function startPolling(state, pollingInterval) {
+export function startPolling(stateManager, pollingInterval) {
     function pollWithInterval() {
-        if (state.get().isPollingEnabled) {
-            pollAPI(state);
+        const { isPollingEnabled } = stateManager.get();
+        if (isPollingEnabled) {
+            pollAPI(stateManager);
         }
     }
 

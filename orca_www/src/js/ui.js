@@ -3,65 +3,63 @@ export function initializeUI(stateManager) {
 
     // Attach automatic polling state to checkbox. When we check/uncheck
     // the box, store that as a global flag in the state manager
-    const pollingCheckbox = document.getElementById("poll");
-    pollingCheckbox.addEventListener("change", function () {
-        const status = pollingCheckbox.checked;
-        stateManager.update({ isPollingEnabled: status });
-        console.log(`Automatic polling has been ${status ? "enabled" : "disabled"}`);
+    const isPollEnabledElement = document.getElementById("isPollEnabled");
+    isPollEnabledElement.addEventListener("change", function () {
+        const enablePolling = isPollEnabledElement.checked;
+        stateManager.update({ isPollEnabled: enablePolling });
+        console.log(`Automatic polling has been ${enablePolling ? "enabled" : "disabled"}`);
     });
 }
 
 export function updateUI(stateManager) {
     console.log("Updating UI");
     const oldState = stateManager.getOld();
-    const { isStillLoading, isConnected, lastChecked, hash, total, version } = stateManager.get();
+    const { isConnected, lastPoll, corpusHash, corpusTotal, apiVersion } = stateManager.get();
 
-    // Once we get our first request we can get rid of the loading message
-    if (isStillLoading !== oldState?.isStillLoading) {
-        console.log("Done loading");
-        const loadingSubhead = document.getElementById("loadingSubhead");
-        loadingSubhead.hidden = true;
-        const subhead = document.getElementById("subhead");
-        subhead.hidden = false;
-    }
 
     // Update connection status on change
     if (isConnected !== oldState?.isConnected) {
         console.log(`${isConnected ? "Connected to" : "disconnected from"} API`);
-
+        
         // Client-side timestamp of last fetch
-        const lastUpdated = document.getElementById("lastUpdated");
-        lastUpdated.setAttribute("datetime", lastChecked.toISOString());
-        lastUpdated.textContent = lastChecked.toLocaleString();
+        const lastPollElement = document.getElementById("lastPoll");
+        lastPollElement.setAttribute("datetime", lastPoll.toISOString());
+        lastPollElement.textContent = lastPoll.toLocaleString();
+
+        // Swap heading and loading message
+        const connectingSubheadElement = document.getElementById("connectingSubhead");
+        connectingSubheadElement.hidden = isConnected;
+        const subheadElement = document.getElementById("subhead");
+        subheadElement.hidden = !isConnected;
 
         // Connection status
-        const connectionStatus = document.getElementById("connection");
-        connectionStatus.textContent = isConnected ? "Connected" : "Disconnected";
-        connectionStatus.className = isConnected ? "connected" : "error";
+        const connectionStatusElement = document.getElementById("connection");
+        connectionStatusElement.textContent = isConnected ? "Connected" : "Disconnected";
+        connectionStatusElement.className = isConnected ? "connected" : "error";
 
         // Server-side API version
-        const apiVersion = document.getElementById("version");
-        apiVersion.textContent = version;
+        const apiVersionElement = document.getElementById("apiVersion");
+        apiVersionElement.textContent = apiVersion;
 
         // Show connection details if there's a connection, otherwise hide
-        const connectionDetails = document.getElementById("connectionDetails");
-        connectionDetails.hidden = !isConnected;
+        const connectionDetailsElement = document.getElementById("connectionDetails");
+        connectionDetailsElement.hidden = !isConnected;
 
         // Toggle search form
         enableSearchForm(isConnected);
     }
 
-    // Update corpus details if the hash change
-    if (hash !== oldState?.hash) {
-        console.log(`New hash value found: ${hash}`);
-        const docTotal = document.getElementById("docTotal");
-        docTotal.textContent = total.toLocaleString();
+    // Update corpus details if the hash changes
+    if (corpusHash !== oldState?.corpusHash) {
+        console.log(`New hash value found: ${corpusHash}`);
+        const corpusTotalElement = document.getElementById("corpusTotal");
+        corpusTotalElement.textContent = corpusTotal.toLocaleString();
     }
 }
 
 function enableSearchForm(status) {
     // Toggle the search form by selecting its elements and enabling/disabling them
-    const searchForm = document.getElementById("searchForm");
-    searchForm.querySelectorAll("*").forEach(e => e.disabled = !status);
+    const searchFormElement = document.getElementById("searchForm");
+    searchFormElement.querySelectorAll("*").forEach(e => e.disabled = !status);
     console.log(`Search form has been ${status ? "enabled" : "disabled"}`);
 }

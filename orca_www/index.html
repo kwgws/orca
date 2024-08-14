@@ -16,8 +16,8 @@
   <hgroup>
     <h1>ORCA Document Query</h1>
     <p>
-      <span id=loadingSubhead>Connecting&hellip;<span class=spinner></span></span>
-      <span id=subhead hidden>Searching <span id=docTotal></span> documents</span>
+      <span id=connectingSubhead>Connecting&hellip;<span class=spinner></span></span>
+      <span id=subhead hidden>Searching <span id=corpusTotal></span> documents</span>
   </hgroup>
   <search>
     <form id=searchForm>
@@ -40,14 +40,14 @@
 
 <footer>
   <p id=options>
-    <input type=checkbox name=poll id=poll checked>
-    <label for=poll>Automatically refresh results (5 sec)</label>
+    <input type=checkbox name=isPollEnabled id=isPollEnabled checked>
+    <label for=isPollEnabled>Automatically refresh results (5 sec)</label>
   <small>
     <p>
       Status: <span id=connection class=connecting>Connecting</span>
       <span id=connectionDetails hidden>
-        <br />API v<span id=version></span>
-        <br />Last polled <time id=lastUpdated>
+        <br />API v<span id=apiVersion></span>
+        <br />Last polled <time id=lastPoll>
       </span>
     <p>
       ORCA Document Query by Sean Gilleran, 2024

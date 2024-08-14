@@ -11,12 +11,11 @@ export async function pollAPI(stateManager) {
         const data = await response.json();
 
         stateManager.update({
-            isStillLoading: false,
             isConnected: true,
-            lastChecked: new Date(),
-            version: data.version,
-            hash: data.hash,
-            total: data.total,
+            lastPoll: new Date(),
+            apiVersion: data.version,
+            corpusHash: data.hash,
+            corpusTotal: data.total,
             searches: data.searches,
             error: null,
         });
@@ -24,7 +23,6 @@ export async function pollAPI(stateManager) {
         console.log(`Error polling API: ${error.message}`);
     
         stateManager.update({
-            isStillLoading: false,
             isConnected: false,
             lastChecked: new Date(),
             error: error.message,
@@ -32,10 +30,10 @@ export async function pollAPI(stateManager) {
     }
 }
 
-export function startPolling(stateManager, pollingInterval) {
+export function startPollAPI(stateManager, pollingInterval) {
     function pollWithInterval() {
-        const { isPollingEnabled } = stateManager.get();
-        if (isPollingEnabled) {
+        const { isPollEnabled } = stateManager.get();
+        if (isPollEnabled) {
             pollAPI(stateManager);
         }
     }

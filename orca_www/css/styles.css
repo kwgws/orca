@@ -175,10 +175,6 @@ footer .error::before {
     content: "🔴\00a0";
 }
 
-#hash {
-    font-family: "Ubuntu Mono", monospace;
-}
-
 #toTop::before {
     content: "☝️ ";
 }

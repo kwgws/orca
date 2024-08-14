@@ -50,8 +50,8 @@ def api_status():
         abort(503, description="Database is updating, try again later")
 
     try:
-        corpuses = [c.as_dict() for c in Corpus.get_all(session=g.session)]
-        return jsonify(corpuses)
+        corpus = Corpus.get_latest(session=g.session).as_dict()
+        return jsonify(version=config.APP_VERSION, **corpus)
     except Exception as e:
         log.error(f"Error retrieving status: {e}")
         abort(500)

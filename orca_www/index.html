@@ -1,53 +1,62 @@
-<!-- Web app for ORCA Document Search
-     blah blah blah
-     -->
 <!DOCTYPE html>
 <html lang=en>
-
 <head>
   <meta charset=UTF-8>
   <meta name=viewport content="width=device-width, initial-scale=1.0">
   <meta name=description content="ORCA Document Query Interface for searching and managing documents.">
   <title>ORCA Search</title>
-  <link rel=stylesheet href=./styles.css>
 </head>
-
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+<link rel=stylesheet href=css/styles.css>
 <body>
-  <header>
-    <h1>ORCA Search</h1>
-    <p>
-    <h3 id=subheading><span id=docTotal></span> documents</h3>
-    <form id=searchForm>
-      <input type=text name=searchInput id=searchInput required>
-      <button id=submitButton type=submit>🔍</button>
-    </form>
-    <nav>
-      <ul class=navLinks>
-        <li><a href=#>Query syntax guide</a></li>
-        <li><a href=#>Photo library</a></li>
-      </ul>
-    </nav>
-  </header>
-  <hr aria-hidden=true>
-  <main>
-    <p>
-    <dl id=searchList></dl>
-  </main>
-  <hr aria-hidden=true>
-  <footer>
-    <p>
-    <section id=options>
-      <input type=checkbox name=pollCheckbox id=pollCheckbox checked>
-      <label for=pollCheckbox>Automatically refresh results (5 sec)</label>
-    </section>
-    <div>
-      <span id=clientVersion>2024-07-27d</span>
-      <span id=apiConnectionStatus></span>
-      ORCA API <span id=apiVersion></span>
-    </div>
-    <p id=errorMessage class=error>Connecting...
-  </footer>
-  <script src=./orca.js></script>
-</body>
 
+<header>
+  <hgroup>
+    <h1>ORCA Document Query</h1>
+    <p>
+      <span id=loadingSubhead>Connecting&hellip;<span class=spinner></span></span>
+      <span id=subhead hidden>Searching <span id=docTotal></span> documents</span>
+  </hgroup>
+  <search>
+    <form id=searchForm>
+      <input type=text id=searchStrInput name=searchStrInput required disabled>
+      <button type=submit id=searchSubmit disabled>🔍 Search</button>
+    </form>
+  </search>
+  <nav>
+    <menu>
+      <li><a id=navLibrary href=library>Browse all documents by album</a>
+      <li><a id=navLog href=https://api.orca.wgws.dev/log>View debug logs</a>
+    </menu>
+  </nav>
+  <p class=error id=errorMessage hidden>Error: This is an error message
+</header>
+
+<main id=results>
+  &nbsp;
+</main>
+
+<footer>
+  <p id=options>
+    <input type=checkbox name=poll id=poll checked>
+    <label for=poll>Automatically refresh results (5 sec)</label>
+  <small>
+    <p>
+      Status: <span id=connection class=connecting>Connecting</span>
+      <span id=connectionDetails hidden>
+        | API version: <span id=version></span><br />
+        Last fetch: <time id=lastUpdated></time><br />
+        Hash: <span id=hash></span>
+      </span>
+    <p>
+      ORCA Document Query by Sean Gilleran, 2024<br />
+      <a href="https://github.com/seangilleran/orca">https://github.com/seangilleran/orca
+  </small>
+  <nav><a id=toTop href="#">Back to top</a></nav>
+</footer>
+
+<script type=module src=src/js/main.js></script>
+</body>
 </html>

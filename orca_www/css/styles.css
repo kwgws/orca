@@ -1,0 +1,211 @@
+body {
+    background-color: whitesmoke;
+    margin: 3em 1em;
+    font-family: "Ubuntu", sans-serif;
+}
+
+a {
+    color: blue;
+    text-decoration: none;
+}
+
+a:hover {
+    color: cornflowerblue;
+    text-decoration: underline;
+}
+
+/* Header-specific */
+
+header {
+    padding: 0 1em;
+    border-bottom: 2px solid darkgray;
+}
+
+header hgroup > h1::before {
+    display: block;
+    margin-bottom: -4px;
+    font-size: larger;
+    content: "🐋";
+}
+
+header hgroup > h1 {
+    margin-bottom: 0;
+}
+
+header hgroup > h1 + p {
+    margin-top: 2px;
+    font-size: larger;
+    font-weight: bold;
+}
+
+#searchForm, #options {
+    display: flex;
+    align-items: center;
+}
+
+#searchStrInput {
+    font-family: "Ubuntu Mono", monospace;
+    font-size: large;
+    margin-right: 6px;
+}
+
+header menu {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+#navLibrary::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "📚\00a0";
+}
+
+#navLog::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "⚙️\00a0";
+}
+
+.error {
+    color: brown;
+}
+
+/* Content-specific */
+
+main {
+    margin: 1em;
+}
+
+.result .searchStr {
+    width:fit-content;
+    background: gold;
+    border-radius: 4px;
+    margin-bottom: 0;
+    padding: 2px 6px;
+    font-family: "Ubuntu Mono", monospace;
+    font-weight: bold;
+    font-size: larger;
+}
+
+.result ul {
+    list-style-type: none;
+    margin-top: 2px;
+    padding-left: 1em;
+}
+
+.result time::before {
+    content: "\00a0";
+}
+
+.result .file::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "📝\00a0"
+}
+
+.result a.file::before {
+    content: "📄\00a0"
+}
+
+.result .delete {
+    color: brown;
+}
+
+.result .delete:hover, .result .prompt, .result .prompt a:hover {
+    color: orangered;
+}
+
+.result .prompt a {
+    margin-left: 1ch;
+    color: brown;
+}
+
+.result .promptOk::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "✅\00a0";
+}
+
+.result .promptCancel::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "❎\00a0";
+}
+
+/* Footer-specific */
+
+footer {
+    padding: 0 1em;
+    border-top: 2px solid darkgray;
+}
+
+#options label {
+    margin-left: 4px;
+}
+
+footer .connected::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "🟢\00a0";
+}
+
+footer .connected {
+    color: forestgreen;
+}
+
+footer .connecting::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "🟡\00a0";
+}
+
+footer .connecting {
+    color: goldenrod;
+}
+
+footer .error::before {
+    font-size: 80%;
+    line-height: 0;
+    content: "🔴\00a0";
+}
+
+#hash {
+    font-family: "Ubuntu Mono", monospace;
+}
+
+#toTop::before {
+    content: "☝️ ";
+}
+
+/* Spinner */
+
+.spinner::before {
+    content: "\00a0";
+}
+
+.spinner::after {
+    display: inline-block;
+    font-size: 80%;
+    line-height: 0;
+    content: "⌛️";
+    animation: flip 2.5s ease-in-out infinite;
+}
+
+@keyframes flip {
+    0% {
+        content: "⏳";
+        transform: rotate(0deg);
+    }
+    60% {
+        content: "⏳";
+        transform: rotate(0deg);
+    }
+    75% {
+        content: "⌛️";
+        transform: rotate(0deg);
+    }
+    100% {
+        content: "⌛️";
+        transform: rotate(180deg);
+    }
+}

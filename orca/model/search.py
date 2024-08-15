@@ -122,20 +122,25 @@ class Megadoc(Base, CommonMixin, StatusMixin):
         )
         self.filename = f"{slugify(self.search.search_str)}_{timestamp}Z{self.filetype}"
         self.path = f"{config.MEGADOC_PATH / self.filename}"
-        if os.path.exists(self.path):
-            log.warning(f"Megadoc file already exists, could be error: {self.path}")
+        if self.full_path.is_file():
+            log.warning(f"File already exists, could be error: {self.full_path}")
         self.url = f"{config.CDN_URL}/{self.path}"
 
         # Clear redis progress ticker
         r.hset(self.redis_key, "progress", 0)
 
     @property
+    def full_path(self):
+        """Returns the full canonical path as a pathlib object."""
+        return config.DATA_PATH / self.path
+
+    @property
     def filesize(self):
         """Size of megadoc file in bytes. Returns 0 if no file."""
         try:
-            return os.path.getsize(config.DATA_PATH / self.path)
+            return os.path.getsize(self.full_path)
         except OSError as e:
-            log.warning(f"Error finding size of file {self.path}: {e}")
+            log.warning(f"Error finding size of megadoc: {e}")
             return 0
 
     @property

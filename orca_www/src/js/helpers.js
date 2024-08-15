@@ -1,3 +1,9 @@
+export function err(msg) {
+    // TODO
+    console.error(msg);
+}
+
+
 export function fmtSize(bytes) {
     const units = ["", "k", "m", "g", "t"];
     let i = 0;
@@ -35,7 +41,7 @@ export function make(tag, attributes = {}) {
 
 
 export function spinner() {
-    const spinnerElement = makeElement("span", { className: "spinner" });
+    const spinnerElement = make("span", { className: "spinner" });
     return spinnerElement;
 }
 

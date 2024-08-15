@@ -76,7 +76,7 @@ def create_megadoc(self, search_id: str, filetype, session=None):
             doc.to_docx(config.DATA_PATH / megadoc.path)
         else:
             doc.to_markdown(config.DATA_PATH / megadoc.path)
-        doc.tick()
+        megadoc.tick()
 
     # Set status to "SENDING" to indicate we're ready for upload
     megadoc.set_status("SENDING", session=session)
@@ -95,7 +95,7 @@ def upload_megadoc(self, megadoc_id, session=None):
         f" to S3 bucket at {config.CDN_ENDPOINT}"
     )
 
-    local_path_str = (config.DATA_PATH / megadoc.path).as_posix()
+    local_path_str = megadoc.full_path.as_posix()
     content_type, _ = mimetypes.guess_type(local_path_str)
     if content_type is None:
         content_type = "application/octet-stream"

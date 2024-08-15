@@ -1,22 +1,10 @@
-import { fmtDate, fmtSize, make, spinner, text } from "./helpers.js";
-
-
-export function initializeUI(stateManager) {
-    console.log("Initialzing UI");
-
-    // Attach automatic polling state to checkbox. When we check/uncheck
-    // the box, store that as a global flag in the state manager
-    const pollCheckbox = document.getElementById("isPollEnabled");
-    pollCheckbox.addEventListener("change", function () {
-        const poll = pollCheckbox.checked;
-        stateManager.update({ isPollEnabled: poll });
-        console.log(`Polling has been ${poll ? "enabled" : "disabled"}`);
-    });
-}
+import { deleteSearch } from "./api.js";
+import { apiUrl } from "./config.js";
+import { err, fmtDate, fmtSize, make, spinner, text } from "./helpers.js";
+import { togglePoll, toggleSearch } from "./state.js";
 
 
 export function updateUI(stateManager) {
-    console.log("Updating UI");
     const prevState = stateManager.getPrev();
     const {
         apiVersion, corpusHash, corpusTotal, isConnected, lastPoll
@@ -24,7 +12,11 @@ export function updateUI(stateManager) {
 
     // Update connection status on change
     if (isConnected !== prevState?.isConnected) {
-        console.log(`${isConnected ? "Connected to" : "disconnected from"} API`);
+        if (isConnected) {
+            console.log(`Connected to ORCA Document Query API at ${apiUrl}`);
+        } else {
+            err(`Error connecting to API at ${apiUrl}`);
+        }
 
         // Swap heading and loading message
         const loadSubhead = document.getElementById("connectingSubhead");
@@ -46,7 +38,7 @@ export function updateUI(stateManager) {
         connDetails.hidden = !isConnected;
 
         // Toggle search form
-        enableSearchForm(isConnected);
+        toggleSearch(isConnected);
     }
 
     // Client-side timestamp of last fetch
@@ -59,18 +51,10 @@ export function updateUI(stateManager) {
 
     // Update corpus details if the hash changes
     if (corpusHash !== prevState?.corpusHash) {
-        console.log(`New hash value found: ${corpusHash}`);
+        console.log(`New hash value found, updating metadata (${corpusHash})`);
         const docTotal = document.getElementById("corpusTotal");
         docTotal.textContent = corpusTotal.toLocaleString();
     }
-}
-
-
-function enableSearchForm(status) {
-    // Toggle the form by selecting its elements and enabling/disabling them
-    const searchForm = document.getElementById("searchForm");
-    searchForm.querySelectorAll("*").forEach((e) => e.disabled = !status);
-    console.log(`Search form has been ${status ? "enabled" : "disabled"}`);
 }
 
 
@@ -106,7 +90,7 @@ function makeSearchResult(search) {
     const searchMeta = make("ul");
     const count = make("li", { textContent: `${results} results` });
     if (!isDone) {
-        count.appendChild(text(` (${status.toLowerCase()}`));
+        count.appendChild(text(` (${status.toLowerCase()})`));
         count.appendChild(spinner());
     }
     searchMeta.appendChild(count);
@@ -130,7 +114,7 @@ function makeSearchResult(search) {
     }
 
     // Add delete link
-    if (isDone) { searchMeta.appendChild(makeDeleteLink(searchId)); }
+    if (isDone) { searchMeta.appendChild(makeDeleteLink(search)); }
 
     searchResult.appendChild(searchMeta);
     return searchResult;
@@ -141,6 +125,7 @@ function makeMegadoc(megadoc) {
     const { id: docId, status, url } = megadoc;
     const filetype = megadoc.filetype.toLowerCase();
     const filesize = fmtSize(megadoc.filesize);
+
     const docMeta = make("li");
 
     if (status === "SUCCESS") {
@@ -152,8 +137,9 @@ function makeMegadoc(megadoc) {
     } else {
         docMeta.className = "file";
         docMeta.dataset.id = docId;
-        const docText = status === (
-            "SENDING" ? `Finalizing ${filetype}` : `Creating ${filetype} (${progress})`
+        const progress = (megadoc.progress * 100.0).toFixed(2);
+        const docText = (
+            status === "SENDING" ? `Finalizing ${filetype}` : `Creating ${filetype} (${progress}%)`
         );
         docMeta.appendChild(text(docText));
         docMeta.appendChild(spinner());
@@ -163,21 +149,45 @@ function makeMegadoc(megadoc) {
 }
 
 
-function makeDeleteLink(searchId) {
+function makeDeleteLink(search) {
+    let wasPollEnabled = togglePoll();
     const linkMeta = make("li");
 
-    // Delete link--this is the first layer. Clicking this reveals the prompt.
+    // Create delete link-- clicking this will reveal the y/n prompt
     const delLink = make("a", { className: "delete", href: "#", textContent: "Delete" });
+    delLink.addEventListener("click", async function (event) {
+        event.preventDefault();
+
+        // Track previous polling status so we can go back to it after prompt
+        wasPollEnabled = togglePoll();  // Returns state w null arg
+        togglePoll(false);
+        delLink.hidden = true;
+        delPrompt.hidden = false;
+    });
     linkMeta.appendChild(delLink);
 
-    // Delete prompt--this is the second layer. Clicking OK deletes the search.
+    // Create prompt--
     const delPrompt = make("b", { className: "prompt", textContent: "Delete?", hidden: true });
 
-    const okLink = make("a", { className: "promptOk", href: "#", textContent: "Ok" });
-    okLink.dataset.id = searchId;
+    // Clicking OK will send a delete request through the API
+    const okLink = make("a", { className: "promptOk", href: "#", textContent: "OK" });
+    okLink.addEventListener("click", async function (event) {
+        event.preventDefault();
+        deleteSearch(search);
+        togglePoll(wasPollEnabled);
+        delLink.hidden = false;
+        delPrompt.hidden = true;
+    });
     delPrompt.appendChild(okLink);
 
+    // Clicking cancel will hide the prompt again
     const cancelLink = make("a", { className: "promptCancel", href: "#", textContent: "Cancel" });
+    cancelLink.addEventListener("click", async function (event) {
+        event.preventDefault();
+        togglePoll(wasPollEnabled);
+        delLink.hidden = false;
+        delPrompt.hidden = true;
+    });
     delPrompt.appendChild(cancelLink);
 
     linkMeta.appendChild(delPrompt);

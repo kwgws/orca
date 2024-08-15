@@ -15,6 +15,7 @@ from orca.model.base import (
     Base,
     CommonMixin,
     StatusMixin,
+    get_redis_client,
     get_utcnow,
     get_uuid,
     result_table,
@@ -24,6 +25,7 @@ from orca.model.corpus import Corpus
 from orca.model.document import Document
 
 log = logging.getLogger(config.APP_NAME)
+r = get_redis_client()
 
 
 class Search(Base, CommonMixin, StatusMixin):
@@ -124,6 +126,9 @@ class Megadoc(Base, CommonMixin, StatusMixin):
             log.warning(f"Megadoc file already exists, could be error: {self.path}")
         self.url = f"{config.CDN_URL}/{self.path}"
 
+        # Clear redis progress ticker
+        r.hset(self.redis_key, "progress", 0)
+
     @property
     def filesize(self):
         """Size of megadoc file in bytes. Returns 0 if no file."""
@@ -133,10 +138,27 @@ class Megadoc(Base, CommonMixin, StatusMixin):
             log.warning(f"Error finding size of file {self.path}: {e}")
             return 0
 
+    @property
+    def progress(self):
+        """Get current progress from redis if working."""
+        if self.status == "PENDING":
+            return 0.0
+        if self.status == "SENDING" or self.status == "SUCCESS":
+            return 100.0
+        ticks = float(int(r.hget(self.redis_key, "progress")))
+        return ticks / float(len(self.search.documents))
+
+    def tick(self, n=1):
+        """Increment redis progress ticker."""
+        ticks = int(r.hget(self.redis_key, "progress"))
+        r.hset(self.redis_key, "progress", ticks + n)
+
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("filename")
         rows.pop("path")
         rows.pop("search_id")
         rows["filesize"] = self.filesize
+        if self.status != "SENDING" or self.status != "SUCCESS":
+            rows["progress"] = self.progress
         return rows

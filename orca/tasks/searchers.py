@@ -76,6 +76,7 @@ def create_megadoc(self, search_id: str, filetype, session=None):
             doc.to_docx(config.DATA_PATH / megadoc.path)
         else:
             doc.to_markdown(config.DATA_PATH / megadoc.path)
+        doc.tick()
 
     # Set status to "SENDING" to indicate we're ready for upload
     megadoc.set_status("SENDING", session=session)

@@ -1,12 +1,12 @@
 export class StateManager {
     constructor(initialState = {}) {
         this.state = initialState;
-        this.oldState = null;
+        this.prevState = null;
         this.listeners = [];
     }
 
     update(state) {
-        this.oldState = { ...this.state };
+        this.prevState = { ...this.state };
         this.state = { ...this.state, ...state };
         this.notify();
     }
@@ -23,7 +23,7 @@ export class StateManager {
         return this.state;
     }
 
-    getOld() {
-        return this.oldState;
+    getPrev() {
+        return this.prevState;
     }
 }

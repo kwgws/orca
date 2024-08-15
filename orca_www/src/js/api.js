@@ -13,7 +13,7 @@ export async function pollAPI(stateManager) {
         stateManager.update({
             isConnected: true,
             lastPoll: new Date(),
-            apiVersion: data.version,
+            apiVersion: data.apiVersion,
             corpusHash: data.hash,
             corpusTotal: data.total,
             searches: data.searches,

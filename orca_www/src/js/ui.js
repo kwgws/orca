@@ -16,15 +16,14 @@ export function updateUI(stateManager) {
     const oldState = stateManager.getOld();
     const { isConnected, lastPoll, corpusHash, corpusTotal, apiVersion } = stateManager.get();
 
+    // Client-side timestamp of last fetch
+    const lastPollElement = document.getElementById("lastPoll");
+    lastPollElement.setAttribute("datetime", lastPoll.toISOString());
+    lastPollElement.textContent = lastPoll.toLocaleString();
 
     // Update connection status on change
     if (isConnected !== oldState?.isConnected) {
         console.log(`${isConnected ? "Connected to" : "disconnected from"} API`);
-        
-        // Client-side timestamp of last fetch
-        const lastPollElement = document.getElementById("lastPoll");
-        lastPollElement.setAttribute("datetime", lastPoll.toISOString());
-        lastPollElement.textContent = lastPoll.toLocaleString();
 
         // Swap heading and loading message
         const connectingSubheadElement = document.getElementById("connectingSubhead");

@@ -35,6 +35,10 @@ def load(path):
 @cli.command
 @click.argument("search_str")
 def search(search_str):
+    if not search_str or search_str == "":
+        click.echo("No search string entered!")
+        return
+
     click.echo(f"Starting search for `{search_str}`...", nl=False)
     start_search(search_str)
     click.echo("ok!")

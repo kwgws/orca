@@ -30,7 +30,7 @@ LOG_FILE = LOG_PATH / "orca.log"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 LOG_FORMAT_TASK = "%(asctime)s - %(levelname)s - %(task_name)s - %(message)s"
 LOG_BACKUPS: int = 9
-LOG_OPEN = True if os.getenv("ORCA_LOG_OPEN", "false") == "true" else False
+LOG_OPEN = os.getenv("ORCA_LOG_OPEN", "false") == "true"
 
 # Base paths
 ROOT_PATH = Path.home()
@@ -56,7 +56,7 @@ if not REDIS_SOCKET.exists():
 MEGADOC_FILETYPES = [".txt", ".docx"]
 MEGADOC_PATH = BATCH_PATH / "megadocs"
 
-# CDN configuraiton
+# CDN configuration
 CDN_ACCESS_KEY = os.getenv("ORCA_CDN_ACCESS_KEY")
 CDN_SECRET_KEY = os.getenv("ORCA_CDN_SECRET_KEY")
 CDN_ENDPOINT = os.getenv("ORCA_CDN_ENDPOINT").rstrip("/")
@@ -65,7 +65,6 @@ CDN_SPACE_NAME = "orca"
 CDN_URL = os.getenv("ORCA_CDN_URL").rstrip("/")
 
 
-# Celery configuration
 class CeleryConfig:
     broker_url = f"redis+socket://{REDIS_SOCKET}"
     broker_connection_retry_on_startup = True
@@ -77,12 +76,11 @@ class CeleryConfig:
     worker_cancel_long_running_tasks_on_connection_loss = True
 
 
-# Flask configuration
 class FlaskConfig:
     SECRET_KEY = os.getenv("ORCA_FLASK_KEY", str(uuid.uuid4()))
     SESSION_TYPE = "redis"
     SESSION_KEY_PREFIX = "orca:session:"
-    DEBUG = True if os.getenv("ORCA_FLASK_DEBUG", "false") == "true" else False
+    DEBUG = os.getenv("ORCA_FLASK_DEBUG", "false") == "true"
 
 
 def setup_logger(name: str, level=logging.INFO):
@@ -90,21 +88,17 @@ def setup_logger(name: str, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Create console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(console_handler)
-
-    # Create file handler
-    file_handler = logging.handlers.RotatingFileHandler(
-        filename=(LOG_PATH / "orca.log").as_posix(),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=LOG_BACKUPS,
-    )
-    file_handler.setLevel(level)
-    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(file_handler)
+    for h in [
+        logging.StreamHandler(),
+        logging.handlers.RotatingFileHandler(
+            filename=(LOG_PATH / "orca.log").as_posix(),
+            maxBytes=10 * 1024 * 1024,
+            backupCount=LOG_BACKUPS,
+        ),
+    ]:
+        h.setLevel(level)
+        h.setFormatter(logging.Formatter(LOG_FORMAT))
+        logger.addHandler(h)
 
     return logger
 

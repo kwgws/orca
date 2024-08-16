@@ -75,6 +75,6 @@ class Corpus(Base):
         return {
             "hash": self.hash,
             "total": self.total,
-            "created": self.created.isoformat() + "Z",
+            "created": f"{self.created.isoformat()}Z",
             "searches": [s.as_dict() for s in self.searches],
         }

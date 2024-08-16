@@ -135,19 +135,18 @@ def get_uuid():
     """Create random, url-safe, UUID for long-term object storage."""
     uuid_new = uuid.uuid4()
     uuid_b64 = base64.b32encode(uuid_new.bytes)
-    uuid_str = uuid_b64.rstrip(b"=").decode("ascii").lower()
-    return uuid_str
+    return uuid_b64.rstrip(b"=").decode("ascii").lower()
 
 
 def get_utcnow():
-    """Future-proofed replacement for depreceted `datetime.utcnow()`."""
+    """Future-proofed replacement for deprecated `datetime.utcnow()`."""
     return datetime.now(ZoneInfo("UTC"))
 
 
 # Mixins
 class CommonMixin:
     """Mixin for common table properties and functionality including ID, status,
-    timestamping, and simple CRUD methods.
+    timestamp, and simple CRUD methods.
     """
 
     @declared_attr
@@ -191,7 +190,7 @@ class CommonMixin:
 
     @with_session
     def update(self, session=None, **kwargs):
-        """Update columns based on values passed as keyword argumnets."""
+        """Update columns based on values passed as keyword arguments."""
         save = False
         for key, value in kwargs.items():
             old_value = getattr(self, key)
@@ -230,7 +229,7 @@ class CommonMixin:
         for column in self.__table__.columns:
             value = getattr(self, column.name)
             if isinstance(value, datetime):
-                value = value.isoformat() + "Z"  # Values stored in UTC
+                value = f"{value.isoformat()}Z"
             rows[column.name] = value
         return rows
 

@@ -71,7 +71,7 @@ class Image(Base, CommonMixin):
     def create_from_file(cls, path, session=None, batch_only=False):
         """Commit a new Image/Document to the database. Use `batch_only` to
         indicate we only want to add to our current `session` rather than
-        commiting outright.
+        committing outright.
 
         This is based on a very specific kind of filename, which typically
         looks like this: `000001_2022-09-27_13-12-42_image_5992.json`. The data
@@ -124,7 +124,7 @@ class Image(Base, CommonMixin):
 class Document(Base, CommonMixin):
     """Documents here represent rather a specific revision of a given document.
     This is useful if we want to change something later: if we want to revise
-    the text, or run the image through a diffferent model, etc.
+    the text, or run the image through a different model, etc.
 
     A specific collection of documents will be stored in a Corpus. This should
     eventually let us do versioning and diff with our queries.

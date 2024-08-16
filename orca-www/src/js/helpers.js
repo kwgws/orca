@@ -41,12 +41,10 @@ export function make(tag, attributes = {}) {
 
 
 export function spinner() {
-    const spinnerElement = make("span", { className: "spinner" });
-    return spinnerElement;
+    return make("span", { className: "spinner" });
 }
 
 
 export function text(content) {
-    const textNode = document.createTextNode(content);
-    return textNode;
+    return document.createTextNode(content);
 }

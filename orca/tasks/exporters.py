@@ -88,7 +88,7 @@ def upload_megadoc(self, megadoc_id, session=None):
 
     except BotoCoreError as e:
         log.error(f"Error uploading megadoc: {e}")
-        raise self.retry(exc=e)
+        raise self.retry(exc=e) from e
 
     log.info(f"Done uploading {megadoc.url}")
     megadoc.set_status("SUCCESS", session=session)

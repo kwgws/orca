@@ -65,5 +65,4 @@ def start_search(search_str):
         chain(create_megadoc.s(filetype), upload_megadoc.s())
         for filetype in _config.MEGADOC_FILETYPES
     )
-    result = chain(run_search.s(search_str), megadoc_tasks).apply_async()
-    return result
+    return chain(run_search.s(search_str), megadoc_tasks).apply_async()

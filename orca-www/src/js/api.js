@@ -33,7 +33,7 @@ export async function pollAPI(stateManager) {
 }
 
 export function startPollAPI(stateManager, pollingInterval) {
-    function pollWithInterval() {
+    const pollWithInterval = () => {
         if (togglePoll()) { pollAPI(stateManager); }
     }
     pollWithInterval();

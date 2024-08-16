@@ -27,7 +27,7 @@ def before_request():
 @flask.after_request
 def after_request(response):
     # Add ISO-formatted date header
-    timestamp = get_utcnow().isoformat()[:-6] + "Z"
+    timestamp = f"{get_utcnow().isoformat()[:-6]}Z"
     response.headers["Date-ISO"] = timestamp
 
     return response
@@ -92,7 +92,7 @@ def get_search(search_id):
             abort(404, description=f"No search with id {search_id}")
         return jsonify(**search.as_dict())
     except Exception as e:
-        log.error(f"Error retreiving search with id {search_id}: {e}")
+        log.error(f"Error retrieving search with id {search_id}: {e}")
         abort(500)
 
 

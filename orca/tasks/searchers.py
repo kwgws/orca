@@ -7,7 +7,7 @@ from orca import _config
 from orca.model import Document, Search, with_session
 from orca.tasks.celery import celery
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 
 
 @celery.task(bind=True)
@@ -29,14 +29,14 @@ def run_search(self, search_str: str, session=None):
         # Parse query and perform search
         query = parser.parse(search_str)
         for result in searcher.search(query, limit=None):
-            document = Document.get(result["id"], session=session)
+            document = Document.get(result["uid"], session=session)
             if not document:
-                raise LookupError(f"Tried accessing invalid document: {result['id']}")
+                raise LookupError(f"Tried accessing invalid document: {result['uid']}")
             if document in search.documents:
-                log.warning(f"Tried re-adding {result['id']} to `{search_str}`")
+                log.warning(f"Tried re-adding {result['uid']} to `{search_str}`")
                 continue
             search.add_document(document, session=session)
 
     log.info(f"Finished search `{search_str}`, {len(search.documents)} results")
     search.set_status("SUCCESS", session=session)
-    return search.id
+    return search.uid

@@ -12,15 +12,15 @@ from orca.model.base import (
     Base,
     CommonMixin,
     StatusMixin,
+    documents_searches,
     get_redis_client,
-    result_table,
     with_session,
 )
 from orca.model.corpus import Corpus
 from orca.model.document import Document
 from orca.model.megadoc import Megadoc
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 r = get_redis_client()
 
 
@@ -30,12 +30,12 @@ class Search(Base, CommonMixin, StatusMixin):
     __tablename__ = "searches"
     search_str = Column(String, nullable=False)
     documents = relationship(
-        "Document", back_populates="searches", secondary=result_table
+        "Document", back_populates="searches", secondary=documents_searches
     )
     megadocs = relationship(
         "Megadoc", back_populates="search", cascade="all, delete-orphan"
     )
-    corpus_id = Column(String, ForeignKey("corpuses.hash"), nullable=False)
+    corpus_uid = Column(String, ForeignKey("corpuses.hash_value"), nullable=False)
     corpus = relationship("Corpus", back_populates="searches")
 
     @classmethod
@@ -58,7 +58,7 @@ class Search(Base, CommonMixin, StatusMixin):
     def add_document(self, document: Document, session=None):
         """Add a document to this search's results."""
         if document in self.documents:
-            log.warning(f"Tried re-adding {document.id} to `{self.search_str}`")
+            log.warning(f"Tried re-adding {document.uid} to `{self.search_str}`")
             return
 
         # Add the document to our list.
@@ -85,7 +85,7 @@ class Search(Base, CommonMixin, StatusMixin):
 
     def as_dict(self):
         rows = super().as_dict()
-        rows.pop("corpus_id")
+        rows.pop("corpus_uid")
         rows["results"] = len(self.documents)
         rows["megadocs"] = [md.as_dict() for md in self.megadocs]
         return rows

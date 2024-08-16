@@ -4,11 +4,10 @@ from flask import Flask, abort, g, jsonify, make_response, request, url_for
 from flask_cors import CORS
 
 from orca import _config
-from orca.app import start_search
-from orca.model import Corpus, Search, get_redis_client, get_session, get_utcnow
+from orca.app import get_overview, start_search
+from orca.model import Search, get_redis_client, get_session, utcnow
 
-log = logging.getLogger(_config.APP_NAME)
-
+log = logging.getLogger(__name__)
 r = get_redis_client()
 
 flask = Flask(_config.APP_NAME)
@@ -27,7 +26,7 @@ def before_request():
 @flask.after_request
 def after_request(response):
     # Add ISO-formatted date header
-    timestamp = f"{get_utcnow().isoformat()[:-6]}Z"
+    timestamp = f"{utcnow().isoformat()[:-6]}Z"
     response.headers["Date-ISO"] = timestamp
 
     return response
@@ -45,15 +44,13 @@ def teardown_request(exception=None):
 
 
 @flask.route("/", methods=["GET"])
-def api_status():
+def index():
     if r.hget("orca:flags", "loading") == b"1":
         abort(503, description="Database is updating, try again later")
-
     try:
-        corpus = Corpus.get_latest(session=g.session).as_dict()
-        return jsonify(apiVersion=_config.APP_VERSION, **corpus)
+        return jsonify(get_overview(session=g.session))
     except Exception as e:
-        log.error(f"Error retrieving status: {e}")
+        log.exception(f"Error retrieving status: {e}")
         abort(500)
 
 
@@ -69,63 +66,60 @@ def create_search():
         if search_str == "":
             abort(400, description='Invalid request, "search_str" field left blank')
 
-        search_id = start_search(search_str)
+        search_uid = start_search(search_str)
 
         # Return with status and location
         response = make_response()
-        response.location = url_for("get_search", search_id=search_id)
+        response.location = url_for("get_search", search_uid=search_uid)
         return response, 202
 
     except Exception as e:
-        log.error(f"Error submitting new search: {e}")
+        log.exception(f"Error submitting new search: {e}")
         abort(500)
 
 
-@flask.route("/search/<search_id>", methods=["GET"])
-def get_search(search_id):
+@flask.route("/search/<search_uid>", methods=["GET"])
+def get_search(search_uid):
     if r.hget("orca:flags", "loading") == b"1":
         abort(503, description="Database is updating, try again later")
 
     try:
-        search = Search.get(search_id, session=g.session)
+        search = Search.get(search_uid, session=g.session)
         if not search:
-            abort(404, description=f"No search with id {search_id}")
+            abort(404, description=f"No search with uid {search_uid}")
         return jsonify(**search.as_dict())
     except Exception as e:
-        log.error(f"Error retrieving search with id {search_id}: {e}")
+        log.exception(f"Error retrieving search with uid {search_uid}: {e}")
         abort(500)
 
 
-@flask.route("/search/<search_id>", methods=["DELETE"])
-def delete_search(search_id):
+@flask.route("/search/<search_uid>", methods=["DELETE"])
+def delete_search(search_uid):
     if r.hget("orca:flags", "loading") == b"1":
         abort(503, description="Database is updating, try again later")
 
     try:
-        search = Search.get(search_id, session=g.session)
+        search = Search.get(search_uid, session=g.session)
         if not search:
-            abort(404, description=f"No search with id {search_id}")
+            abort(404, description=f"No search with uid {search_uid}")
         search.delete(session=g.session)
         return "", 204
     except Exception as e:
-        log.error(f"Error removing search with id {search_id}: {e}")
+        log.exception(f"Error removing search with uid {search_uid}: {e}")
         abort(500)
 
 
 @flask.route("/log")
 def get_log():
-    if _config.LOG_OPEN:
-        try:
-            with _config.LOG_FILE.open() as f:
-                content = [ln.strip() for ln in f.readlines()]
-            response = make_response("\n".join(content[-40:]))
-            response.content_type = "text/plain; charset=utf-8"
-            return response
-        except Exception as e:
-            log.error(f"Error retrieving logs: {e}")
-            abort(500)
-    else:
-        abort(404)
+    try:
+        with _config.LOG_FILE.open() as f:
+            content = [ln.strip() for ln in f.readlines()]
+        response = make_response("\n".join(content[-500:]))
+        response.content_type = "text/plain; charset=utf-8"
+        return response
+    except Exception as e:
+        log.exception(f"Error retrieving logs: {e}")
+        abort(500)
 
 
 @flask.errorhandler(400)

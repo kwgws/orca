@@ -9,20 +9,20 @@ from dateutil.parser import parse as parse_datetime
 from docx import Document as Docx
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, inspect
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from unidecode import unidecode
 
 from orca import _config
-from orca.model.base import (  # noqa: F401
+from orca.model.base import (
     Base,
     CommonMixin,
-    corpus_table,
-    result_table,
+    documents_corpuses,
+    documents_searches,
     with_session,
 )
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 
 
 class Image(Base, CommonMixin):
@@ -35,16 +35,16 @@ class Image(Base, CommonMixin):
     base object.
     """
 
-    stem = Column(String)
+    index = Column(Integer, nullable=False)
+    stem = Column(String, nullable=False)
+    album = Column(String, nullable=False)
     title = Column(String)
-    album = Column(String)
-    index = Column(Integer)
     media_archive = Column(String)
     media_collection = Column(String)
     media_box = Column(String)
     media_folder = Column(String)
     media_type = Column(String)
-    media_created = Column(DateTime)
+    media_created_at = Column(DateTime)
     image_path = Column(String)
     image_url = Column(String)
     thumb_url = Column(String)
@@ -52,72 +52,22 @@ class Image(Base, CommonMixin):
         "Document", back_populates="image", cascade="all, delete-orphan"
     )
 
-    def __init__(self, *args, **kwargs):
-        # Get a list of keys and filter out anything we want here
-        mapper = inspect(self.__class__)
-        columns = {column.key for column in mapper.columns}
-        image_kwargs = {key: kwargs.pop(key) for key in columns if key in kwargs}
-
-        """Create an image and its first document."""
-        super().__init__(*args, **image_kwargs)
-
-        # Otherwise pass the other kwargs along to our first document
-        document = Document(**kwargs)
-        document.image = self
-        self.documents.append(document)
-
     @classmethod
     @with_session
     def create_from_file(cls, path, session=None, batch_only=False):
-        """Commit a new Image/Document to the database. Use `batch_only` to
-        indicate we only want to add to our current `session` rather than
-        committing outright.
-
-        This is based on a very specific kind of filename, which typically
-        looks like this: `000001_2022-09-27_13-12-42_image_5992.json`. The data
-        is separated by underscores. The first part is the index. The second
-        two are the date and time. Any remaining parts are the title.
-        """
-
-        if not isinstance(path, Path):
-            path = Path(path)  # The pathlib module is helpful here
-        stem = path.stem
-        split = stem.split("_")
-        album = path.parent.name
-
-        # Parse the datetime from the filename using dateutil
-        timestamp = parse_datetime(f"{split[1]} {split[2].replace('-', ':')}")
-
-        # These paths need to be relative so we can make them portable
-        json_path = Path(_config.BATCH_NAME) / "json" / album / f"{stem}.json"
-        text_path = Path(_config.BATCH_NAME) / "text" / album / f"{stem}.txt"
-        image_path = Path("img") / album / f"{stem}.webp"
-
-        image = Image(
-            index=int(split[0]),
-            title="_".join(split[3:]),
-            album=album,
-            batch=_config.BATCH_NAME,
-            json_path=f"{json_path}",
-            json_url=f"{_config.CDN_URL}/{json_path}",
-            text_path=f"{text_path}",
-            text_url=f"{_config.CDN_URL}/{text_path}",
-            image_path=f"{image_path}",
-            image_url=f"{_config.CDN_URL}/{image_path}",
-            thumb_url=f"{_config.CDN_URL}/thumbs/{album}/{stem}.webp",
-            created=timestamp,
+        return Document.create_from_file(
+            path, None, session=session, batch_only=batch_only
         )
-        session.add(image)
-        document = image.documents[0]
-        session.add(document)
-        if not batch_only:
-            session.commit()
-        return image
+
+    def add_document_from_file(self, path, session=None, batch_only=False):
+        return Document.create_from_file(
+            path, self, session=session, batch_only=batch_only
+        )
 
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("image_path")
-        rows["documents"] = [doc.id for doc in self.documents]
+        rows["documents"] = [doc.uid for doc in self.documents]
         return rows
 
 
@@ -130,18 +80,18 @@ class Document(Base, CommonMixin):
     eventually let us do versioning and diff with our queries.
     """
 
-    batch = Column(String)
+    batch = Column(String, nullable=False)
     json_path = Column(String)
     json_url = Column(String)
     text_path = Column(String)
     text_url = Column(String)
-    image_id = Column(String, ForeignKey("images.id"), nullable=False)
+    image_uid = Column(String, ForeignKey("images.uid"), nullable=False)
     image = relationship("Image", back_populates="documents")
     corpuses = relationship(
-        "Corpus", back_populates="documents", secondary=corpus_table
+        "Corpus", back_populates="documents", secondary=documents_corpuses
     )
     searches = relationship(
-        "Search", back_populates="documents", secondary=result_table
+        "Search", back_populates="documents", secondary=documents_searches
     )
 
     @property
@@ -181,8 +131,8 @@ class Document(Base, CommonMixin):
         return self.image.media_type
 
     @property
-    def media_created(self):
-        return self.image.media_created
+    def media_created_at(self):
+        return self.image.media_created_at
 
     @property
     def image_path(self):
@@ -198,95 +148,194 @@ class Document(Base, CommonMixin):
 
     @property
     def json(self):
-        with (_config.DATA_PATH / self.json_path).open as f:
-            return json.load(f)
+        try:
+            with (_config.DATA_PATH / self.json_path).open() as f:
+                return json.load(f)
+        except IOError:
+            log.exception(f"Error loading file: {self.json_path}")
+            raise
 
     @property
     def content(self):
-        with (_config.DATA_PATH / self.text_path).open() as f:
-            return unidecode(f.read().strip())
+        try:
+            with (_config.DATA_PATH / self.text_path).open() as f:
+                return unidecode(f.read().strip())
+        except IOError:
+            log.exception(f"Error loading file: {self.text_path}")
+            raise
 
-    def to_markdown(self, path: Path):
-        with path.open("a") as f:
-            f.write(
-                "\n".join(
-                    [
-                        "---",
-                        f"date: {self.created.strftime('%B %d, %Y at %-I:%M %p')}",
-                        f"album: {self.title} - {self.index} of {self.album}",
-                        f"image: {self.image_url}",
-                        "---",
-                        "",
-                        self.content,
-                        "",
-                        "",
-                        "",
-                    ]
-                )
+    @classmethod
+    @with_session
+    def create_from_file(cls, path, image: Image, session=None, batch_only=False):
+        """Commit a new Image/Document to the database. Use `batch_only` to
+        indicate we only want to add to our current `session` rather than
+        committing outright.
+
+        This is based on a very specific kind of filename, which typically
+        looks like this: `000001_2022-09-27_13-12-42_image_5992.json`. The data
+        is separated by underscores. The first part is the index. The second
+        two are the date and time. Any remaining parts are the title.
+        """
+
+        if not isinstance(path, Path):
+            path = Path(path)
+        if not path.is_file():
+            raise FileNotFoundError(f"File not found: {path}")
+
+        album = path.parent.name
+        stem = path.stem
+        split = stem.split("_")
+        if len(split) < 3:
+            raise ValueError(f"Invalid filename format: {stem}")
+
+        # Parse the datetime from the filename using dateutil
+        try:
+            timestamp = parse_datetime(f"{split[1]} {split[2].replace('-', ':')}")
+        except Exception as e:
+            raise ValueError(f"Error parsing timestamp from filename: {stem}") from e
+
+        # These paths need to be relative so we can make them portable
+        json_path = Path(_config.BATCH_NAME) / "json" / album / f"{stem}.json"
+        text_path = Path(_config.BATCH_NAME) / "text" / album / f"{stem}.txt"
+        image_path = Path("img") / album / f"{stem}.webp"
+
+        if not image or not isinstance(image, Image):
+            image = Image(
+                index=int(split[0]),
+                stem=stem,
+                title="_".join(split[3:]),
+                album=album,
+                image_path=f"{image_path}",
+                image_url=f"{_config.CDN_URL}/{image_path}",
+                thumb_url=f"{_config.CDN_URL}/thumbs/{album}/{stem}.webp",
+                created_at=timestamp,
             )
 
-    def to_docx(self, path: Path):
-        x = Docx(path.as_posix()) if path.exists() else Docx()
-
-        x.add_heading(self.created.strftime("%B %d, %Y at %-I:%M %p"), level=1)
-
-        p = x.add_paragraph()
-        run = p.add_run()
-        run.text = f"{self.title} - {self.index} of {self.album}\n"
-        run.font.bold = True
-
-        # To add a link we need to manipulate the underlying XML directly.
-        run = OxmlElement("w:r")
-
-        link = OxmlElement("w:hyperlink")  # Create link
-        link.set(
-            qn("r:id"),
-            x.part.relate_to(
-                self.image_url,
-                "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",  # noqa: E501
-                is_external=True,
-            ),
+        document = Document(
+            batch=_config.BATCH_NAME,
+            json_path=f"{json_path}",
+            json_url=f"{_config.CDN_URL}/{json_path}",
+            text_path=f"{text_path}",
+            text_url=f"{_config.CDN_URL}/{text_path}",
         )
 
-        rPr = OxmlElement("w:rPr")  # Format
-        color = OxmlElement("w:color")
-        color.set(qn("w:val"), "0000FF")
-        rPr.append(color)
-        underline = OxmlElement("w:u")
-        underline.set(qn("w:val"), "single")
-        rPr.append(underline)
-        bold = OxmlElement("w:b")
-        rPr.append(bold)
-        run.append(rPr)
+        document.image = image
+        image.documents.append(document)
+        session.add(image)
+        session.add(document)
 
-        text_tag = OxmlElement("w:t")  # Set text
-        text_tag.text = self.image_url
-        run.append(text_tag)
+        if not batch_only:
+            session.commit()
+        return image
 
-        link.append(run)  # Add to paragraph
-        p._p.append(link)  # Done!
+    def to_markdown_file(self, path: Path):
+        """Appends content to a markdown file with metadata."""
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            output = "\n".join(
+                [
+                    "---",
+                    f"date: {self.created_at.strftime('%B %d, %Y at %-I:%M %p')}",
+                    f"album: {self.title} - {self.index} of {self.album}",
+                    f"image: {self.image_url}",
+                    "---",
+                    "",
+                    self.content,
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            with path.open("wa") as f:
+                f.write(output)
 
-        x.add_paragraph("-----")
-        x.add_paragraph(self.content)
-        x.add_page_break()
+        except IOError:
+            log.exception(f"Error writing to file: {path}")
+            raise
 
-        x.save(path)
+    def to_docx_file(self, path: Path):
+        """Generate or update a .DOCX file with text content and metadata."""
+        try:
+            # Open existing .DOCX file or create a new one
+            path.parent.mkdir(parents=True, exist_ok=True)
+            x = Docx(path.as_posix()) if path.exists() else Docx()
+
+            # Add heading with metadata
+            x.add_heading(self.created_at.strftime("%B %d, %Y at %-I:%M %p"), level=1)
+            p = x.add_paragraph()
+            run = p.add_run()
+            run.text = f"{self.title} - {self.index} of {self.album}\n"
+            run.font.bold = True
+
+            # Add a link to the image file. To do this we need to manipulate
+            # the underlying XML directly.
+            run = OxmlElement("w:r")
+
+            link = OxmlElement("w:hyperlink")  # Create link to image URL
+            link.set(
+                qn("r:id"),
+                x.part.relate_to(
+                    self.image_url,
+                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",  # noqa: E501
+                    is_external=True,
+                ),
+            )
+
+            # Create and style the link
+            rPr = OxmlElement("w:rPr")
+            color = OxmlElement("w:color")  # Blue
+            color.set(qn("w:val"), "0000FF")
+            rPr.append(color)
+            underline = OxmlElement("w:u")
+            underline.set(qn("w:val"), "single")  # Underlined
+            rPr.append(underline)
+            bold = OxmlElement("w:b")
+            rPr.append(bold)  # Bold
+            run.append(rPr)
+
+            text_tag = OxmlElement("w:t")  # Set text value to URL
+            text_tag.text = self.image_url
+            run.append(text_tag)
+
+            link.append(run)  # Add to paragraph
+            p._p.append(link)  # Done!
+
+            # Add OCRed text content followed by page break
+            x.add_paragraph("-----")
+            x.add_paragraph(self.content)
+            x.add_page_break()
+
+            # Save and move on. Phew!
+            x.save(path)
+
+        except Exception:
+            log.exception(f"Unexpected error while creating .DOCX file: {path}")
+            raise
 
     def as_dict(self):
         rows = super().as_dict()
-        rows.pop("json_path")
-        rows.pop("text_path")
-        rows.pop("image_id")
-        rows["stem"] = self.stem
-        rows["title"] = self.title
-        rows["album"] = self.album
-        rows["index"] = self.index
-        rows["media_archive"] = self.media_archive
-        rows["media_collection"] = self.media_collection
-        rows["media_box"] = self.media_box
-        rows["media_folder"] = self.media_folder
-        rows["media_type"] = self.media_type
-        rows["media_created"] = self.media_created
-        rows["image_url"] = self.image_url
-        rows["thumb_url"] = self.thumb_url
+
+        # Get rid of redundant image_uid and any local paths
+        for col in ["image_uid", "json_path", "text_path"]:
+            rows.pop(col)
+
+        # Even though the Image class is storing documents for logical reasons,
+        # most of our operations will happen on Documents directly. We should
+        # expect this to be the most common interface for Image metadata.
+        rows.update(
+            {
+                "stem": self.stem,
+                "title": self.title,
+                "album": self.album,
+                "index": self.index,
+                "media_archive": self.media_archive,
+                "media_collection": self.media_collection,
+                "media_box": self.media_box,
+                "media_folder": self.media_folder,
+                "media_type": self.media_type,
+                "media_created_at": self.media_created_at,
+                "image_url": self.image_url,
+                "thumb_url": self.thumb_url,
+            }
+        )
         return rows

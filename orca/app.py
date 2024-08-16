@@ -4,13 +4,13 @@ from pathlib import Path
 from celery import chain, chord, group, shared_task
 
 from orca import _config
-from orca.model import create_tables, get_redis_client
+from orca.model import Corpus, create_tables, get_redis_client, with_session
 from orca.tasks.celery import celery  # noqa: F401
 from orca.tasks.exporters import create_megadoc, upload_megadoc
 from orca.tasks.loaders import index_documents, load_documents
 from orca.tasks.searchers import run_search
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 r = get_redis_client()
 
 
@@ -19,9 +19,13 @@ def reset_db():
 
     This needs to be run at least once before anything else happens.
     """
+    log.info(f"Flushing Redis database: {_config.REDIS_SOCKET}")
     r.flushdb(asynchronous=True)
+    log.info(f"Deleting database file: {_config.DATABASE_PATH}")
     _config.DATABASE_PATH.unlink()
+    log.info("Creating database and setting up table metadata")
     create_tables()
+    log.info("Reset complete")
 
 
 @shared_task
@@ -57,6 +61,14 @@ def start_load(path):
     return chord([load_documents.s(str(p)).on_error(reset_lock.s()) for p in subdirs])(
         chain(index_documents.s().on_error(reset_lock.s()), reset_lock.s())
     )
+
+
+@with_session
+def get_overview(session=None):
+    return {
+        "api_version": _config.APP_VERSION,
+        "corpus": Corpus.get_latest(session=session).as_dict(),
+    }
 
 
 def start_search(search_str):

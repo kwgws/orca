@@ -19,7 +19,7 @@ from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sess
 
 from orca import _config
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 
 
 # SQLite database initialization
@@ -36,7 +36,10 @@ def get_session():
     try:
         yield session
     except SQLAlchemyError as e:
-        log.exception(f"Error opening database session: {e}")
+        log.exception(f"Error occurred while accessing the database: {e}")
+        raise
+    except Exception as e:
+        log.exception(f"An unexpected error occurred: {e}")
         raise
     finally:
         session.close()
@@ -45,9 +48,14 @@ def get_session():
 def get_redis_client():
     """Factory to connect to Redis and return a `StrictRedis` client.
 
-    Uses socket specified in `config.REDIS_SOCKET`.
+    Uses socket specified by environment via `config.REDIS_SOCKET`.
     """
     for attempt in range(1, _config.DATABASE_RETRIES + 1):
+        # Check for valid socket file
+        if not _config.REDIS_SOCKET or not _config.REDIS_SOCKET.exists():
+            raise ValueError("Error connecting to Redis socket")
+
+        # Ping Redis, keep trying until we get a connection or hit max retries
         try:
             client = redis.StrictRedis(unix_socket_path=_config.REDIS_SOCKET.as_posix())
             client.ping()
@@ -67,7 +75,7 @@ def get_redis_client():
 def handle_sql_errors(func, *args, **kwargs):
     """SQL error handler.
 
-    Uses exponential backoff for recoverable exceptions.
+    An active session must be passed via `**kwargs`.
     """
 
     session = kwargs.get("session")
@@ -109,9 +117,6 @@ def with_session(func):
     `SessionLocal` can be created externally and passed through the `session`
     keyword argument or it can be automatically instantiated here. Either way,
     operations will be passed along through `handle_sql_errors()`.
-
-    Controller and view modules should overwrite this decorator as needed based
-    on their needs in terms of threading and session scope.
     """
 
     @wraps(func)
@@ -128,24 +133,32 @@ def with_session(func):
 
 # Helper functions
 def create_tables():
+    """Populate database and create tables.
+
+    This must be run at least once before anything else can happen.
+    """
     Base.metadata.create_all(engine)
 
 
-def get_uuid():
-    """Create random, url-safe, UUID for long-term object storage."""
-    uuid_new = uuid.uuid4()
-    uuid_b64 = base64.b32encode(uuid_new.bytes)
-    return uuid_b64.rstrip(b"=").decode("ascii").lower()
+def create_uid():
+    """Create url-safe UID.
+
+    We're using UIDs instead of sequential integers because of the archival
+    nature of the project. We want to be able to reference everything in a
+    stable way over a long period of time, even at the cost of performance.
+    """
+    uid_b64 = base64.b32encode(uuid.uuid4().bytes)
+    return uid_b64.rstrip(b"=").decode("ascii").lower()
 
 
-def get_utcnow():
+def utcnow():
     """Future-proofed replacement for deprecated `datetime.utcnow()`."""
     return datetime.now(ZoneInfo("UTC"))
 
 
 # Mixins
 class CommonMixin:
-    """Mixin for common table properties and functionality including ID, status,
+    """Mixin for common item properties and functionality including ID, status,
     timestamp, and simple CRUD methods.
     """
 
@@ -153,21 +166,22 @@ class CommonMixin:
     def __tablename__(cls):
         return f"{cls.__name__.lower()}s"
 
-    id = Column(String, primary_key=True, default=get_uuid)
-    created = Column(DateTime, nullable=False, default=get_utcnow)
-    updated = Column(DateTime, nullable=False, default=get_utcnow, onupdate=get_utcnow)
+    uid = Column(String, primary_key=True, default=create_uid)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     @property
     def redis_key(self):
-        return f"orca:{self.__tablename__}:{self.id}"
+        """Get a key representing this item in the Redis database."""
+        return f"orca:{self.__tablename__}:{self.uid}"
 
     @classmethod
     @with_session
-    def get(cls, id: str, session=None):
-        """Get row by uuid."""
-        result = session.query(cls).filter_by(id=id).first()
+    def get(cls, uid: str, session=None):
+        """Get item by UID."""
+        result = session.query(cls).filter_by(uid=uid).first()
         if not result:
-            log.debug(f"No {cls.__tablename__} with id {id}")
+            log.debug(f"No {cls.__tablename__} with uid {uid}")
         return result
 
     @classmethod
@@ -185,7 +199,7 @@ class CommonMixin:
         """Get total number of rows in this table."""
         result = session.query(cls).count()
         if not result or result == 0:
-            log.debug(f"No {cls.__tablename__} with id {id} or no rows in table")
+            log.debug(f"No {cls.__tablename__} or no rows in table")
         return int(result)
 
     @with_session
@@ -196,7 +210,7 @@ class CommonMixin:
             old_value = getattr(self, key)
             if hasattr(self, key) and old_value != kwargs[key]:
                 log.debug(
-                    f"Updating {self.__tablename__} with id {id} "
+                    f"Updating {self.__tablename__} with uid {self.uid} "
                     f"[{key}]: {old_value} -> {value}"
                 )
                 save = True
@@ -206,14 +220,14 @@ class CommonMixin:
             session.commit()
         else:
             log.debug(
-                f"Tried updating {self.__tablename__} with id {id} "
+                f"Tried updating {self.__tablename__} with uid {self.uid} "
                 f"but no new values were passed"
             )
 
     @with_session
     def delete(self, session=None):
         """Delete this row from the table."""
-        log.debug(f"Deleting {self.__tablename__} with id {id}")
+        log.debug(f"Deleting {self.__tablename__} with uid {id}")
         session.delete(self)
         session.commit()
 
@@ -255,30 +269,32 @@ class StatusMixin:
         status_set = {"PENDING", "STARTED", "SENDING", "SUCCESS", "FAILURE"}
         if status not in status_set:
             log.warning(
-                f"Tried setting status of {self.__tablename__} with id {id} to "
+                f"Tried setting status of {self.__tablename__} with uid {self.uid} to "
                 f"{status}; status must be one of {', '.join(status_set)}"
             )
             return
 
-        log.debug(f"Setting status of {self.__tablename__} with id {id} to {status}")
+        log.debug(
+            f"Setting status of {self.__tablename__} with uid {self.uid} to {status}"
+        )
         self.status = status
         session.add(self)
         session.commit()
 
 
 # Many-many table to correlate corpuses with specific document versions.
-corpus_table = Table(
-    "corpus_table",
+documents_corpuses = Table(
+    "documents_corpuses",
     Base.metadata,
-    Column("corpus_hash", String, ForeignKey("corpuses.hash"), primary_key=True),
-    Column("document_id", String, ForeignKey("documents.id"), primary_key=True),
+    Column("corpus_hash", String, ForeignKey("corpuses.hash_value"), primary_key=True),
+    Column("document_uid", String, ForeignKey("documents.uid"), primary_key=True),
 )
 
 
 # Many-many table to correlate searches with the documents they find.
-result_table = Table(
-    "result_table",
+documents_searches = Table(
+    "documents_searches",
     Base.metadata,
-    Column("search_id", String, ForeignKey("searches.id"), primary_key=True),
-    Column("document_id", String, ForeignKey("documents.id"), primary_key=True),
+    Column("search_uid", String, ForeignKey("searches.uid"), primary_key=True),
+    Column("document_uid", String, ForeignKey("documents.uid"), primary_key=True),
 )

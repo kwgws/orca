@@ -67,20 +67,20 @@ function updateSearchResults(stateManager) {
 
 function makeSearchResult(search) {
   const {
-    id: searchId,
+    uid: searchUID,
     hash,
     search_str,
     results,
     status,
     updated,
-    created,
+    created_at,
     megadocs,
   } = search;
   const isDone = status === "SUCCESS";
 
   // Create <article> container for search result
   const searchResult = make("article", { className: "result" });
-  searchResult.dataset.id = searchId;
+  searchResult.dataset.id = searchUID;
   searchResult.dataset.hash = hash;
 
   // Add search query as heading
@@ -103,7 +103,7 @@ function makeSearchResult(search) {
   const timestampOuter = make("li", {
     textContent: isDone ? "Finished" : "Started",
   });
-  const ts = isDone ? updated : created;
+  const ts = isDone ? updated_at : created_at;
   const timestamp = make("time", {
     textContent: fmtDate(ts),
     dateTime: ts,
@@ -128,7 +128,7 @@ function makeSearchResult(search) {
 }
 
 function makeMegadoc(megadoc) {
-  const { id: docId, status, url } = megadoc;
+  const { uid: docUID, status, url } = megadoc;
   const filetype = megadoc.filetype.toLowerCase();
   const filesize = fmtSize(megadoc.filesize);
 
@@ -141,11 +141,11 @@ function makeMegadoc(megadoc) {
       href: url,
       textContent: docText,
     });
-    docLink.dataset.id = docId;
+    docLink.dataset.uid = docUID;
     docMeta.appendChild(docLink);
   } else {
     docMeta.className = "file";
-    docMeta.dataset.id = docId;
+    docMeta.dataset.uid = docUID;
     const progress = (megadoc.progress * 100.0).toFixed(2);
     const docText =
       status === "SENDING"

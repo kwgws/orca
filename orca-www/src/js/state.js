@@ -29,9 +29,9 @@ export class StateManager {
 }
 
 export function togglePoll(isEnabled) {
-  // Call with null argument to return status. We can use this checkbox
-  // to track state instead of the state manager proper so that it's
-  // always visible to the user.
+  /* Call with null argument to return status. We can use this checkbox
+     to track state instead of the state manager proper so that it's
+     always visible to the user. */
   const pollCheckbox = document.getElementById("isPollEnabled");
   if (typeof isEnabled === "undefined") {
     return pollCheckbox.checked;

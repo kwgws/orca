@@ -1,10 +1,60 @@
 import logging
-import logging.handlers
+import logging.config
 import os
 import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+# App metadata
+APP_NAME = "orca"
+APP_VERSION = "2024-08-08f"
+
+# Initialize logging
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": "%(asctime)s [%(name)s/%(levelname)s] %(message)s",
+                "datefmt": "%Y-%d-%m %H:%M:%S",
+            },
+        },
+        "handlers": {
+            "console": {
+                "level": "WARNING",
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+            },
+            "file": {
+                "level": "DEBUG",
+                "class": "logging.handlers.RotatingFileHandler",
+                "filename": "/var/log/orca/orca.log",
+                "maxBytes": 1024 * 1024 * 5,  # 5mb / log file
+                "backupCount": 9,
+                "formatter": "standard",
+            },
+        },
+        "loggers": {
+            "": {  # Root logger
+                "handlers": ["console", "file"],
+                "level": "INFO",
+                "propagate": True,
+            },
+            "celery": {
+                "handlers": ["console", "file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            # "celery.app.trace": {
+            #    "handlers": ["console", "file"],
+            #    "level": "INFO",
+            #    "propagate": False,
+            # },
+        },
+    }
+)
 
 # Validate critical parameters
 load_dotenv()
@@ -19,20 +69,8 @@ for var in [
         raise EnvironmentError(f"Missing environment variable: {var}")
 
 
-# App metadata
-APP_NAME = "orca"
-APP_VERSION = "2024-08-08f"
-CLIENT_URL = os.getenv("ORCA_CLIENT_URL").rstrip("/")
-
-# Logging configuration
-LOG_PATH = Path(os.getenv("ORCA_LOG_PATH", "/var/log/orca"))
-LOG_FILE = LOG_PATH / "orca.log"
-LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-LOG_FORMAT_TASK = "%(asctime)s - %(levelname)s - %(task_name)s - %(message)s"
-LOG_BACKUPS: int = 9
-LOG_OPEN = os.getenv("ORCA_LOG_OPEN", "false") == "true"
-
 # Base paths
+CLIENT_URL = os.getenv("ORCA_CLIENT_URL").rstrip("/")
 ROOT_PATH = Path.home()
 ROOT_PATH.mkdir(parents=True, exist_ok=True)
 DATA_PATH = Path(os.getenv("ORCA_DATA_PATH", f"{ROOT_PATH / 'data'}"))
@@ -74,6 +112,8 @@ class CeleryConfig:
     task_track_started = True
     worker_send_task_events = True
     worker_cancel_long_running_tasks_on_connection_loss = True
+    worker_hijack_root_logger = False
+    worker_redirect_stdouts_level = "INFO"
 
 
 class FlaskConfig:
@@ -81,27 +121,3 @@ class FlaskConfig:
     SESSION_TYPE = "redis"
     SESSION_KEY_PREFIX = "orca:session:"
     DEBUG = os.getenv("ORCA_FLASK_DEBUG", "false") == "true"
-
-
-def setup_logger(name: str, level=logging.INFO):
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    for h in [
-        logging.StreamHandler(),
-        logging.handlers.RotatingFileHandler(
-            filename=(LOG_PATH / "orca.log").as_posix(),
-            maxBytes=10 * 1024 * 1024,
-            backupCount=LOG_BACKUPS,
-        ),
-    ]:
-        h.setLevel(level)
-        h.setFormatter(logging.Formatter(LOG_FORMAT))
-        logger.addHandler(h)
-
-    return logger
-
-
-# Initialize root logger
-setup_logger(APP_NAME)

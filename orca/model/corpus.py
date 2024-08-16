@@ -5,10 +5,10 @@ from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
 
 from orca import _config
-from orca.model.base import Base, corpus_table, get_utcnow, with_session
+from orca.model.base import Base, documents_corpuses, utcnow, with_session
 from orca.model.document import Document
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 
 
 class Corpus(Base):
@@ -19,11 +19,11 @@ class Corpus(Base):
     """
 
     __tablename__ = "corpuses"
-    hash = Column(String, primary_key=True)
+    hash_value = Column(String, primary_key=True)
     total = Column(Integer, nullable=False)
-    created = Column(DateTime, nullable=False, default=get_utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
     documents = relationship(
-        "Document", back_populates="corpuses", secondary=corpus_table
+        "Document", back_populates="corpuses", secondary=documents_corpuses
     )
     searches = relationship(
         "Search", back_populates="corpus", cascade="all, delete-orphan"
@@ -40,14 +40,14 @@ class Corpus(Base):
         # Generate and store hash value
         log.info("Hashing document contents, this may take some time")
         raw = "".join([d.content for d in documents])
-        hash = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
-        corpus = cls(hash=hash, documents=documents, total=total)
+        hash_value = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
+        corpus = cls(hash_value=hash_value, documents=documents, total=total)
         session.add(corpus)
 
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
-            if (i + 1) % _config.APP_NAME0 == 0 or (i + 1) == total:
+            if (i + 1) % _config.DATABASE_BATCH_SIZE == 0 or (i + 1) == total:
                 log.info(f"Adding document to corpus ({i + 1}/{total})")
                 session.commit()
 
@@ -57,7 +57,7 @@ class Corpus(Base):
     @classmethod
     @with_session
     def get_all(cls, session=None):
-        result = session.query(cls).order_by(desc(cls.created)).all()
+        result = session.query(cls).order_by(desc(cls.created_at)).all()
         if not result:
             log.warning("Tried getting all corpuses but none exist")
         return result
@@ -66,15 +66,15 @@ class Corpus(Base):
     @with_session
     def get_latest(cls, session=None):
         """Return the most recent corpus."""
-        result = session.query(cls).order_by(desc(cls.created)).first()
+        result = session.query(cls).order_by(desc(cls.created_at)).first()
         if not result:
             log.warning("Tried getting most recent corpus but none exist")
         return result
 
     def as_dict(self):
         return {
-            "hash": self.hash,
+            "hash_value": self.hash_value,
             "total": self.total,
-            "created": f"{self.created.isoformat()}Z",
+            "created_at": f"{self.created_at.isoformat()}Z",
             "searches": [s.as_dict() for s in self.searches],
         }

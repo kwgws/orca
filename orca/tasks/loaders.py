@@ -11,7 +11,7 @@ from orca import _config
 from orca.model import Corpus, Document, Image, get_redis_client, with_session
 from orca.tasks.celery import celery
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 r = get_redis_client()
 
 
@@ -72,7 +72,7 @@ def index_documents(self, _, session=None):
         _config.INDEX_PATH.mkdir()
 
     schema = Schema(
-        id=ID(stored=True, unique=True),
+        uid=ID(stored=True, unique=True),
         content=TEXT(stored=True),
     )
     ix = index.create_in(_config.INDEX_PATH, schema)
@@ -86,7 +86,7 @@ def index_documents(self, _, session=None):
         try:
             with text_path.open() as f:
                 content = unidecode(f.read().strip())
-            writer.add_document(id=doc.id, content=content)
+            writer.add_document(uid=doc.uid, content=content)
 
         except IOError as e:
             log.warning(f"Error parsing {text_path}: {e}")

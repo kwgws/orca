@@ -11,12 +11,12 @@ from orca.model.base import (
     Base,
     CommonMixin,
     StatusMixin,
+    create_uid,
     get_redis_client,
-    get_utcnow,
-    get_uuid,
+    utcnow,
 )
 
-log = logging.getLogger(_config.APP_NAME)
+log = logging.getLogger(__name__)
 r = get_redis_client()
 
 
@@ -25,25 +25,25 @@ class Megadoc(Base, CommonMixin, StatusMixin):
     our search. This is the main thing we're here to produce.
     """
 
-    id = Column(String, primary_key=True)
+    uid = Column(String, primary_key=True)
     filetype = Column(String, nullable=False, default=".txt")
     filename = Column(String)
     path = Column(String)
     url = Column(String)
-    search_id = Column(String, ForeignKey("searches.id"), nullable=False)
+    search_uid = Column(String, ForeignKey("searches.uid"), nullable=False)
     search = relationship("Search", back_populates="megadocs")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # We need the ID to generate paths so we'll do it manually here
-        self.id = get_uuid()
+        self.uid = create_uid()
 
         # Generate the paths
         timestamp = re.sub(
             r"(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}).*",
             r"\1\2\3-\4\5\6",
-            f"{get_utcnow().isoformat()}",
+            f"{utcnow().isoformat()}",
         )
         self.filename = f"{slugify(self.search.search_str)}_{timestamp}Z{self.filetype}"
         self.path = f"{_config.MEGADOC_PATH / self.filename}"
@@ -87,7 +87,7 @@ class Megadoc(Base, CommonMixin, StatusMixin):
         rows = super().as_dict()
         rows.pop("filename")
         rows.pop("path")
-        rows.pop("search_id")
+        rows.pop("search_uid")
         rows["filesize"] = self.filesize
         if self.status not in ["SENDING", "SUCCESS"]:
             rows["progress"] = self.progress

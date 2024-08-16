@@ -3,14 +3,14 @@ from orca.model.base import (  # noqa: F401
     CommonMixin,
     SessionLocal,
     StatusMixin,
-    corpus_table,
     create_tables,
+    create_uid,
+    documents_corpuses,
+    documents_searches,
     get_redis_client,
     get_session,
-    get_utcnow,
-    get_uuid,
     handle_sql_errors,
-    result_table,
+    utcnow,
     with_session,
 )
 from orca.model.corpus import Corpus  # noqa: F401

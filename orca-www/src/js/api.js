@@ -2,6 +2,7 @@ import { apiUrl } from "./config.js";
 import { err } from "./helpers.js";
 import { togglePoll } from "./state.js";
 
+/* */
 export async function pollAPI(stateManager) {
   console.log(`Polling API at ${apiUrl}`);
 
@@ -16,7 +17,7 @@ export async function pollAPI(stateManager) {
       isConnected: true,
       lastPoll: new Date(),
       apiVersion: data.apiVersion,
-      corpusHash: data.hash,
+      corpusHash: data.hash_value,
       corpusTotal: data.total,
       searches: data.searches,
       error: null,
@@ -32,6 +33,7 @@ export async function pollAPI(stateManager) {
   }
 }
 
+/* */
 export function startPollAPI(stateManager, pollingInterval) {
   const pollWithInterval = () => {
     if (togglePoll()) {
@@ -42,17 +44,37 @@ export function startPollAPI(stateManager, pollingInterval) {
   setInterval(pollWithInterval, pollingInterval);
 }
 
+/* */
 export async function deleteSearch(search) {
-  const { id: searchId, searchStr } = search;
-  console.log(`Deleting "${searchStr}" (${searchId})`);
+  const { uuid: searchUID, searchStr } = search;
+  console.log(`Deleting "${searchStr}" (${searchUID})`);
 
   try {
-    const url = `${apiUrl}/search/${searchId}`;
+    const url = `${apiUrl}/search/${searchUID}`;
     const response = await fetch(url, { method: "DELETE" });
     if (!response.ok) {
       throw new Error(response.statusText);
     }
   } catch (error) {
-    err(`Error deleting "${searchStr}" (${searchId}): ${error.message}`);
+    err(`Error deleting "${searchStr}" (${searchUID}): ${error.message}`);
+  }
+}
+
+/* */
+export async function createSearch(searchStr) {
+  console.log(`Searching "${searchStr}"`);
+
+  try {
+    const url = `${apiUrl}/search`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ search_str: searchStr }),
+    });
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
+  } catch (error) {
+    err(`Error searching "${searchStr}: ${error.message}`);
   }
 }

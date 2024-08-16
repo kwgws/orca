@@ -3,193 +3,218 @@ import { apiUrl } from "./config.js";
 import { err, fmtDate, fmtSize, make, spinner, text } from "./helpers.js";
 import { togglePoll, toggleSearch } from "./state.js";
 
-
 export function updateUI(stateManager) {
-    const prevState = stateManager.getPrev();
-    const {
-        apiVersion, corpusHash, corpusTotal, isConnected, lastPoll
-    } = stateManager.get();
+  const prevState = stateManager.getPrev();
+  const { apiVersion, corpusHash, corpusTotal, isConnected, lastPoll } =
+    stateManager.get();
 
-    // Update connection status on change
-    if (isConnected !== prevState?.isConnected) {
-        if (isConnected) {
-            console.log(`Connected to ORCA Document Query API at ${apiUrl}`);
-        } else {
-            err(`Error connecting to API at ${apiUrl}`);
-        }
-
-        // Swap heading and loading message
-        const loadSubhead = document.getElementById("connectingSubhead");
-        loadSubhead.hidden = isConnected;
-        const subhead = document.getElementById("subhead");
-        subhead.hidden = !isConnected;
-
-        // Connection status
-        const connStatus = document.getElementById("connection");
-        connStatus.textContent = isConnected ? "Connected" : "Disconnected";
-        connStatus.className = isConnected ? "connected" : "error";
-
-        // Server-side API version
-        const verStatus = document.getElementById("apiVersion");
-        verStatus.textContent = apiVersion;
-
-        // Show connection details if there's a connection, otherwise hide
-        const connDetails = document.getElementById("connectionDetails");
-        connDetails.hidden = !isConnected;
-
-        // Toggle search form
-        toggleSearch(isConnected);
+  // Update connection status on change
+  if (isConnected !== prevState?.isConnected) {
+    if (isConnected) {
+      console.log(`Connected to ORCA Document Query API at ${apiUrl}`);
+    } else {
+      err(`Error connecting to API at ${apiUrl}`);
     }
 
-    // Client-side timestamp of last fetch
-    const lastPollStatus = document.getElementById("lastPoll");
-    lastPollStatus.textContent = fmtDate(lastPoll, true);
-    lastPollStatus.setAttribute("datetime", lastPoll.toISOString());
+    // Swap heading and loading message
+    const loadSubhead = document.getElementById("connectingSubhead");
+    loadSubhead.hidden = isConnected;
+    const subhead = document.getElementById("subhead");
+    subhead.hidden = !isConnected;
 
-    // Update search results
-    updateSearchResults(stateManager);
+    // Connection status
+    const connStatus = document.getElementById("connection");
+    connStatus.textContent = isConnected ? "Connected" : "Disconnected";
+    connStatus.className = isConnected ? "connected" : "error";
 
-    // Update corpus details if the hash changes
-    if (corpusHash !== prevState?.corpusHash) {
-        console.log(`New hash value found, updating metadata (${corpusHash})`);
-        const docTotal = document.getElementById("corpusTotal");
-        docTotal.textContent = corpusTotal.toLocaleString();
-    }
+    // Server-side API version
+    const verStatus = document.getElementById("apiVersion");
+    verStatus.textContent = apiVersion;
+
+    // Show connection details if there's a connection, otherwise hide
+    const connDetails = document.getElementById("connectionDetails");
+    connDetails.hidden = !isConnected;
+
+    // Toggle search form
+    toggleSearch(isConnected);
+  }
+
+  // Client-side timestamp of last fetch
+  const lastPollStatus = document.getElementById("lastPoll");
+  lastPollStatus.textContent = fmtDate(lastPoll, true);
+  lastPollStatus.setAttribute("datetime", lastPoll.toISOString());
+
+  // Update search results
+  updateSearchResults(stateManager);
+
+  // Update corpus details if the hash changes
+  if (corpusHash !== prevState?.corpusHash) {
+    console.log(`New hash value found, updating metadata (${corpusHash})`);
+    const docTotal = document.getElementById("corpusTotal");
+    docTotal.textContent = corpusTotal.toLocaleString();
+  }
 }
-
 
 function updateSearchResults(stateManager) {
-    const searchResults = document.getElementById("results");
-    searchResults.innerHTML = "";
+  const searchResults = document.getElementById("results");
+  searchResults.innerHTML = "";
 
-    const { searches } = stateManager.get();
-    searches.forEach((search) => {
-        searchResults.appendChild(makeSearchResult(search));
-    });
+  const { searches } = stateManager.get();
+  searches.forEach((search) => {
+    searchResults.appendChild(makeSearchResult(search));
+  });
 }
-
 
 function makeSearchResult(search) {
-    const {
-        id: searchId, hash, search_str, results, status, updated, created, megadocs
-    } = search;
-    const isDone = status === "SUCCESS";
+  const {
+    id: searchId,
+    hash,
+    search_str,
+    results,
+    status,
+    updated,
+    created,
+    megadocs,
+  } = search;
+  const isDone = status === "SUCCESS";
 
-    // Create <article> container for search result
-    const searchResult = make("article", { className: "result" });
-    searchResult.dataset.id = searchId;
-    searchResult.dataset.hash = hash;
+  // Create <article> container for search result
+  const searchResult = make("article", { className: "result" });
+  searchResult.dataset.id = searchId;
+  searchResult.dataset.hash = hash;
 
-    // Add search query as heading
-    const searchStr = make("h2", {
-        className: "searchStr", textContent: search_str
+  // Add search query as heading
+  const searchStr = make("h2", {
+    className: "searchStr",
+    textContent: search_str,
+  });
+  searchResult.appendChild(searchStr);
+
+  // Add search metadata, starting with number of results. Include status.
+  const searchMeta = make("ul");
+  const count = make("li", { textContent: `${results} results` });
+  if (!isDone) {
+    count.appendChild(text(` (${status.toLowerCase()})`));
+    count.appendChild(spinner());
+  }
+  searchMeta.appendChild(count);
+
+  // Add timestamp
+  const timestampOuter = make("li", {
+    textContent: isDone ? "Finished" : "Started",
+  });
+  const ts = isDone ? updated : created;
+  const timestamp = make("time", {
+    textContent: fmtDate(ts),
+    dateTime: ts,
+  });
+  timestampOuter.appendChild(timestamp);
+  searchMeta.appendChild(timestampOuter);
+
+  // Add megadocs
+  if (Array.isArray(megadocs) && megadocs.length > 0) {
+    megadocs.forEach((megadoc) => {
+      searchMeta.appendChild(makeMegadoc(megadoc));
     });
-    searchResult.appendChild(searchStr);
+  }
 
-    // Add search metadata, starting with number of results. Include status.
-    const searchMeta = make("ul");
-    const count = make("li", { textContent: `${results} results` });
-    if (!isDone) {
-        count.appendChild(text(` (${status.toLowerCase()})`));
-        count.appendChild(spinner());
-    }
-    searchMeta.appendChild(count);
+  // Add delete link
+  if (isDone) {
+    searchMeta.appendChild(makeDeleteLink(search));
+  }
 
-    // Add timestamp
-    const timestampOuter = make("li", {
-        textContent: isDone ? "Finished" : "Started"
-    });
-    const ts = isDone ? updated : created;
-    const timestamp = make("time", {
-        textContent: fmtDate(ts), dateTime: ts,
-    });
-    timestampOuter.appendChild(timestamp);
-    searchMeta.appendChild(timestampOuter);
-
-    // Add megadocs
-    if (Array.isArray(megadocs) && megadocs.length > 0) {
-        megadocs.forEach((megadoc) => {
-            searchMeta.appendChild(makeMegadoc(megadoc));
-        });
-    }
-
-    // Add delete link
-    if (isDone) { searchMeta.appendChild(makeDeleteLink(search)); }
-
-    searchResult.appendChild(searchMeta);
-    return searchResult;
+  searchResult.appendChild(searchMeta);
+  return searchResult;
 }
-
 
 function makeMegadoc(megadoc) {
-    const { id: docId, status, url } = megadoc;
-    const filetype = megadoc.filetype.toLowerCase();
-    const filesize = fmtSize(megadoc.filesize);
+  const { id: docId, status, url } = megadoc;
+  const filetype = megadoc.filetype.toLowerCase();
+  const filesize = fmtSize(megadoc.filesize);
 
-    const docMeta = make("li");
+  const docMeta = make("li");
 
-    if (status === "SUCCESS") {
-        const docText = `Download ${filetype} (${filesize})`
-        const docLink = make("a", { className: "file", href: url, textContent: docText });
-        docLink.dataset.id = docId;
-        docMeta.appendChild(docLink);
+  if (status === "SUCCESS") {
+    const docText = `Download ${filetype} (${filesize})`;
+    const docLink = make("a", {
+      className: "file",
+      href: url,
+      textContent: docText,
+    });
+    docLink.dataset.id = docId;
+    docMeta.appendChild(docLink);
+  } else {
+    docMeta.className = "file";
+    docMeta.dataset.id = docId;
+    const progress = (megadoc.progress * 100.0).toFixed(2);
+    const docText =
+      status === "SENDING"
+        ? `Finalizing ${filetype}`
+        : `Creating ${filetype} (${progress}%)`;
+    docMeta.appendChild(text(docText));
+    docMeta.appendChild(spinner());
+  }
 
-    } else {
-        docMeta.className = "file";
-        docMeta.dataset.id = docId;
-        const progress = (megadoc.progress * 100.0).toFixed(2);
-        const docText = (
-            status === "SENDING" ? `Finalizing ${filetype}` : `Creating ${filetype} (${progress}%)`
-        );
-        docMeta.appendChild(text(docText));
-        docMeta.appendChild(spinner());
-    }
-
-    return docMeta;
+  return docMeta;
 }
 
-
 function makeDeleteLink(search) {
-    let wasPollEnabled = togglePoll();
-    const linkMeta = make("li");
+  let wasPollEnabled = togglePoll();
+  const linkMeta = make("li");
 
-    // Create delete link-- clicking this will reveal the y/n prompt
-    const delLink = make("a", { className: "delete", href: "#", textContent: "Delete" });
-    delLink.addEventListener("click", async function (event) {
-        event.preventDefault();
+  // Create delete link-- clicking this will reveal the y/n prompt
+  const delLink = make("a", {
+    className: "delete",
+    href: "#",
+    textContent: "Delete",
+  });
+  delLink.addEventListener("click", async function (event) {
+    event.preventDefault();
 
-        // Track previous polling status so we can go back to it after prompt
-        wasPollEnabled = togglePoll();  // Returns state w null arg
-        togglePoll(false);
-        delLink.hidden = true;
-        delPrompt.hidden = false;
-    });
-    linkMeta.appendChild(delLink);
+    // Track previous polling status so we can go back to it after prompt
+    wasPollEnabled = togglePoll(); // Returns state w null arg
+    togglePoll(false);
+    delLink.hidden = true;
+    delPrompt.hidden = false;
+  });
+  linkMeta.appendChild(delLink);
 
-    // Create prompt--
-    const delPrompt = make("b", { className: "prompt", textContent: "Delete?", hidden: true });
+  // Create prompt--
+  const delPrompt = make("b", {
+    className: "prompt",
+    textContent: "Delete?",
+    hidden: true,
+  });
 
-    // Clicking OK will send a delete request through the API
-    const okLink = make("a", { className: "promptOk", href: "#", textContent: "OK" });
-    okLink.addEventListener("click", async function (event) {
-        event.preventDefault();
-        deleteSearch(search);
-        togglePoll(wasPollEnabled);
-        delLink.hidden = false;
-        delPrompt.hidden = true;
-    });
-    delPrompt.appendChild(okLink);
+  // Clicking OK will send a delete request through the API
+  const okLink = make("a", {
+    className: "promptOk",
+    href: "#",
+    textContent: "OK",
+  });
+  okLink.addEventListener("click", async function (event) {
+    event.preventDefault();
+    deleteSearch(search);
+    togglePoll(wasPollEnabled);
+    delLink.hidden = false;
+    delPrompt.hidden = true;
+  });
+  delPrompt.appendChild(okLink);
 
-    // Clicking cancel will hide the prompt again
-    const cancelLink = make("a", { className: "promptCancel", href: "#", textContent: "Cancel" });
-    cancelLink.addEventListener("click", async function (event) {
-        event.preventDefault();
-        togglePoll(wasPollEnabled);
-        delLink.hidden = false;
-        delPrompt.hidden = true;
-    });
-    delPrompt.appendChild(cancelLink);
+  // Clicking cancel will hide the prompt again
+  const cancelLink = make("a", {
+    className: "promptCancel",
+    href: "#",
+    textContent: "Cancel",
+  });
+  cancelLink.addEventListener("click", async function (event) {
+    event.preventDefault();
+    togglePoll(wasPollEnabled);
+    delLink.hidden = false;
+    delPrompt.hidden = true;
+  });
+  delPrompt.appendChild(cancelLink);
 
-    linkMeta.appendChild(delPrompt);
-    return linkMeta;
+  linkMeta.appendChild(delPrompt);
+  return linkMeta;
 }

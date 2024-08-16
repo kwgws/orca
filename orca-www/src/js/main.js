@@ -4,13 +4,13 @@ import { startPollAPI } from "./api.js";
 import { updateUI } from "./ui.js";
 
 const stateManager = new StateManager({
-    isConnected: false,
-    lastPoll: null,
-    error: null,
-})
+  isConnected: false,
+  lastPoll: null,
+  error: null,
+});
 
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log("DOM content loaded");
-    stateManager.subscribe(updateUI);
-    startPollAPI(stateManager, pollInterval);
+  console.log("DOM content loaded");
+  stateManager.subscribe(updateUI);
+  startPollAPI(stateManager, pollInterval);
 });

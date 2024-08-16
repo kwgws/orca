@@ -3,13 +3,14 @@ from pathlib import Path
 
 from celery import chain, chord, group, shared_task
 
-from orca import config
+from orca import _config
 from orca.model import create_tables, get_redis_client
 from orca.tasks.celery import celery  # noqa: F401
+from orca.tasks.exporters import create_megadoc, upload_megadoc
 from orca.tasks.loaders import index_documents, load_documents
-from orca.tasks.searchers import create_megadoc, run_search, upload_megadoc
+from orca.tasks.searchers import run_search
 
-log = logging.getLogger(config.APP_NAME)
+log = logging.getLogger(_config.APP_NAME)
 r = get_redis_client()
 
 
@@ -19,7 +20,7 @@ def reset_db():
     This needs to be run at least once before anything else happens.
     """
     r.flushdb(asynchronous=True)
-    config.DATABASE_PATH.unlink()
+    _config.DATABASE_PATH.unlink()
     create_tables()
 
 
@@ -62,7 +63,7 @@ def start_search(search_str):
     """ """
     megadoc_tasks = group(
         chain(create_megadoc.s(filetype), upload_megadoc.s())
-        for filetype in config.MEGADOC_FILETYPES
+        for filetype in _config.MEGADOC_FILETYPES
     )
     result = chain(run_search.s(search_str), megadoc_tasks).apply_async()
     return result

@@ -17,14 +17,14 @@ from sqlalchemy import Column, DateTime, ForeignKey, String, Table, create_engin
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
 
-from orca import config
+from orca import _config
 
-log = logging.getLogger(config.APP_NAME)
+log = logging.getLogger(_config.APP_NAME)
 
 
 # SQLite database initialization
 Base = declarative_base()
-engine = create_engine(config.DATABASE_URI)
+engine = create_engine(_config.DATABASE_URI)
 SessionLocal = scoped_session(sessionmaker(bind=engine))
 
 
@@ -47,17 +47,17 @@ def get_redis_client():
 
     Uses socket specified in `config.REDIS_SOCKET`.
     """
-    for attempt in range(1, config.DATABASE_RETRIES + 1):
+    for attempt in range(1, _config.DATABASE_RETRIES + 1):
         try:
-            client = redis.StrictRedis(unix_socket_path=config.REDIS_SOCKET.as_posix())
+            client = redis.StrictRedis(unix_socket_path=_config.REDIS_SOCKET.as_posix())
             client.ping()
-            log.debug(f"Connected to Redis at {config.REDIS_SOCKET}")
+            log.debug(f"Connected to Redis at {_config.REDIS_SOCKET}")
             return client
         except redis.ConnectionError as e:
             backoff_time = math.pow(2, attempt) + random()
             log.warning(
-                f"Error connecting to Redis at {config.REDIS_SOCKET}, "
-                f"retrying ({attempt}/{config.DATABASE_RETRIES}) "
+                f"Error connecting to Redis at {_config.REDIS_SOCKET}, "
+                f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
                 f"in {backoff_time:.2f} seconds: {e}"
             )
             time.sleep(backoff_time)
@@ -78,16 +78,16 @@ def handle_sql_errors(func, *args, **kwargs):
         if session and session.is_active and session.in_transaction():
             session.rollback()
 
-    for attempt in range(1, config.DATABASE_RETRIES + 1):
+    for attempt in range(1, _config.DATABASE_RETRIES + 1):
         try:
             return func(*args, **kwargs)
 
         except OperationalError as e:
-            if attempt < config.DATABASE_RETRIES:
+            if attempt < _config.DATABASE_RETRIES:
                 backoff_time = math.pow(2, attempt) + random()
                 log.warning(
                     f"Error in operation, "
-                    f"retrying ({attempt}/{config.DATABASE_RETRIES}) "
+                    f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
                     f"in {backoff_time:.2f} seconds: {e}"
                 )
                 try_rollback()

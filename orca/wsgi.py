@@ -3,16 +3,16 @@ import logging
 from flask import Flask, abort, g, jsonify, make_response, request, url_for
 from flask_cors import CORS
 
-from orca import config
+from orca import _config
 from orca.app import start_search
 from orca.model import Corpus, Search, get_redis_client, get_session, get_utcnow
 
-log = logging.getLogger(config.APP_NAME)
+log = logging.getLogger(_config.APP_NAME)
 
 r = get_redis_client()
 
-flask = Flask(config.APP_NAME)
-flask.config.from_object(config.FlaskConfig)
+flask = Flask(_config.APP_NAME)
+flask.config.from_object(_config.FlaskConfig)
 flask.config["SESSION_REDIS"] = r
 CORS(flask)
 
@@ -51,7 +51,7 @@ def api_status():
 
     try:
         corpus = Corpus.get_latest(session=g.session).as_dict()
-        return jsonify(apiVersion=config.APP_VERSION, **corpus)
+        return jsonify(apiVersion=_config.APP_VERSION, **corpus)
     except Exception as e:
         log.error(f"Error retrieving status: {e}")
         abort(500)
@@ -114,9 +114,9 @@ def delete_search(search_id):
 
 @flask.route("/log")
 def get_log():
-    if config.LOG_OPEN:
+    if _config.LOG_OPEN:
         try:
-            with config.LOG_FILE.open() as f:
+            with _config.LOG_FILE.open() as f:
                 content = [ln.strip() for ln in f.readlines()]
             response = make_response("\n".join(content[-40:]))
             response.content_type = "text/plain; charset=utf-8"

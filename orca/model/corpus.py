@@ -4,11 +4,11 @@ import logging
 from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
 
-from orca import config
+from orca import _config
 from orca.model.base import Base, corpus_table, get_utcnow, with_session
 from orca.model.document import Document
 
-log = logging.getLogger(config.APP_NAME)
+log = logging.getLogger(_config.APP_NAME)
 
 
 class Corpus(Base):
@@ -47,7 +47,7 @@ class Corpus(Base):
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
-            if (i + 1) % config.APP_NAME0 == 0 or (i + 1) == total:
+            if (i + 1) % _config.APP_NAME0 == 0 or (i + 1) == total:
                 log.info(f"Adding document to corpus ({i + 1}/{total})")
                 session.commit()
 

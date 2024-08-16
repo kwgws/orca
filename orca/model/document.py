@@ -13,7 +13,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, inspect
 from sqlalchemy.orm import relationship
 from unidecode import unidecode
 
-from orca import config
+from orca import _config
 from orca.model.base import (  # noqa: F401
     Base,
     CommonMixin,
@@ -22,7 +22,7 @@ from orca.model.base import (  # noqa: F401
     with_session,
 )
 
-log = logging.getLogger(config.APP_NAME)
+log = logging.getLogger(_config.APP_NAME)
 
 
 class Image(Base, CommonMixin):
@@ -89,22 +89,22 @@ class Image(Base, CommonMixin):
         timestamp = parse_datetime(f"{split[1]} {split[2].replace('-', ':')}")
 
         # These paths need to be relative so we can make them portable
-        json_path = Path(config.BATCH_NAME) / "json" / album / f"{stem}.json"
-        text_path = Path(config.BATCH_NAME) / "text" / album / f"{stem}.txt"
+        json_path = Path(_config.BATCH_NAME) / "json" / album / f"{stem}.json"
+        text_path = Path(_config.BATCH_NAME) / "text" / album / f"{stem}.txt"
         image_path = Path("img") / album / f"{stem}.webp"
 
         image = Image(
             index=int(split[0]),
             title="_".join(split[3:]),
             album=album,
-            batch=config.BATCH_NAME,
+            batch=_config.BATCH_NAME,
             json_path=f"{json_path}",
-            json_url=f"{config.CDN_URL}/{json_path}",
+            json_url=f"{_config.CDN_URL}/{json_path}",
             text_path=f"{text_path}",
-            text_url=f"{config.CDN_URL}/{text_path}",
+            text_url=f"{_config.CDN_URL}/{text_path}",
             image_path=f"{image_path}",
-            image_url=f"{config.CDN_URL}/{image_path}",
-            thumb_url=f"{config.CDN_URL}/thumbs/{album}/{stem}.webp",
+            image_url=f"{_config.CDN_URL}/{image_path}",
+            thumb_url=f"{_config.CDN_URL}/thumbs/{album}/{stem}.webp",
             created=timestamp,
         )
         session.add(image)
@@ -198,12 +198,12 @@ class Document(Base, CommonMixin):
 
     @property
     def json(self):
-        with (config.DATA_PATH / self.json_path).open as f:
+        with (_config.DATA_PATH / self.json_path).open as f:
             return json.load(f)
 
     @property
     def content(self):
-        with (config.DATA_PATH / self.text_path).open() as f:
+        with (_config.DATA_PATH / self.text_path).open() as f:
             return unidecode(f.read().strip())
 
     def to_markdown(self, path: Path):

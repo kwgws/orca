@@ -246,7 +246,7 @@ class Document(Base, CommonMixin):
                     "",
                 ]
             )
-            with path.open("wa") as f:
+            with path.open("a") as f:
                 f.write(output)
 
         except IOError:

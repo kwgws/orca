@@ -47,11 +47,11 @@ logging.config.dictConfig(
                 "level": "INFO",
                 "propagate": False,
             },
-            # "celery.app.trace": {
-            #    "handlers": ["console", "file"],
-            #    "level": "INFO",
-            #    "propagate": False,
-            # },
+            "celery.app.trace": {
+                "handlers": ["console", "file"],
+                "level": "INFO",
+                "propagate": False,
+            },
         },
     }
 )

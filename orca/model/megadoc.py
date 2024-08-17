@@ -7,7 +7,7 @@ from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from orca import _config
-from orca._helpers import create_uid, utcnow
+from orca._helpers import create_uid, utc_now
 from orca.model.base import Base, CommonMixin, StatusMixin, get_redis_client
 
 log = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class Megadoc(Base, CommonMixin, StatusMixin):
         timestamp = re.sub(
             r"(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}).*",
             r"\1\2\3-\4\5\6",
-            f"{utcnow().isoformat()}",
+            f"{utc_now().isoformat()}",
         )
         self.filename = f"{slugify(self.search.search_str)}_{timestamp}Z{self.filetype}"
         self.path = f"{_config.MEGADOC_PATH / self.filename}"

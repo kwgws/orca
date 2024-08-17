@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from datetime import timezone
 
 from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
@@ -43,7 +44,10 @@ class Corpus(Base):
         hash_value = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
         corpus = cls(hash_value=hash_value, documents=documents, total=total)
         session.add(corpus)
+        session.commit()
 
+        # Go back and add our corpus to each and every document so we can use
+        # it to cross-reference later.
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
@@ -57,8 +61,7 @@ class Corpus(Base):
     @classmethod
     @with_session
     def get_all(cls, session=None):
-        result = session.query(cls).order_by(desc(cls.created_at)).all()
-        if not result:
+        if not (result := session.query(cls).order_by(desc(cls.created_at)).all()):
             log.warning("Tried getting all corpuses but none exist")
         return result
 
@@ -66,8 +69,7 @@ class Corpus(Base):
     @with_session
     def get_latest(cls, session=None):
         """Return the most recent corpus."""
-        result = session.query(cls).order_by(desc(cls.created_at)).first()
-        if not result:
+        if not (result := session.query(cls).order_by(desc(cls.created_at)).first()):
             log.warning("Tried getting most recent corpus but none exist")
         return result
 
@@ -75,6 +77,6 @@ class Corpus(Base):
         return {
             "hash_value": self.hash_value,
             "total": self.total,
-            "created_at": f"{self.created_at.isoformat()}Z",
+            "created_at": self.created_at.replace(tzinfo=timezone.utc).isoformat(),
             "searches": [s.as_dict() for s in self.searches],
         }

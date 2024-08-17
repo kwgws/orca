@@ -5,7 +5,7 @@ from celery import chain, chord, group, shared_task
 
 from orca import _config
 from orca.model import Corpus, create_tables, get_redis_client, with_session
-from orca.tasks.celery import celery  # noqa: F401
+from orca.tasks.celery import celery  # noqa: F401 -- need this here for export
 from orca.tasks.exporters import create_megadoc, upload_megadoc
 from orca.tasks.loaders import index_documents, load_documents
 from orca.tasks.searchers import run_search
@@ -48,13 +48,10 @@ def start_load(path):
     if r.hget("orca:flags", "loading") == b"1":
         raise RuntimeError("Tried loading documents but process already running")
 
-    if not isinstance(path, Path):
-        path = Path(path)
-    if not path.is_dir():
+    if not (path := Path(path)).is_dir():
         raise IOError(f"Bad path: {path}")
 
-    subdirs = [p for p in path.iterdir() if p.is_dir()]
-    if not subdirs:
+    if not (subdirs := [p for p in path.iterdir() if p.is_dir()]):
         raise IOError(f"No albums in path: {path}")
 
     r.hset("orca:flags", "loading", int(True))

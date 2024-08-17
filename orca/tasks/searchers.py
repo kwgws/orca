@@ -14,8 +14,7 @@ log = logging.getLogger(__name__)
 @with_session
 def run_search(self, search_str: str, session=None):
     """ """
-    search = Search.create(search_str, session=session)
-    if not search:
+    if not (search := Search.create(search_str, session=session)):
         raise RuntimeError(f"Could not create search `{search_str}`")
     log.info(f"Starting search `{search_str}`")
     search.set_status("STARTED", session=session)
@@ -29,8 +28,7 @@ def run_search(self, search_str: str, session=None):
         # Parse query and perform search
         query = parser.parse(search_str)
         for result in searcher.search(query, limit=None):
-            document = Document.get(result["uid"], session=session)
-            if not document:
+            if not (document := Document.get(result["uid"], session=session)):
                 raise LookupError(f"Tried accessing invalid document: {result['uid']}")
             if document in search.documents:
                 log.warning(f"Tried re-adding {result['uid']} to `{search_str}`")

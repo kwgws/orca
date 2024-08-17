@@ -3,16 +3,15 @@
 
 import base64
 import logging
-import math
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from random import random
-from zoneinfo import ZoneInfo
 
 import redis
+from slugify import slugify
 from sqlalchemy import Column, DateTime, ForeignKey, String, Table, create_engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
@@ -62,53 +61,51 @@ def get_redis_client():
             log.debug(f"Connected to Redis at {_config.REDIS_SOCKET}")
             return client
         except redis.ConnectionError as e:
-            backoff_time = math.pow(2, attempt) + random()
+            backoff_time = attempt**2 + random()
             log.warning(
                 f"Error connecting to Redis at {_config.REDIS_SOCKET}, "
                 f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
                 f"in {backoff_time:.2f} seconds: {e}"
             )
             time.sleep(backoff_time)
+
     raise redis.ConnectionError("Redis connection failed after multiple attempts")
 
 
-def handle_sql_errors(func, *args, **kwargs):
-    """SQL error handler.
-
-    An active session must be passed via `**kwargs`.
+def handle_sql_errors(func):
+    """SQL error handler decorator. An active session must be passed in through
+    the keyword arguments.
     """
 
-    session = kwargs.get("session")
-    if not session or session is None:
-        raise AttributeError("Tried to run SQL operation without a session")
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not (session := kwargs.get("session")):
+            raise AttributeError("No session provided for SQL operation")
 
-    def try_rollback():
-        if session and session.is_active and session.in_transaction():
-            session.rollback()
+        def try_rollback(exc):
+            if session.is_active and session.in_transaction():
+                log.warning(f"Rolling back transaction: {exc}")
+                session.rollback()
 
-    for attempt in range(1, _config.DATABASE_RETRIES + 1):
-        try:
-            return func(*args, **kwargs)
+        for attempt in range(1, _config.DATABASE_RETRIES + 1):
+            try:
+                return func(*args, **kwargs)
 
-        except OperationalError as e:
-            if attempt < _config.DATABASE_RETRIES:
-                backoff_time = math.pow(2, attempt) + random()
+            # Operation errors usually signify a collision error or something
+            # else we ought to be able to retry. Give it another shot then
+            # apply an exponential backoff.
+            except OperationalError as e:
+                backoff_delay = attempt**2 + random()
                 log.warning(
-                    f"Error in operation, "
+                    "Error in database operation ,"
                     f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
-                    f"in {backoff_time:.2f} seconds: {e}"
+                    f"in {backoff_delay:.2f} seconds"
                 )
-                try_rollback()
-                time.sleep(backoff_time)
-            else:
-                log.exception(f"Operation failed after multiple attempts: {e}")
-                try_rollback()
-                raise
+                try_rollback(e)
 
-        except SQLAlchemyError as e:
-            log.exception(f"Unhandled SQL error, operation failed: {e}")
-            try_rollback()
-            raise
+        raise OperationalError("Operation failed after multiple attempts")
+
+    return wrapper
 
 
 def with_session(func):
@@ -121,12 +118,11 @@ def with_session(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        session = kwargs.get("session")
-        if session and session is not None:
-            return handle_sql_errors(func, *args, **kwargs)
+        if session := kwargs.get("session"):
+            return handle_sql_errors(func)(*args, **kwargs)
         with get_session() as session:
             kwargs["session"] = session
-            return handle_sql_errors(func, *args, **kwargs)
+            return handle_sql_errors(func)(*args, **kwargs)
 
     return wrapper
 
@@ -152,8 +148,12 @@ def create_uid():
 
 
 def utcnow():
-    """Future-proofed replacement for deprecated `datetime.utcnow()`."""
-    return datetime.now(ZoneInfo("UTC"))
+    """Future-proofed replacement for deprecated `datetime.utcnow()`.
+
+    TODO: TypeDecorator recipe from
+    https://docs.sqlalchemy.org/en/20/core/custom_types.html#store-timezone-aware-timestamps-as-timezone-naive-utc
+    """
+    return datetime.now(timezone.utc)
 
 
 # Mixins
@@ -167,39 +167,40 @@ class CommonMixin:
         return f"{cls.__name__.lower()}s"
 
     uid = Column(String, primary_key=True, default=create_uid)
-    created_at = Column(DateTime, default=utcnow)
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     @property
     def redis_key(self):
         """Get a key representing this item in the Redis database."""
-        return f"orca:{self.__tablename__}:{self.uid}"
+        return (
+            f"{slugify(_config.APP_NAME)}"
+            f":{slugify(self.__tablename__)}"
+            f":{slugify(self.uid)}"
+        )
 
     @classmethod
     @with_session
     def get(cls, uid: str, session=None):
         """Get item by UID."""
-        result = session.query(cls).filter_by(uid=uid).first()
-        if not result:
+        if not (result := session.query(cls).filter_by(uid=uid).first()):
             log.debug(f"No {cls.__tablename__} with uid {uid}")
         return result
 
     @classmethod
     @with_session
     def get_all(cls, session=None) -> list:
-        """Get a lists of all rows in this table."""
-        result = session.query(cls).all()
-        if not result:
-            log.debug(f"No rows in {cls.__tablename__}")
+        """Get a list of all items in this table."""
+        if not (result := session.query(cls).all()):
+            log.debug(f"No items in {cls.__tablename__}")
         return result
 
     @classmethod
     @with_session
     def get_total(cls, session=None):
-        """Get total number of rows in this table."""
-        result = session.query(cls).count()
-        if not result or result == 0:
-            log.debug(f"No {cls.__tablename__} or no rows in table")
+        """Get total number of items in this table."""
+        if not (result := session.query(cls).count()):
+            log.debug(f"No {cls.__tablename__} or no items in table")
         return int(result)
 
     @with_session
@@ -207,8 +208,7 @@ class CommonMixin:
         """Update columns based on values passed as keyword arguments."""
         save = False
         for key, value in kwargs.items():
-            old_value = getattr(self, key)
-            if hasattr(self, key) and old_value != kwargs[key]:
+            if hasattr(self, key) and (old_value := getattr(self, key)) != kwargs[key]:
                 log.debug(
                     f"Updating {self.__tablename__} with uid {self.uid} "
                     f"[{key}]: {old_value} -> {value}"
@@ -232,18 +232,11 @@ class CommonMixin:
         session.commit()
 
     def as_dict(self):
-        """Serialize table to `dict`.
-
-        Automatically converts any `DateTime` columns to `str` using
-        `.isoformat()`. Since SQLite doesn't support TZ-awareness, we'll assume
-        these are stored in UTC and attach `'+00:00'` to the end of them. That
-        way JS can correct them based on client settings, eg.
-        """
+        """Serialize table to `dict`."""
         rows = {}
         for column in self.__table__.columns:
-            value = getattr(self, column.name)
-            if isinstance(value, datetime):
-                value = f"{value.isoformat()}Z"
+            if isinstance(value := getattr(self, column.name), datetime):
+                value = value.replace(tzinfo=timezone.utc).isoformat()
             rows[column.name] = value
         return rows
 
@@ -266,11 +259,11 @@ class StatusMixin:
         - `'SUCCESS'`: Work has finished and results are ready.
         - `'FAILURE'`: Something went wrong. We'll need to restart.
         """
-        status_set = {"PENDING", "STARTED", "SENDING", "SUCCESS", "FAILURE"}
-        if status not in status_set:
+        statuses = {"PENDING", "STARTED", "SENDING", "SUCCESS", "FAILURE"}
+        if status not in statuses:
             log.warning(
                 f"Tried setting status of {self.__tablename__} with uid {self.uid} to "
-                f"{status}; status must be one of {', '.join(status_set)}"
+                f"{status}; status must be one of {', '.join(statuses)}"
             )
             return
 

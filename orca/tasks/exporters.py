@@ -15,29 +15,21 @@ log = logging.getLogger(__name__)
 @with_session
 def create_megadoc(self, search_uid: str, filetype, session=None):
     """ """
-    search = Search.get(search_uid, session=session)
-    if not search:
+    if not (search := Search.get(search_uid, session=session)):
         raise LookupError(f"Tried creating megadoc for invalid search {search_uid}")
 
     # Look for a pre-existing megadoc
-    megadoc = None
-    for md in search.megadocs:
-        if md.filetype == filetype:
-            log.warning(f"Search `{search.search_str}` already has {filetype} megadoc")
-            # if md.status == "SENDING" or md.status == "SUCCESS":
-            #     return md.uid
-            (_config.DATA_PATH / md.path).unlink(missing_ok=True)
-            megadoc = md
+    if megadoc := next((md for md in search.megadocs if md.filetype == filetype), None):
+        log.warning(f"Search `{search.search_str}` already has {filetype} megadoc")
+        (_config.DATA_PATH / megadoc.path).unlink(missing_ok=True)  # delete file
 
     # Otherwise, create a new one
-    if not megadoc:
+    else:
         megadoc = search.add_megadoc(filetype, session=session)
 
     log.info(f"Creating {filetype} megadoc for search `{search.search_str}`")
-    documents = sorted(search.documents, key=lambda doc: doc.created_at)
-    for doc in documents:
-        if megadoc.status != "STARTED":
-            megadoc.set_status("STARTED", session=session)
+    for doc in sorted(search.documents, key=lambda doc: doc.created_at):
+        megadoc.set_status("STARTED", session=session)
         if megadoc.filetype == ".docx":
             doc.to_docx(_config.DATA_PATH / megadoc.path)
         else:
@@ -53,19 +45,17 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
 @with_session
 def upload_megadoc(self, megadoc_uid, session=None):
     """ """
-    megadoc = Megadoc.get(megadoc_uid, session=session)
-    if not megadoc:
+    if not (megadoc := Megadoc.get(megadoc_uid, session=session)):
         raise LookupError(f"Tried uploading invalid megadoc: {megadoc_uid}")
+    if not megadoc.full_path.is_file():
+        raise FileNotFoundError(f"File not found: {megadoc.full_path}")
     log.info(
         f"Uploading {megadoc.filetype} megadoc for `{megadoc.search.search_str}`"
         f" to S3 bucket at {_config.CDN_ENDPOINT}"
     )
 
-    local_path_str = megadoc.full_path.as_posix()
-    content_type, _ = mimetypes.guess_type(local_path_str)
-    if content_type is None:
-        content_type = "application/octet-stream"
-
+    file_path = megadoc.full_path.as_posix()
+    content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
     try:
         s3_session = boto3.session.Session()
         s3_client = s3_session.client(
@@ -76,7 +66,7 @@ def upload_megadoc(self, megadoc_uid, session=None):
             aws_secret_access_key=_config.CDN_SECRET_KEY,
         )
         s3_client.upload_file(
-            local_path_str,
+            file_path,
             _config.CDN_SPACE_NAME,
             megadoc.path,
             ExtraArgs={

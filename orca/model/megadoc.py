@@ -73,7 +73,7 @@ class Megadoc(Base, CommonMixin, StatusMixin):
         """Get current progress from redis if working."""
         if self.status == "PENDING":
             return 0.0
-        if self.status in ["SENDING", "SUCCESS"]:
+        if self.status in {"SENDING", "SUCCESS"}:
             return 100.0
         ticks = float(int(r.hget(self.redis_key, "progress")))
         return ticks / float(len(self.search.documents))
@@ -85,9 +85,8 @@ class Megadoc(Base, CommonMixin, StatusMixin):
 
     def as_dict(self):
         rows = super().as_dict()
-        rows.pop("filename")
-        rows.pop("path")
-        rows.pop("search_uid")
+        for key in {"filename", "path", "search_uid"}:
+            rows.pop(key)
         rows["filesize"] = self.filesize
         if self.status not in ["SENDING", "SUCCESS"]:
             rows["progress"] = self.progress

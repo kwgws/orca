@@ -1,4 +1,5 @@
 import logging
+import shutil
 from pathlib import Path
 
 from natsort import natsorted
@@ -59,16 +60,7 @@ def index_documents(self, _, session=None):
 
     if any(_config.INDEX_PATH.iterdir()):
         log.info(f"Previous index found at {_config.INDEX_PATH}, resetting")
-
-        def rmdir(path: Path):
-            for item in path.iterdir():
-                if item.is_dir():
-                    rmdir(item)
-                else:
-                    item.unlink()
-            path.rmdir()
-
-        rmdir(_config.INDEX_PATH)
+        shutil.rmtree(_config.INDEX_PATH)
         _config.INDEX_PATH.mkdir()
 
     schema = Schema(

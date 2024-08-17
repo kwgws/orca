@@ -67,7 +67,26 @@ class Image(Base, CommonMixin):
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("image_path")
-        rows["documents"] = [doc.uid for doc in self.documents]
+        if docs := [doc.as_dict() for doc in self.documents]:
+            keys = set(docs[0].keys())
+            keys_to_remove = {
+                "stem",
+                "title",
+                "album",
+                "index",
+                "media_archive",
+                "media_collection",
+                "media_box",
+                "media_folder",
+                "media_type",
+                "media_created_at",
+                "image_url",
+                "thumb_url",
+            }
+            for doc in docs:
+                for key in keys.intersection(keys_to_remove):
+                    doc.pop(key)
+            rows["documents"] = docs
         return rows
 
 
@@ -177,9 +196,7 @@ class Document(Base, CommonMixin):
         two are the date and time. Any remaining parts are the title.
         """
 
-        if not isinstance(path, Path):
-            path = Path(path)
-        if not path.is_file():
+        if not (path := Path(path)).is_file():
             raise FileNotFoundError(f"File not found: {path}")
 
         album = path.parent.name
@@ -221,9 +238,7 @@ class Document(Base, CommonMixin):
 
         document.image = image
         image.documents.append(document)
-        session.add(image)
-        session.add(document)
-
+        session.add_all([image, document])
         if not batch_only:
             session.commit()
         return image
@@ -232,22 +247,21 @@ class Document(Base, CommonMixin):
         """Appends content to a markdown file with metadata."""
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            output = "\n".join(
-                [
-                    "---",
-                    f"date: {self.created_at.strftime('%B %d, %Y at %-I:%M %p')}",
-                    f"album: {self.title} - {self.index} of {self.album}",
-                    f"image: {self.image_url}",
-                    "---",
-                    "",
-                    self.content,
-                    "",
-                    "",
-                    "",
-                ]
-            )
             with path.open("a") as f:
-                f.write(output)
+                f.write(
+                    (
+                        "---\n"
+                        f"date: {self.created_at.strftime('%B %d, %Y at %-I:%M %p')}\n"
+                        f"album: {self.title} - {self.index} of {self.album}\n"
+                        f"image: {self.image_url}\n"
+                        "---\n"
+                        "\n"
+                        f"{self.content}\n"
+                        "\n"
+                        "\n"
+                        "\n"
+                    )
+                )
 
         except IOError:
             log.exception(f"Error writing to file: {path}")
@@ -316,8 +330,8 @@ class Document(Base, CommonMixin):
         rows = super().as_dict()
 
         # Get rid of redundant image_uid and any local paths
-        for col in ["image_uid", "json_path", "text_path"]:
-            rows.pop(col)
+        for key in {"image_uid", "json_path", "text_path"}:
+            rows.pop(key)
 
         # Even though the Image class is storing documents for logical reasons,
         # most of our operations will happen on Documents directly. We should

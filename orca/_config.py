@@ -58,14 +58,14 @@ logging.config.dictConfig(
 
 # Validate critical parameters
 load_dotenv()
-for var in [
+for var in {
     "ORCA_CLIENT_URL",
     "ORCA_CDN_ACCESS_KEY",
     "ORCA_CDN_SECRET_KEY",
     "ORCA_CDN_ENDPOINT",
     "ORCA_CDN_URL",
-]:
-    if os.getenv(var) is None:
+}:
+    if not os.getenv(var):
         raise EnvironmentError(f"Missing environment variable: {var}")
 
 
@@ -86,8 +86,7 @@ DATABASE_RETRIES = 10
 DATABASE_BATCH_SIZE = 10000
 
 # Redis configuration
-REDIS_SOCKET = Path(os.getenv("ORCA_REDIS_SOCKET"))
-if not REDIS_SOCKET.exists():
+if not (REDIS_SOCKET := Path(os.getenv("ORCA_REDIS_SOCKET"))).exists():
     raise EnvironmentError(f"Cannot find redis socket at {REDIS_SOCKET}")
 
 # Megadoc configuration

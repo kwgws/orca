@@ -5,7 +5,7 @@ from flask_cors import CORS
 
 from orca import _config
 from orca.app import get_overview, start_search
-from orca.model import Search, get_redis_client, get_session, utcnow
+from orca.model import Search, get_redis_client, get_session
 
 log = logging.getLogger(__name__)
 r = get_redis_client()
@@ -23,19 +23,9 @@ def before_request():
         g.session = get_session().__enter__()
 
 
-@flask.after_request
-def after_request(response):
-    # Add ISO-formatted date header
-    timestamp = f"{utcnow().isoformat()[:-6]}Z"
-    response.headers["Date-ISO"] = timestamp
-
-    return response
-
-
 @flask.teardown_request
 def teardown_request(exception=None):
-    session = g.pop("session", None)
-    if session is not None:
+    if session := g.pop("session", None):
         session.__exit__(
             exception.__class__ if exception else None,
             exception,
@@ -62,8 +52,7 @@ def create_search():
     if not request.json or "search_str" not in request.json:
         abort(400, description='Invalid request, missing "search_str" field')
     try:
-        search_str = request.json["search_str"]
-        if search_str == "":
+        if search_str := request.json.get("search_str"):
             abort(400, description='Invalid request, "search_str" field left blank')
 
         search_uid = start_search(search_str)
@@ -84,8 +73,7 @@ def get_search(search_uid):
         abort(503, description="Database is updating, try again later")
 
     try:
-        search = Search.get(search_uid, session=g.session)
-        if not search:
+        if not (search := Search.get(search_uid, session=g.session)):
             abort(404, description=f"No search with uid {search_uid}")
         return jsonify(**search.as_dict())
     except Exception as e:
@@ -99,8 +87,7 @@ def delete_search(search_uid):
         abort(503, description="Database is updating, try again later")
 
     try:
-        search = Search.get(search_uid, session=g.session)
-        if not search:
+        if not (search := Search.get(search_uid, session=g.session)):
             abort(404, description=f"No search with uid {search_uid}")
         search.delete(session=g.session)
         return "", 204
@@ -112,9 +99,7 @@ def delete_search(search_uid):
 @flask.route("/log")
 def get_log():
     try:
-        with _config.LOG_FILE.open() as f:
-            content = [ln.strip() for ln in f.readlines()]
-        response = make_response("\n".join(content[-500:]))
+        response = make_response(_config.LOG_FILE.read_text())
         response.content_type = "text/plain; charset=utf-8"
         return response
     except Exception as e:

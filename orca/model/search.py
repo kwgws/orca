@@ -7,7 +7,6 @@ import logging
 from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
-from orca import _config
 from orca.model.base import (
     Base,
     CommonMixin,
@@ -49,8 +48,7 @@ class Search(Base, CommonMixin, StatusMixin):
         search.corpus = corpus
         corpus.searches.append(search)
 
-        session.add(corpus)
-        session.add(search)
+        session.add_all([corpus, search])
         session.commit()
         return search
 
@@ -63,9 +61,8 @@ class Search(Base, CommonMixin, StatusMixin):
 
         # Add the document to our list.
         self.documents.append(document)
-        session.add(self)
         document.searches.append(self)
-        session.add(document)
+        session.add_all([self, document])
         session.commit()
         return document
 
@@ -77,15 +74,18 @@ class Search(Base, CommonMixin, StatusMixin):
             return
 
         megadoc = Megadoc(search=self, filetype=filetype)
-        session.add(megadoc)
         self.megadocs.append(megadoc)
-        session.add(self)
+        session.add_all([self, megadoc])
         session.commit()
         return megadoc
 
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("corpus_uid")
-        rows["results"] = len(self.documents)
-        rows["megadocs"] = [md.as_dict() for md in self.megadocs]
+        rows.update(
+            {
+                "results": len(self.documents),
+                "megadocs": [md.as_dict() for md in self.megadocs],
+            }
+        )
         return rows

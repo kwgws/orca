@@ -16,9 +16,9 @@ export async function pollAPI(stateManager) {
     stateManager.update({
       isConnected: true,
       lastPoll: new Date(),
-      apiVersion: data.apiVersion,
-      corpusHash: data.hash_value,
-      corpusTotal: data.total,
+      apiVersion: data.api_version,
+      checksum: data.checksum,
+      totalDocuments: data.total_documents,
       searches: data.searches,
       error: null,
     });

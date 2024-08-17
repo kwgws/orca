@@ -1,4 +1,3 @@
-import hashlib
 import logging
 from datetime import timezone
 
@@ -6,7 +5,8 @@ from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
 
 from orca import _config
-from orca.model.base import Base, documents_corpuses, utcnow, with_session
+from orca._helpers import create_crc, utc_now
+from orca.model.base import Base, documents_corpuses, with_session
 from orca.model.document import Document
 
 log = logging.getLogger(__name__)
@@ -20,9 +20,10 @@ class Corpus(Base):
     """
 
     __tablename__ = "corpuses"
-    hash_value = Column(String, primary_key=True)
-    total = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=utcnow)
+    checksum = Column(String(8), primary_key=True)
+    total_documents = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    comments = Column(String, default="")
     documents = relationship(
         "Document", back_populates="corpuses", secondary=documents_corpuses
     )
@@ -38,11 +39,12 @@ class Corpus(Base):
         total = len(documents)
         log.info(f"Adding {total} documents to corpus")
 
-        # Generate and store hash value
-        log.info("Hashing document contents, this may take some time")
-        raw = "".join([d.content for d in documents])
-        hash_value = hashlib.sha256(raw.encode(), usedforsecurity=False).hexdigest()
-        corpus = cls(hash_value=hash_value, documents=documents, total=total)
+        # Generate and checksum
+        log.info("Generating checksum, this may take some time")
+        checksum = create_crc("".join([d.content for d in documents]))
+        log.info(f"Checksum: {checksum}")
+        corpus = cls(checksum=checksum, documents=documents, total_documents=total)
+
         session.add(corpus)
         session.commit()
 
@@ -75,8 +77,8 @@ class Corpus(Base):
 
     def as_dict(self):
         return {
-            "hash_value": self.hash_value,
-            "total": self.total,
+            "checksum": self.checksum,
+            "total_documents": self.total_documents,
             "created_at": self.created_at.replace(tzinfo=timezone.utc).isoformat(),
             "searches": [s.as_dict() for s in self.searches],
         }

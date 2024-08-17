@@ -14,6 +14,7 @@ from sqlalchemy.orm import relationship
 from unidecode import unidecode
 
 from orca import _config
+from orca._helpers import utc_old
 from orca.model.base import (
     Base,
     CommonMixin,
@@ -36,18 +37,18 @@ class Image(Base, CommonMixin):
     """
 
     index = Column(Integer, nullable=False)
-    stem = Column(String, nullable=False)
-    album = Column(String, nullable=False)
-    title = Column(String)
-    media_archive = Column(String)
-    media_collection = Column(String)
-    media_box = Column(String)
-    media_folder = Column(String)
-    media_type = Column(String)
-    media_created_at = Column(DateTime)
-    image_path = Column(String)
-    image_url = Column(String)
-    thumb_url = Column(String)
+    stem = Column(String(255), nullable=False)
+    album = Column(String(255), nullable=False)
+    title = Column(String(255), default="")
+    media_archive = Column(String(255), default="")
+    media_collection = Column(String(255), default="")
+    media_box = Column(String(255), default="")
+    media_folder = Column(String(255), default="")
+    media_type = Column(String(255), default="")
+    media_created_at = Column(DateTime, default=utc_old)
+    image_path = Column(String(255), default="")
+    image_url = Column(String(255), default="")
+    thumb_url = Column(String(255), default="")
     documents = relationship(
         "Document", back_populates="image", cascade="all, delete-orphan"
     )
@@ -99,12 +100,12 @@ class Document(Base, CommonMixin):
     eventually let us do versioning and diff with our queries.
     """
 
-    batch = Column(String, nullable=False)
-    json_path = Column(String)
-    json_url = Column(String)
-    text_path = Column(String)
-    text_url = Column(String)
-    image_uid = Column(String, ForeignKey("images.uid"), nullable=False)
+    batch = Column(String(255), nullable=False)
+    json_path = Column(String(255), default="")
+    json_url = Column(String(255), default="")
+    text_path = Column(String(255), default="")
+    text_url = Column(String(255), default="")
+    image_uid = Column(String(22), ForeignKey("images.uid"), nullable=False)
     image = relationship("Image", back_populates="documents")
     corpuses = relationship(
         "Corpus", back_populates="documents", secondary=documents_corpuses

@@ -7,14 +7,8 @@ from sqlalchemy import Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from orca import _config
-from orca.model.base import (
-    Base,
-    CommonMixin,
-    StatusMixin,
-    create_uid,
-    get_redis_client,
-    utcnow,
-)
+from orca._helpers import create_uid, utcnow
+from orca.model.base import Base, CommonMixin, StatusMixin, get_redis_client
 
 log = logging.getLogger(__name__)
 r = get_redis_client()
@@ -25,12 +19,12 @@ class Megadoc(Base, CommonMixin, StatusMixin):
     our search. This is the main thing we're here to produce.
     """
 
-    uid = Column(String, primary_key=True)
-    filetype = Column(String, nullable=False, default=".txt")
-    filename = Column(String)
-    path = Column(String)
-    url = Column(String)
-    search_uid = Column(String, ForeignKey("searches.uid"), nullable=False)
+    uid = Column(String(22), primary_key=True)
+    filetype = Column(String(16), nullable=False, default=".txt")
+    filename = Column(String(255), default="")
+    path = Column(String(255), default="")
+    url = Column(String(255), default="")
+    search_uid = Column(String(22), ForeignKey("searches.uid"), nullable=False)
     search = relationship("Search", back_populates="megadocs")
 
     def __init__(self, *args, **kwargs):

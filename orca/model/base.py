@@ -1,10 +1,8 @@
 """Database tools including session management, helper functions, and mixins.
 """
 
-import base64
 import logging
 import time
-import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
@@ -17,6 +15,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
 
 from orca import _config
+from orca._helpers import create_uid, utc_now
 
 log = logging.getLogger(__name__)
 
@@ -136,26 +135,6 @@ def create_tables():
     Base.metadata.create_all(engine)
 
 
-def create_uid():
-    """Create url-safe UID.
-
-    We're using UIDs instead of sequential integers because of the archival
-    nature of the project. We want to be able to reference everything in a
-    stable way over a long period of time, even at the cost of performance.
-    """
-    uid_b64 = base64.b32encode(uuid.uuid4().bytes)
-    return uid_b64.rstrip(b"=").decode("ascii").lower()
-
-
-def utcnow():
-    """Future-proofed replacement for deprecated `datetime.utcnow()`.
-
-    TODO: TypeDecorator recipe from
-    https://docs.sqlalchemy.org/en/20/core/custom_types.html#store-timezone-aware-timestamps-as-timezone-naive-utc
-    """
-    return datetime.now(timezone.utc)
-
-
 # Mixins
 class CommonMixin:
     """Mixin for common item properties and functionality including ID, status,
@@ -166,9 +145,11 @@ class CommonMixin:
     def __tablename__(cls):
         return f"{cls.__name__.lower()}s"
 
-    uid = Column(String, primary_key=True, default=create_uid)
-    created_at = Column(DateTime, nullable=False, default=utcnow)
-    updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
+    uid = Column(String(22), primary_key=True, default=create_uid)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+    tags = Column(String(255), default="")
+    comments = Column(String, default="")
 
     @property
     def redis_key(self):
@@ -277,17 +258,19 @@ class StatusMixin:
 
 # Many-many table to correlate corpuses with specific document versions.
 documents_corpuses = Table(
-    "documents_corpuses",
+    "corpus_documents",
     Base.metadata,
-    Column("corpus_hash", String, ForeignKey("corpuses.hash_value"), primary_key=True),
-    Column("document_uid", String, ForeignKey("documents.uid"), primary_key=True),
+    Column(
+        "corpus_checksum", String(8), ForeignKey("corpuses.checksum"), primary_key=True
+    ),
+    Column("document_uid", String(22), ForeignKey("documents.uid"), primary_key=True),
 )
 
 
 # Many-many table to correlate searches with the documents they find.
 documents_searches = Table(
-    "documents_searches",
+    "search_documents",
     Base.metadata,
-    Column("search_uid", String, ForeignKey("searches.uid"), primary_key=True),
-    Column("document_uid", String, ForeignKey("documents.uid"), primary_key=True),
+    Column("search_uid", String(22), ForeignKey("searches.uid"), primary_key=True),
+    Column("document_uid", String(22), ForeignKey("documents.uid"), primary_key=True),
 )

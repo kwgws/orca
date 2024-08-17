@@ -5,7 +5,7 @@ import { togglePoll, toggleSearch } from "./state.js";
 
 export function updateUI(stateManager) {
   const prevState = stateManager.getPrev();
-  const { apiVersion, corpusHash, corpusTotal, isConnected, lastPoll } =
+  const { apiVersion, checksum, totalDocuments, isConnected, lastPoll } =
     stateManager.get();
 
   // Update connection status on change
@@ -47,11 +47,11 @@ export function updateUI(stateManager) {
   // Update search results
   updateSearchResults(stateManager);
 
-  // Update corpus details if the hash changes
-  if (corpusHash !== prevState?.corpusHash) {
-    console.log(`New hash value found, updating metadata (${corpusHash})`);
-    const docTotal = document.getElementById("corpusTotal");
-    docTotal.textContent = corpusTotal.toLocaleString();
+  // Update corpus details if the checksum changes
+  if (checksum !== prevState?.checksum) {
+    console.log(`New checksum found, updating metadata (${checksum})`);
+    const docTotal = document.getElementById("totalDocuments");
+    docTotal.textContent = totalDocuments.toLocaleString();
   }
 }
 
@@ -68,7 +68,7 @@ function updateSearchResults(stateManager) {
 function makeSearchResult(search) {
   const {
     uid: searchUID,
-    hash,
+    checksum,
     search_str,
     results,
     status,
@@ -81,7 +81,7 @@ function makeSearchResult(search) {
   // Create <article> container for search result
   const searchResult = make("article", { className: "result" });
   searchResult.dataset.id = searchUID;
-  searchResult.dataset.hash = hash;
+  searchResult.dataset.checksum = checksum;
 
   // Add search query as heading
   const searchStr = make("h2", {

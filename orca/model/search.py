@@ -27,15 +27,15 @@ class Search(Base, CommonMixin, StatusMixin):
     """Store searches, their progress, and their results."""
 
     __tablename__ = "searches"
-    search_str = Column(String, nullable=False)
+    search_str = Column(String(255), nullable=False)
+    corpus_checksum = Column(String(8), ForeignKey("corpuses.checksum"), nullable=False)
+    corpus = relationship("Corpus", back_populates="searches")
     documents = relationship(
         "Document", back_populates="searches", secondary=documents_searches
     )
     megadocs = relationship(
         "Megadoc", back_populates="search", cascade="all, delete-orphan"
     )
-    corpus_uid = Column(String, ForeignKey("corpuses.hash_value"), nullable=False)
-    corpus = relationship("Corpus", back_populates="searches")
 
     @classmethod
     @with_session
@@ -43,7 +43,7 @@ class Search(Base, CommonMixin, StatusMixin):
         """Create a new instance and commit it to the table."""
         search = cls(search_str=search_str)
 
-        # Tag with most recent hash value
+        # Tag with most recent checksum
         corpus = Corpus.get_latest(session=session)
         search.corpus = corpus
         corpus.searches.append(search)

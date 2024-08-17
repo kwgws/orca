@@ -35,8 +35,6 @@ def teardown_request(exception=None):
 
 @flask.route("/", methods=["GET"])
 def index():
-    if r.hget("orca:flags", "loading") == b"1":
-        abort(503, description="Database is updating, try again later")
     try:
         return jsonify(get_overview(session=g.session))
     except Exception as e:
@@ -46,9 +44,6 @@ def index():
 
 @flask.route("/search", methods=["POST"])
 def create_search():
-    if r.hget("orca:flags", "loading") == b"1":
-        abort(503, description="Database is updating, try again later")
-
     if not request.json or "search_str" not in request.json:
         abort(400, description='Invalid request, missing "search_str" field')
     try:
@@ -69,9 +64,6 @@ def create_search():
 
 @flask.route("/search/<search_uid>", methods=["GET"])
 def get_search(search_uid):
-    if r.hget("orca:flags", "loading") == b"1":
-        abort(503, description="Database is updating, try again later")
-
     try:
         if not (search := Search.get(search_uid, session=g.session)):
             abort(404, description=f"No search with uid {search_uid}")
@@ -83,9 +75,6 @@ def get_search(search_uid):
 
 @flask.route("/search/<search_uid>", methods=["DELETE"])
 def delete_search(search_uid):
-    if r.hget("orca:flags", "loading") == b"1":
-        abort(503, description="Database is updating, try again later")
-
     try:
         if not (search := Search.get(search_uid, session=g.session)):
             abort(404, description=f"No search with uid {search_uid}")
@@ -120,8 +109,3 @@ def not_found(error):
 @flask.errorhandler(500)
 def internal_server_error(error):
     return jsonify(error=error.description), 500
-
-
-@flask.errorhandler(503)
-def busy_error(error):
-    return jsonify(error=error.description), 503

@@ -13,7 +13,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from unidecode import unidecode
 
-from orca import _config
+from orca import config
 from orca._helpers import utc_old
 from orca.model.base import (
     Base,
@@ -36,7 +36,7 @@ class Image(Base, CommonMixin):
     base object.
     """
 
-    index = Column(Integer, nullable=False)
+    album_index = Column(Integer, nullable=False)
     stem = Column(String(255), nullable=False)
     album = Column(String(255), nullable=False)
     title = Column(String(255), default="")
@@ -74,7 +74,7 @@ class Image(Base, CommonMixin):
                 "stem",
                 "title",
                 "album",
-                "index",
+                "album_index",
                 "media_archive",
                 "media_collection",
                 "media_box",
@@ -127,8 +127,8 @@ class Document(Base, CommonMixin):
         return self.image.album
 
     @property
-    def index(self):
-        return self.image.index
+    def album_index(self):
+        return self.image.album_index
 
     @property
     def media_archive(self):
@@ -169,7 +169,7 @@ class Document(Base, CommonMixin):
     @property
     def json(self):
         try:
-            with (_config.DATA_PATH / self.json_path).open() as f:
+            with (config.data_path / self.json_path).open() as f:
                 return json.load(f)
         except IOError:
             log.exception(f"Error loading file: {self.json_path}")
@@ -178,7 +178,7 @@ class Document(Base, CommonMixin):
     @property
     def content(self):
         try:
-            with (_config.DATA_PATH / self.text_path).open() as f:
+            with (config.data_path / self.text_path).open() as f:
                 return unidecode(f.read().strip())
         except IOError:
             log.exception(f"Error loading file: {self.text_path}")
@@ -213,28 +213,28 @@ class Document(Base, CommonMixin):
             raise ValueError(f"Error parsing timestamp from filename: {stem}") from e
 
         # These paths need to be relative so we can make them portable
-        json_path = Path(_config.BATCH_NAME) / "json" / album / f"{stem}.json"
-        text_path = Path(_config.BATCH_NAME) / "text" / album / f"{stem}.txt"
+        json_path = Path(config.batch_name) / "json" / album / f"{stem}.json"
+        text_path = Path(config.batch_name) / "text" / album / f"{stem}.txt"
         image_path = Path("img") / album / f"{stem}.webp"
 
         if not image or not isinstance(image, Image):
             image = Image(
-                index=int(split[0]),
+                album_index=int(split[0]),
                 stem=stem,
                 title="_".join(split[3:]),
                 album=album,
                 image_path=f"{image_path}",
-                image_url=f"{_config.CDN_URL}/{image_path}",
-                thumb_url=f"{_config.CDN_URL}/thumbs/{album}/{stem}.webp",
+                image_url=f"{config.cdn.url}/{image_path}",
+                thumb_url=f"{config.cdn.url}/thumbs/{album}/{stem}.webp",
                 created_at=timestamp,
             )
 
         document = Document(
-            batch=_config.BATCH_NAME,
+            batch=config.batch_name,
             json_path=f"{json_path}",
-            json_url=f"{_config.CDN_URL}/{json_path}",
+            json_url=f"{config.cdn.url}/{json_path}",
             text_path=f"{text_path}",
-            text_url=f"{_config.CDN_URL}/{text_path}",
+            text_url=f"{config.cdn.url}/{text_path}",
         )
 
         document.image = image
@@ -253,7 +253,7 @@ class Document(Base, CommonMixin):
                     (
                         "---\n"
                         f"date: {self.created_at.strftime('%B %d, %Y at %-I:%M %p')}\n"
-                        f"album: {self.title} - {self.index} of {self.album}\n"
+                        f"album: {self.title} - {self.album_index} of {self.album}\n"
                         f"image: {self.image_url}\n"
                         "---\n"
                         "\n"
@@ -279,7 +279,7 @@ class Document(Base, CommonMixin):
             x.add_heading(self.created_at.strftime("%B %d, %Y at %-I:%M %p"), level=1)
             p = x.add_paragraph()
             run = p.add_run()
-            run.text = f"{self.title} - {self.index} of {self.album}\n"
+            run.text = f"{self.title} - {self.album_index} of {self.album}\n"
             run.font.bold = True
 
             # Add a link to the image file. To do this we need to manipulate
@@ -342,7 +342,7 @@ class Document(Base, CommonMixin):
                 "stem": self.stem,
                 "title": self.title,
                 "album": self.album,
-                "index": self.index,
+                "album_index": self.album_index,
                 "media_archive": self.media_archive,
                 "media_collection": self.media_collection,
                 "media_box": self.media_box,

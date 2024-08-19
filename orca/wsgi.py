@@ -3,16 +3,15 @@ import logging
 from flask import Flask, abort, g, jsonify, make_response, request, url_for
 from flask_cors import CORS
 
-from orca import _config
+from orca import config
 from orca.app import get_overview, start_search
-from orca.model import Search, get_redis_client, get_session
+from orca.model import Search, get_session
 
 log = logging.getLogger(__name__)
-r = get_redis_client()
 
-flask = Flask(_config.APP_NAME)
-flask.config.from_object(_config.FlaskConfig)
-flask.config["SESSION_REDIS"] = r
+flask = Flask(config.app_name)
+flask.config.from_object(config.flask)
+flask.config["SESSION_REDIS"] = config.db.redis
 CORS(flask)
 
 
@@ -34,7 +33,7 @@ def teardown_request(exception=None):
 
 
 @flask.route("/", methods=["GET"])
-def index():
+def get_all():
     try:
         return jsonify(get_overview(session=g.session))
     except Exception as e:
@@ -88,7 +87,7 @@ def delete_search(search_uid):
 @flask.route("/log")
 def get_log():
     try:
-        response = make_response(_config.LOG_FILE.read_text())
+        response = make_response(config.log_path.read_text())
         response.content_type = "text/plain; charset=utf-8"
         return response
     except Exception as e:

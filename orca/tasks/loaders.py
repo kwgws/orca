@@ -2,18 +2,17 @@ import logging
 import shutil
 from pathlib import Path
 
+import whoosh
+import whoosh.fields
+import whoosh.writing
 from natsort import natsorted
 from unidecode import unidecode
-from whoosh import index
-from whoosh.fields import ID, TEXT, Schema
-from whoosh.writing import AsyncWriter
 
-from orca import _config
-from orca.model import Corpus, Document, Image, get_redis_client, with_session
-from orca.tasks.celery import celery
+from orca import config
+from orca.model import Corpus, Document, Image, with_session
+from orca.tasks import celery
 
 log = logging.getLogger(__name__)
-r = get_redis_client()
 
 
 @celery.task(bind=True)
@@ -34,7 +33,7 @@ def load_documents(self, path: str, session=None):
     for i, file in enumerate(files):
         # Commit & log every n files, making sure to always hit the last file,
         # otherwise just add the file to the batch
-        if (i + 1) % _config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
+        if (i + 1) % config.db.batch_size == 0 or i + 1 == total:
             log.info(f"Loading documents ({i + 1}/{total})")
             Image.create_from_file(file, session=session)
         else:
@@ -54,27 +53,27 @@ def index_documents(self, _, session=None):
 
     documents = Document.get_all(session=session)
     total = len(documents)
-    log.info(f"Indexing {total} documents to {_config.INDEX_PATH}")
+    log.info(f"Indexing {total} documents to {config.index_path}")
 
     Corpus.create(session=session)
 
-    if any(_config.INDEX_PATH.iterdir()):
-        log.info(f"Previous index found at {_config.INDEX_PATH}, resetting")
-        shutil.rmtree(_config.INDEX_PATH)
-        _config.INDEX_PATH.mkdir()
+    if any(config.index_path.iterdir()):
+        log.info(f"Previous index found at {config.index_path}, resetting")
+        shutil.rmtree(config.index_path)
+        config.index_path.mkdir()
 
-    schema = Schema(
-        uid=ID(stored=True, unique=True),
-        content=TEXT(stored=True),
+    schema = whoosh.fields.Schema(
+        uid=whoosh.fields.ID(stored=True, unique=True),
+        content=whoosh.fields.TEXT(stored=True),
     )
-    ix = index.create_in(_config.INDEX_PATH, schema)
-    writer = AsyncWriter(ix)
+    ix = whoosh.index.create_in(config.index_path, schema)
+    writer = whoosh.writing.AsyncWriter(ix)
 
     for i, doc in enumerate(documents):
-        if (i + 1) % _config.DATABASE_BATCH_SIZE == 0 or i + 1 == total:
+        if (i + 1) % config.db.batch_size == 0 or i + 1 == total:
             log.info(f"Indexing documents ({i + 1}/{total})")
 
-        text_path = _config.DATA_PATH / doc.text_path
+        text_path = config.data_path / doc.text_path
         try:
             with text_path.open() as f:
                 content = unidecode(f.read().strip())
@@ -83,6 +82,6 @@ def index_documents(self, _, session=None):
         except IOError as e:
             log.warning(f"Error parsing {text_path}: {e}")
 
-    log.info(f"Finalizing index at {_config.INDEX_PATH}, this could take some time")
+    log.info(f"Finalizing index at {config.index_path}, this could take some time")
     writer.commit()
     log.info("Done indexing")

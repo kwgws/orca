@@ -12,7 +12,6 @@ from orca.model.base import (
     CommonMixin,
     StatusMixin,
     documents_searches,
-    get_redis_client,
     with_session,
 )
 from orca.model.corpus import Corpus
@@ -20,7 +19,6 @@ from orca.model.document import Document
 from orca.model.megadoc import Megadoc
 
 log = logging.getLogger(__name__)
-r = get_redis_client()
 
 
 class Search(Base, CommonMixin, StatusMixin):

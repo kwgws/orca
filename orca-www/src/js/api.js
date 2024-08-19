@@ -2,7 +2,6 @@ import { apiUrl } from "./config.js";
 import { err } from "./helpers.js";
 import { togglePoll } from "./state.js";
 
-/* */
 export async function pollAPI(stateManager) {
   console.log(`Polling API at ${apiUrl}`);
 
@@ -16,10 +15,10 @@ export async function pollAPI(stateManager) {
     stateManager.update({
       isConnected: true,
       lastPoll: new Date(),
-      apiVersion: data.api_version,
-      checksum: data.checksum,
-      totalDocuments: data.total_documents,
-      searches: data.searches,
+      apiVersion: data.apiVersion,
+      checksum: data.corpus.checksum,
+      totalDocuments: data.corpus.totalDocuments,
+      searches: data.corpus.searches,
       error: null,
     });
   } catch (error) {
@@ -33,7 +32,6 @@ export async function pollAPI(stateManager) {
   }
 }
 
-/* */
 export function startPollAPI(stateManager, pollingInterval) {
   const pollWithInterval = () => {
     if (togglePoll()) {
@@ -44,7 +42,6 @@ export function startPollAPI(stateManager, pollingInterval) {
   setInterval(pollWithInterval, pollingInterval);
 }
 
-/* */
 export async function deleteSearch(search) {
   const { uuid: searchUID, searchStr } = search;
   console.log(`Deleting "${searchStr}" (${searchUID})`);
@@ -60,7 +57,6 @@ export async function deleteSearch(search) {
   }
 }
 
-/* */
 export async function createSearch(searchStr) {
   console.log(`Searching "${searchStr}"`);
 
@@ -69,7 +65,7 @@ export async function createSearch(searchStr) {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ search_str: searchStr }),
+      body: JSON.stringify({ searchStr }),
     });
     if (!response.ok) {
       throw new Error(response.statusText);

@@ -6,7 +6,6 @@ from orca.model.base import (  # noqa: F401
     create_tables,
     documents_corpuses,
     documents_searches,
-    get_redis_client,
     get_session,
     handle_sql_errors,
     with_session,

@@ -1,11 +1,11 @@
 import logging
 
-from whoosh import index
-from whoosh.qparser import FuzzyTermPlugin, QueryParser
+import whoosh
+import whoosh.qparser
 
-from orca import _config
+from orca import config
 from orca.model import Document, Search, with_session
-from orca.tasks.celery import celery
+from orca.tasks import celery
 
 log = logging.getLogger(__name__)
 
@@ -20,10 +20,10 @@ def run_search(self, search_str: str, session=None):
     search.set_status("STARTED", session=session)
 
     # Load Whoosh index
-    ix = index.open_dir(_config.INDEX_PATH.as_posix())
+    ix = whoosh.index.open_dir(config.index_path.as_posix())
     with ix.searcher() as searcher:
-        parser = QueryParser("content", ix.schema)
-        parser.add_plugin(FuzzyTermPlugin())
+        parser = whoosh.qparser.QueryParser("content", ix.schema)
+        parser.add_plugin(whoosh.qparser.FuzzyTermPlugin())
 
         # Parse query and perform search
         query = parser.parse(search_str)

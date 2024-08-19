@@ -3,9 +3,10 @@ from pathlib import Path
 
 from celery import chain, chord, group
 
-from orca import _config
+from orca import config
+from orca._helpers import export_dict
 from orca.model import Corpus, create_tables, with_session
-from orca.tasks.celery import celery  # noqa: F401 -- need this here for export
+from orca.tasks import celery  # noqa: F401
 from orca.tasks.exporters import create_megadoc, upload_megadoc
 from orca.tasks.loaders import index_documents, load_documents
 from orca.tasks.searchers import run_search
@@ -18,8 +19,8 @@ def reset_db():
 
     This needs to be run at least once before anything else happens.
     """
-    log.info(f"Deleting database file: {_config.DATABASE_PATH}")
-    _config.DATABASE_PATH.unlink()
+    log.info(f"Deleting database file: {config.db.path}")
+    config.db.path.unlink()
     log.info("Creating database and setting up table metadata")
     create_tables()
     log.info("Reset complete")
@@ -47,16 +48,17 @@ def start_load(path):
 
 @with_session
 def get_overview(session=None):
-    return {
-        "api_version": _config.APP_VERSION,
+    data = {
+        "api_version": config.version,
         "corpus": Corpus.get_latest(session=session).as_dict(),
     }
+    return export_dict(data)
 
 
 def start_search(search_str):
     """ """
     megadoc_tasks = group(
         chain(create_megadoc.s(filetype), upload_megadoc.s())
-        for filetype in _config.MEGADOC_FILETYPES
+        for filetype in config.megadoc_types
     )
     return chain(run_search.s(search_str), megadoc_tasks).apply_async()

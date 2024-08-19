@@ -60,9 +60,11 @@ function updateSearchResults(stateManager) {
   searchResults.innerHTML = "";
 
   const { searches } = stateManager.get();
-  searches.forEach((search) => {
-    searchResults.appendChild(makeSearchResult(search));
-  });
+  if (Array.isArray(searches) && searches.length > 0) {
+    searches.forEach((search) => {
+      searchResults.appendChild(makeSearchResult(search));
+    });
+  }
 }
 
 function makeSearchResult(search) {

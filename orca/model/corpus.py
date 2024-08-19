@@ -4,7 +4,7 @@ from datetime import timezone
 from sqlalchemy import Column, DateTime, Integer, String, desc
 from sqlalchemy.orm import relationship
 
-from orca import _config
+from orca import config
 from orca._helpers import create_crc, utc_now
 from orca.model.base import Base, documents_corpuses, with_session
 from orca.model.document import Document
@@ -53,7 +53,7 @@ class Corpus(Base):
         for i, document in enumerate(documents):
             document.corpus = corpus
             session.add(document)
-            if (i + 1) % _config.DATABASE_BATCH_SIZE == 0 or (i + 1) == total:
+            if (i + 1) % config.db.batch_size == 0 or (i + 1) == total:
                 log.info(f"Adding document to corpus ({i + 1}/{total})")
                 session.commit()
 

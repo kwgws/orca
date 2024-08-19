@@ -4,9 +4,9 @@ import mimetypes
 import boto3
 from botocore.exceptions import BotoCoreError
 
-from orca import _config
+from orca import config
 from orca.model import Megadoc, Search, with_session
-from orca.tasks.celery import celery
+from orca.tasks import celery
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
     # Look for a pre-existing megadoc
     if megadoc := next((md for md in search.megadocs if md.filetype == filetype), None):
         log.warning(f"Search `{search.search_str}` already has {filetype} megadoc")
-        (_config.DATA_PATH / megadoc.path).unlink(missing_ok=True)  # delete file
+        (config.data_path / megadoc.path).unlink(missing_ok=True)  # delete file
 
     # Otherwise, create a new one
     else:
@@ -31,9 +31,9 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
     for doc in sorted(search.documents, key=lambda doc: doc.created_at):
         megadoc.set_status("STARTED", session=session)
         if megadoc.filetype == ".docx":
-            doc.to_docx(_config.DATA_PATH / megadoc.path)
+            doc.to_docx(config.data_path / megadoc.path)
         else:
-            doc.to_markdown(_config.DATA_PATH / megadoc.path)
+            doc.to_markdown(config.data_path / megadoc.path)
         megadoc.tick()
 
     # Set status to "SENDING" to indicate we're ready for upload
@@ -51,7 +51,7 @@ def upload_megadoc(self, megadoc_uid, session=None):
         raise FileNotFoundError(f"File not found: {megadoc.full_path}")
     log.info(
         f"Uploading {megadoc.filetype} megadoc for `{megadoc.search.search_str}`"
-        f" to S3 bucket at {_config.CDN_ENDPOINT}"
+        f" to S3 bucket at {config.cdn.endpoint}"
     )
 
     file_path = megadoc.full_path.as_posix()
@@ -60,14 +60,14 @@ def upload_megadoc(self, megadoc_uid, session=None):
         s3_session = boto3.session.Session()
         s3_client = s3_session.client(
             "s3",
-            region_name=_config.CDN_REGION,
-            endpoint_url=_config.CDN_ENDPOINT,
-            aws_access_key_id=_config.CDN_ACCESS_KEY,
-            aws_secret_access_key=_config.CDN_SECRET_KEY,
+            region_name=config.cdn.region,
+            endpoint_url=config.cdn.endpoint,
+            aws_access_key_id=config.cdn.access_key,
+            aws_secret_access_key=config.cdn.secret_key,
         )
         s3_client.upload_file(
             file_path,
-            _config.CDN_SPACE_NAME,
+            config.cdn.space,
             megadoc.path,
             ExtraArgs={
                 "ACL": "public-read",

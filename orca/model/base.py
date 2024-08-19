@@ -2,19 +2,17 @@
 """
 
 import logging
-import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
 from random import random
 
-import redis
 from slugify import slugify
 from sqlalchemy import Column, DateTime, ForeignKey, String, Table, create_engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
 
-from orca import _config
+from orca import config
 from orca._helpers import create_uid, utc_now
 
 log = logging.getLogger(__name__)
@@ -22,7 +20,7 @@ log = logging.getLogger(__name__)
 
 # SQLite database initialization
 Base = declarative_base()
-engine = create_engine(_config.DATABASE_URI)
+engine = create_engine(config.db.uri)
 SessionLocal = scoped_session(sessionmaker(bind=engine))
 
 
@@ -43,34 +41,6 @@ def get_session():
         session.close()
 
 
-def get_redis_client():
-    """Factory to connect to Redis and return a `StrictRedis` client.
-
-    Uses socket specified by environment via `config.REDIS_SOCKET`.
-    """
-    for attempt in range(1, _config.DATABASE_RETRIES + 1):
-        # Check for valid socket file
-        if not _config.REDIS_SOCKET or not _config.REDIS_SOCKET.exists():
-            raise ValueError("Error connecting to Redis socket")
-
-        # Ping Redis, keep trying until we get a connection or hit max retries
-        try:
-            client = redis.StrictRedis(unix_socket_path=_config.REDIS_SOCKET.as_posix())
-            client.ping()
-            log.debug(f"Connected to Redis at {_config.REDIS_SOCKET}")
-            return client
-        except redis.ConnectionError as e:
-            backoff_time = attempt**2 + random()
-            log.warning(
-                f"Error connecting to Redis at {_config.REDIS_SOCKET}, "
-                f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
-                f"in {backoff_time:.2f} seconds: {e}"
-            )
-            time.sleep(backoff_time)
-
-    raise redis.ConnectionError("Redis connection failed after multiple attempts")
-
-
 def handle_sql_errors(func):
     """SQL error handler decorator. An active session must be passed in through
     the keyword arguments.
@@ -86,7 +56,7 @@ def handle_sql_errors(func):
                 log.warning(f"Rolling back transaction: {exc}")
                 session.rollback()
 
-        for attempt in range(1, _config.DATABASE_RETRIES + 1):
+        for attempt in range(1, config.db.retries + 1):
             try:
                 return func(*args, **kwargs)
 
@@ -97,7 +67,7 @@ def handle_sql_errors(func):
                 backoff_delay = attempt**2 + random()
                 log.warning(
                     "Error in database operation ,"
-                    f"retrying ({attempt}/{_config.DATABASE_RETRIES}) "
+                    f"retrying ({attempt}/{config.db.retries}) "
                     f"in {backoff_delay:.2f} seconds"
                 )
                 try_rollback(e)
@@ -155,7 +125,7 @@ class CommonMixin:
     def redis_key(self):
         """Get a key representing this item in the Redis database."""
         return (
-            f"{slugify(_config.APP_NAME)}"
+            f"{slugify(config.app_name)}"
             f":{slugify(self.__tablename__)}"
             f":{slugify(self.uid)}"
         )

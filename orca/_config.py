@@ -7,6 +7,7 @@ from typing import NamedTuple, Optional
 
 from redis import StrictRedis
 
+_config = None
 _config_path = Path(os.getenv("CONFIG_FILE", "orca.toml"))
 
 
@@ -55,6 +56,7 @@ class CeleryConfig(NamedTuple):
     worker_cancel_long_running_tasks_on_connection_loss: bool = True
     worker_redirect_stdouts_level: str = "INFO"
     broker_connection_retry_on_startup: bool = True
+    worker_hijack_root_logger: bool = False
 
 
 class FlaskConfig(NamedTuple):
@@ -67,7 +69,7 @@ class FlaskConfig(NamedTuple):
 class Config(NamedTuple):
     version: str
     client_url: str
-    log_path: Path
+    log: dict
     app_name: str = "orca"
     root_path: Path = Path.home()
     batch_name: str = 00
@@ -90,22 +92,27 @@ class Config(NamedTuple):
         return Path(self.batch_name) / "megadocs"
 
 
-# Open the configuration file
-try:
-    _values = tomllib.loads(_config_path.read_text())
-    _values = convert_paths_to_path(_values)
-
-    # Configure logging
-    logging.config.dictConfig(_values.pop("logging"))
+def load_config():
+    values = tomllib.loads(_config_path.read_text())
+    values = convert_paths_to_path(values)
 
     # Populate remaining settings
-    config = Config(
-        db=DatabaseConfig(**_values.get("db")),
-        cdn=CDNConfig(**_values.get("cdn")),
-        celery=CeleryConfig(**_values.get("celery")),
-        flask=FlaskConfig(**_values.get("flask")),
-        **_values.get("app"),
+    return Config(
+        db=DatabaseConfig(**values.pop("db")),
+        cdn=CDNConfig(**values.pop("cdn")),
+        celery=CeleryConfig(**values.pop("celery")),
+        flask=FlaskConfig(**values.pop("flask")),
+        log=values.pop("logging"),
+        **values.get("app"),
     )
 
-except Exception as e:
-    raise EnvironmentError("Error loading configuration file") from e
+
+def get_config():
+    global _config
+    if not _config:
+        _config = load_config()
+    return _config
+
+
+config = get_config()
+logging.config.dictConfig(config.log)

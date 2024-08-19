@@ -56,6 +56,7 @@ class Megadoc(Base, CommonMixin, StatusMixin):
     def filesize(self):
         """Size of megadoc file in bytes. Returns 0 if no file."""
         try:
+            self.full_path.touch()
             return os.path.getsize(self.full_path)
         except OSError as e:
             log.warning(f"Error finding size of megadoc: {e}")

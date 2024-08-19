@@ -19,10 +19,11 @@ def reset_db():
 
     This needs to be run at least once before anything else happens.
     """
-    log.info(f"Deleting database file: {config.db.path}")
-    config.db.path.unlink()
+    log.info(f"Deleting database file: {config.db.sql_path}")
+    config.db.sql_path.unlink(missing_ok=True)
     log.info("Creating database and setting up table metadata")
     create_tables()
+    config.db.sql_path.chmod(0o660)
     log.info("Reset complete")
 
 
@@ -47,7 +48,7 @@ def start_load(path):
 
 
 @with_session
-def get_overview(session=None):
+def get_dict(session=None):
     data = {
         "api_version": config.version,
         "corpus": Corpus.get_latest(session=session).as_dict(),

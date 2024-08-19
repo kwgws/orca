@@ -79,7 +79,7 @@ class Search(Base, CommonMixin, StatusMixin):
 
     def as_dict(self):
         rows = super().as_dict()
-        rows.pop("corpus_uid")
+        rows.pop("corpus_checksum")
         rows.update(
             {
                 "results": len(self.documents),

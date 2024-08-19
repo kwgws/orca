@@ -1,7 +1,16 @@
-import { deleteSearch } from "./api.js";
+import { deleteSearch, createSearch } from "./api.js";
 import { apiUrl } from "./config.js";
 import { err, fmtDate, fmtSize, make, spinner, text } from "./helpers.js";
 import { togglePoll, toggleSearch } from "./state.js";
+
+export function initUI() {
+  const searchForm = document.getElementById("searchForm");
+  const searchStrInput = document.getElementById("searchStrInput");
+  searchForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await createSearch(searchStrInput.value.trim());
+  });
+}
 
 export function updateUI(stateManager) {
   const prevState = stateManager.getPrev();

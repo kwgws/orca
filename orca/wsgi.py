@@ -4,7 +4,8 @@ from flask import Flask, abort, g, jsonify, make_response, request, url_for
 from flask_cors import CORS
 
 from orca import config
-from orca.app import get_overview, start_search
+from orca._helpers import import_dict
+from orca.app import get_dict, start_search
 from orca.model import Search, get_session
 
 log = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ def teardown_request(exception=None):
 @flask.route("/", methods=["GET"])
 def get_all():
     try:
-        return jsonify(get_overview(session=g.session))
+        return jsonify(get_dict(session=g.session))
     except Exception as e:
         log.exception(f"Error retrieving status: {e}")
         abort(500)
@@ -43,15 +44,14 @@ def get_all():
 
 @flask.route("/search", methods=["POST"])
 def create_search():
-    if not request.json or "search_str" not in request.json:
-        abort(400, description='Invalid request, missing "search_str" field')
+    if not (data := import_dict(request.json)):
+        abort(400, "Empty request")
     try:
-        if search_str := request.json.get("search_str"):
-            abort(400, description='Invalid request, "search_str" field left blank')
+        if not (search_str := data.get("search_str")):
+            abort(400, description="Invalid request")
 
         search_uid = start_search(search_str)
 
-        # Return with status and location
         response = make_response()
         response.location = url_for("get_search", search_uid=search_uid)
         return response, 202
@@ -81,17 +81,6 @@ def delete_search(search_uid):
         return "", 204
     except Exception as e:
         log.exception(f"Error removing search with uid {search_uid}: {e}")
-        abort(500)
-
-
-@flask.route("/log")
-def get_log():
-    try:
-        response = make_response(config.log_path.read_text())
-        response.content_type = "text/plain; charset=utf-8"
-        return response
-    except Exception as e:
-        log.exception(f"Error retrieving logs: {e}")
         abort(500)
 
 

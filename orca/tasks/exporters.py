@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 @with_session
 def create_megadoc(self, search_uid: str, filetype, session=None):
     """ """
+    log.info(f"Creating {filetype} megadoc for search with id {search_uid}")
     if not (search := Search.get(search_uid, session=session)):
         raise LookupError(f"Tried creating megadoc for invalid search {search_uid}")
 
@@ -28,12 +29,12 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
         megadoc = search.add_megadoc(filetype, session=session)
 
     log.info(f"Creating {filetype} megadoc for search `{search.search_str}`")
+    megadoc.set_status("STARTED", session=session)
     for doc in sorted(search.documents, key=lambda doc: doc.created_at):
-        megadoc.set_status("STARTED", session=session)
         if megadoc.filetype == ".docx":
-            doc.to_docx(config.data_path / megadoc.path)
+            doc.to_docx_file(config.data_path / megadoc.path)
         else:
-            doc.to_markdown(config.data_path / megadoc.path)
+            doc.to_markdown_file(config.data_path / megadoc.path)
         megadoc.tick()
 
     # Set status to "SENDING" to indicate we're ready for upload

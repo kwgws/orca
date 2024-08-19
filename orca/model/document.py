@@ -2,7 +2,7 @@
 """
 
 import json
-import logging  # noqa: F401
+import logging
 from pathlib import Path
 
 from dateutil.parser import parse as parse_datetime

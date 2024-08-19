@@ -17,7 +17,6 @@ from orca._helpers import create_uid, utc_now
 
 log = logging.getLogger(__name__)
 
-
 # SQLite database initialization
 Base = declarative_base()
 engine = create_engine(config.db.uri)
@@ -72,7 +71,7 @@ def handle_sql_errors(func):
                 )
                 try_rollback(e)
 
-        raise OperationalError("Operation failed after multiple attempts")
+        raise RuntimeError("SQL Operation failed after multiple attempts")
 
     return wrapper
 

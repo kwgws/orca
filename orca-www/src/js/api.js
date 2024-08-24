@@ -1,3 +1,5 @@
+"use strict";
+
 const apiUrl = "https://api.orca.wgws.dev";
 const minInterval = 1500; // 1.5 secs
 const maxInterval = 768000; // ~12.5 mins

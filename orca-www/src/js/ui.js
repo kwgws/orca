@@ -1,3 +1,5 @@
+"use strict";
+
 import * as api from "./api.js";
 
 /**********************
@@ -6,7 +8,7 @@ import * as api from "./api.js";
 
 export function initialize(stateManager) {
   // Add event listener to search form
-  dom.searchForm.addEventListener("submit", async function (event) {
+  dom.searchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const searchStr = dom.searchInput.value;
@@ -18,13 +20,13 @@ export function initialize(stateManager) {
   });
 
   // Add event listener to polling checkbox
-  dom.optionsEnablePoll.addEventListener("change", async function (event) {
+  dom.optionsEnablePoll.addEventListener("change", async (event) => {
     event.preventDefault();
     stateManager.update({ isPollingEnabled: dom.optionsEnablePoll.checked });
   });
 
   // Add event listener(s) to search list
-  dom.searchList.addEventListener("click", async function (event) {
+  dom.searchList.addEventListener("click", async (event) => {
     const e = event.target;
     if (
       e.classList.contains(cl.deleteToggle) ||

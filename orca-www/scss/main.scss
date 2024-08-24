@@ -11,7 +11,7 @@ $info: #3d8bfd;
  * General *
  ***********/
 
-.body {
+body {
   font-family: "Ubuntu", sans-serif;
 
   @include media-breakpoint-up(sm) {
@@ -97,7 +97,6 @@ a,
         font-size: $font-size-base * 1.25;
         font-weight: $font-weight-medium;
       }
-      color: $gray-200;
       text-shadow: $box-shadow-sm;
     }
   }
@@ -136,21 +135,17 @@ a,
   }
 
   &__search {
-    @extend .g-col-4;
+    @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
 
     &-result {
-      @extend .bg-light, .bg-gradient, .card, .card-body;
-      background-color: $light;
-      color: $dark;
+      @extend .card, .card-body;
       box-shadow: $box-shadow;
 
       &-str {
-        @extend .card-title, .text-truncate;
+        @extend .card-title, .text-bg-warning, .text-truncate;
         @extend .mb-1, .py-1, .px-2;
         max-width: fit-content;
-        background-color: $warning;
         border-radius: 3px;
-        color: $dark;
         font-family: "Ubuntu Mono", monospace;
         font-size: $font-size-base * 1.25;
         font-weight: $font-weight-bold;

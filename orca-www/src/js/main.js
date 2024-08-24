@@ -1,3 +1,5 @@
+"use strict";
+
 import { StateManager } from "./state.js";
 import * as api from "./api.js";
 import * as ui from "./ui.js";
@@ -10,12 +12,32 @@ const stateManager = new StateManager({
 });
 
 document.addEventListener("DOMContentLoaded", async function () {
-  // Start UI
-  ui.initialize(stateManager);
+  // Set theme based on system preference
+  const setTheme = (theme) => {
+    document.documentElement.style.transition = // Add a slight transition effect
+      "background-color 0.3s ease, color 0.3s ease";
+    document.documentElement.setAttribute("data-bs-theme", theme);
+  };
 
-  // Have UI listen for state changes
+  const getPreferredTheme = () => {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  };
+
+  const applyTheme = () => {
+    setTheme(getPreferredTheme());
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", () => {
+        setTheme(getPreferredTheme());
+      });
+  };
+
+  applyTheme();
+
+  ui.initialize(stateManager);
   stateManager.subscribe(ui.update);
 
-  // Start polling the API
   api.initialize(stateManager);
 });

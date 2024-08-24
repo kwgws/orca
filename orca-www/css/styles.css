@@ -7361,7 +7361,7 @@ textarea.form-control-lg {
   background-color: RGBA(var(--bs-info-rgb), var(--bs-bg-opacity, 1)) !important;
 }
 
-.text-bg-warning {
+.text-bg-warning, .main__search-result-str {
   color: #000 !important;
   background-color: RGBA(var(--bs-warning-rgb), var(--bs-bg-opacity, 1)) !important;
 }
@@ -9280,7 +9280,7 @@ textarea.form-control-lg {
   background-color: rgba(var(--bs-danger-rgb), var(--bs-bg-opacity)) !important;
 }
 
-.bg-light, .main__search-result {
+.bg-light {
   --bs-bg-opacity: 1;
   background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
 }
@@ -9372,7 +9372,7 @@ textarea.form-control-lg {
   background-color: var(--bs-dark-bg-subtle) !important;
 }
 
-.bg-gradient, .main__search-result {
+.bg-gradient {
   background-image: var(--bs-gradient) !important;
 }
 
@@ -12442,13 +12442,13 @@ textarea.form-control-lg {
 /***********
  * General *
  ***********/
-.body {
+body {
   font-family: "Ubuntu", sans-serif;
   font-kerning: normal;
   font-variant-numeric: proportional-nums;
 }
 @media (min-width: 576px) {
-  .body {
+  body {
     padding-top: 3rem;
     padding-bottom: 5rem;
   }
@@ -12525,7 +12525,6 @@ a:active,
   text-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 .header__title-subheading {
-  color: #e9ecef;
   text-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 }
 @media (min-width: 576px) {
@@ -12546,15 +12545,11 @@ a:active,
  * Content *
  ***********/
 .main__search-result {
-  background-color: #f8f9fa;
-  color: #212529;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 .main__search-result-str {
   max-width: fit-content;
-  background-color: #ffc107;
   border-radius: 3px;
-  color: #212529;
   font-family: "Ubuntu Mono", monospace;
   font-size: 1.25rem;
   font-weight: 700;

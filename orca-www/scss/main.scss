@@ -1,0 +1,280 @@
+@import url("https://fonts.googleapis.com/css2?family=Love+Ya+Like+A+Sister&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap");
+
+$enable-cssgrid: true;
+$enable-gradients: true;
+$enable-shadows: true;
+$info: #3d8bfd;
+
+@import "bootstrap/scss/bootstrap";
+
+/***********
+ * General *
+ ***********/
+
+.body {
+  font-family: "Ubuntu", sans-serif;
+
+  @include media-breakpoint-up(sm) {
+    padding-top: 3rem;
+    padding-bottom: 5rem;
+  }
+
+  font-kerning: normal;
+  font-variant-numeric: proportional-nums;
+}
+
+a {
+  text-decoration: none;
+  text-shadow: $box-shadow-sm;
+
+  & > i {
+    text-decoration: underline;
+    font-style: normal;
+  }
+}
+
+a,
+.btn {
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.card,
+.container,
+.grid {
+  transition: all 0.1s ease-in-out;
+}
+
+@include media-breakpoint-up(sm) {
+  .on-small {
+    display: none;
+  }
+}
+
+@include media-breakpoint-down(sm) {
+  .on-big {
+    display: none;
+  }
+}
+
+.hidden {
+  @extend .invisible;
+  display: none;
+}
+
+/*****************
+ * Header styles *
+ *****************/
+
+.header {
+  @extend .container;
+  @extend .mt-5;
+
+  &__title {
+    &-heading {
+      font-family: "Love Ya Like A Sister", sans-serif;
+      font-weight: $font-weight-bolder;
+      text-shadow: $box-shadow;
+
+      &::before {
+        @extend .mb-0;
+        display: block;
+        font-size: 175%;
+        content: "🐋";
+        text-shadow: $box-shadow;
+      }
+    }
+
+    &-subheading {
+      @extend .text-nowrap;
+      @include media-breakpoint-up(sm) {
+        font-size: $font-size-base * 1.25;
+        font-weight: $font-weight-medium;
+      }
+      color: $gray-200;
+      text-shadow: $box-shadow-sm;
+    }
+  }
+
+  &__search {
+    @extend .input-group;
+
+    &-input {
+      @extend .form-control;
+      max-width: 400px;
+      font-family: "Ubuntu Mono", monospace;
+      box-shadow: $box-shadow;
+    }
+
+    &-submit {
+      @extend .btn;
+      @extend .btn-primary;
+      box-shadow: $box-shadow;
+    }
+  }
+
+  &__nav {
+    @extend .my-3;
+  }
+}
+
+/***********
+ * Content *
+ ***********/
+
+.main {
+  @extend .container;
+
+  &__row {
+    @extend .grid;
+  }
+
+  &__search {
+    @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
+
+    &-result {
+      @extend .bg-light, .bg-gradient, .card, .card-body;
+      background-color: $light;
+      color: $dark;
+      box-shadow: $box-shadow;
+
+      &-str {
+        @extend .card-title, .text-truncate;
+        @extend .mb-1, .py-1, .px-2;
+        max-width: fit-content;
+        background-color: $warning;
+        border-radius: 3px;
+        color: $dark;
+        font-family: "Ubuntu Mono", monospace;
+        font-size: $font-size-base * 1.25;
+        font-weight: $font-weight-bold;
+      }
+
+      &-meta {
+        @extend .px-2;
+        list-style: none;
+        margin: 0;
+
+        &-count {
+          @extend .lead;
+        }
+
+        &-delete {
+          &-prompt {
+            color: $danger;
+
+            &-ok {
+              @extend .btn, .btn-primary, .btn-sm;
+              --bs-btn-padding-y: 0.1rem;
+              --bs-btn-padding-x: 0.25rem;
+              --bs-btn-font-size: 0.65rem;
+              margin-bottom: 3px;
+            }
+
+            &-cancel {
+              @extend .btn, .btn-secondary, .btn-sm;
+              --bs-btn-padding-y: 0.1rem;
+              --bs-btn-padding-x: 0.25rem;
+              --bs-btn-font-size: 0.65rem;
+              margin-bottom: 3px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**********
+ * Footer *
+ **********/
+
+.footer {
+  @extend .container;
+  @extend .px-3;
+
+  &__options {
+    @extend .form-check;
+    @extend .my-3;
+
+    &-enable-polling {
+      @extend .form-check-input;
+
+      &-label {
+        @extend .form-check-label;
+      }
+    }
+  }
+
+  &__details {
+    @extend .my-3;
+  }
+
+  &__connection {
+    &-connected {
+      color: $success;
+    }
+
+    &-disconnected {
+      color: $danger;
+    }
+  }
+
+  &__checksum-value {
+    font-family: "Ubuntu Mono", sans-serif;
+  }
+
+  &__about {
+    @extend .my-3;
+  }
+
+  &__nav-top {
+    @extend .mt-3, .mb-5;
+  }
+}
+
+/***********
+ * Spinner *
+ ***********/
+
+.spinner::before {
+  content: "\00a0";
+}
+
+.spinner::after {
+  display: inline-block;
+  content: "⏳";
+  transform: rotate(180deg);
+  text-shadow: $box-shadow-sm;
+  animation: spinner 1.5s ease-in-out infinite;
+}
+
+@keyframes spinner {
+  0% {
+    /* Filling */
+    content: "⏳";
+    transform: rotate(0deg);
+  }
+  50% {
+    /* Still filling */
+    content: "⏳";
+    transform: rotate(0deg);
+  }
+  70% {
+    /* Done filling, wait to turn */
+    content: "⌛️";
+    transform: rotate(0deg);
+  }
+  100% {
+    /* Turn and start over */
+    content: "⌛️";
+    transform: rotate(180deg);
+  }
+}

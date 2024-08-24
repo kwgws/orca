@@ -1,63 +1,40 @@
-import { apiUrl } from "./config.js";
-import { err } from "./helpers.js";
-import { togglePoll } from "./state.js";
+const apiUrl = "https://api.orca.wgws.dev";
+const pollInterval = 5000;
 
-export async function pollAPI(stateManager) {
-  console.log(`Polling API at ${apiUrl}`);
+export function initialize(stateManager) {
+  poll(stateManager);
+  setInterval(() => poll(stateManager), pollInterval);
+}
+
+export async function poll(stateManager) {
+  const { isPollingEnabled } = stateManager.get();
+  if (!isPollingEnabled) return;
 
   try {
     const response = await fetch(apiUrl);
-    if (!response.ok) {
-      throw new Error(response.statusText);
-    }
+    if (!response.ok) throw new Error(response.statusText);
     const data = await response.json();
 
     stateManager.update({
       isConnected: true,
-      lastPoll: new Date(),
+      lastPolledAt: new Date(),
       apiVersion: data.apiVersion,
-      checksum: data.corpus.checksum,
-      totalDocuments: data.corpus.totalDocuments,
-      searches: data.corpus.searches,
+      corpusChecksum: data.corpus.checksum,
+      corpusTotal: data.corpus.totalDocuments,
+      searches: data.corpus.searches?.reverse() || [],
       error: null,
     });
   } catch (error) {
-    err(`Error polling API: ${error.message}`);
+    console.error(`Error polling API: ${error.message}`);
 
     stateManager.update({
       isConnected: false,
-      lastChecked: new Date(),
       error: error.message,
     });
   }
 }
 
-export function startPollAPI(stateManager, pollingInterval) {
-  const pollWithInterval = () => {
-    if (togglePoll()) {
-      pollAPI(stateManager);
-    }
-  };
-  pollWithInterval();
-  setInterval(pollWithInterval, pollingInterval);
-}
-
-export async function deleteSearch(search) {
-  const { uuid: searchUID, searchStr } = search;
-  console.log(`Deleting "${searchStr}" (${searchUID})`);
-
-  try {
-    const url = `${apiUrl}/search/${searchUID}`;
-    const response = await fetch(url, { method: "DELETE" });
-    if (!response.ok) {
-      throw new Error(response.statusText);
-    }
-  } catch (error) {
-    err(`Error deleting "${searchStr}" (${searchUID}): ${error.message}`);
-  }
-}
-
-export async function createSearch(searchStr) {
+export async function createSearch(searchStr, stateManager) {
   console.log(`Searching "${searchStr}"`);
 
   try {
@@ -67,10 +44,22 @@ export async function createSearch(searchStr) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ searchStr }),
     });
-    if (!response.ok) {
-      throw new Error(response.statusText);
-    }
+    if (!response.ok) throw new Error(response.statusText);
+    await poll(stateManager);
   } catch (error) {
-    err(`Error searching "${searchStr}: ${error.message}`);
+    console.error(`Error submitting search: ${error.message}`);
+  }
+}
+
+export async function deleteSearch(searchUID, stateManager) {
+  console.log(`Deleting search with ID ${searchUID}`);
+
+  try {
+    const url = `${apiUrl}/search/${searchUID}`;
+    const response = await fetch(url, { method: "DELETE" });
+    if (!response.ok) throw new Error(response.statusText);
+    await poll(stateManager);
+  } catch (error) {
+    console.error(`Error deleting search: ${error.message}`);
   }
 }

@@ -1,231 +1,397 @@
-import { deleteSearch, createSearch } from "./api.js";
-import { apiUrl } from "./config.js";
-import { err, fmtDate, fmtSize, make, spinner, text } from "./helpers.js";
-import { togglePoll, toggleSearch } from "./state.js";
+import * as api from "./api.js";
 
-export function initUI() {
-  const searchForm = document.getElementById("searchForm");
-  const searchStrInput = document.getElementById("searchStrInput");
-  searchForm.addEventListener("submit", async (event) => {
+/**********************
+ * DOM state managers *
+ **********************/
+
+export function initialize(stateManager) {
+  // Add event listener to search form
+  dom.searchForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    await createSearch(searchStrInput.value.trim());
+
+    const searchStr = dom.searchInput.value;
+    dom.searchInput.value = "";
+
+    updateElement(dom.searchSubmit, { disabled: true });
+    await api.createSearch(searchStr, stateManager);
+    await new Promise((r) => setTimeout(r, 1000)); // Wait 1s, just in case
+    updateElement(dom.searchSubmit, { disabled: false });
+  });
+
+  // Add event listener to polling checkbox
+  dom.optionsEnablePoll.addEventListener("change", async function (event) {
+    event.preventDefault();
+    stateManager.update({ isPollingEnabled: dom.optionsEnablePoll.checked });
+  });
+
+  // Add event listener(s) to search list
+  dom.searchList.addEventListener("click", async function (event) {
+    const e = event.target;
+    if (
+      e.classList.contains(cl.deleteToggle) ||
+      e.classList.contains(cl.deleteOk) ||
+      e.classList.contains(cl.deleteCancel)
+    ) {
+      event.preventDefault();
+      const searchElement = event.target.closest(`.${cl.searchResult}`);
+      const toggle = searchElement.querySelector(`.${cl.deleteToggle}`);
+      const prompt = searchElement.querySelector(`.${cl.deletePrompt}`);
+
+      if (e.classList.contains(cl.deleteToggle)) {
+        toggleVisible(toggle, false);
+        toggleVisible(prompt, true);
+
+        updateElement(dom.searchSubmit, { disabled: true });
+        stateManager.update({ isPollingEnabled: false });
+      } else {
+        toggleVisible(prompt, false);
+        toggleVisible(toggle, true);
+
+        if (e.classList.contains(cl.deleteOk)) {
+          const searchId = searchElement.dataset.id;
+          await api.deleteSearch(searchId, stateManager);
+        }
+
+        updateElement(dom.searchSubmit, { disabled: true });
+        stateManager.update({ isPollingEnabled: true });
+      }
+    }
   });
 }
 
-export function updateUI(stateManager) {
-  const prevState = stateManager.getPrev();
-  const { apiVersion, checksum, totalDocuments, isConnected, lastPoll } =
-    stateManager.get();
-
-  // Update connection status on change
-  if (isConnected !== prevState?.isConnected) {
-    if (isConnected) {
-      console.log(`Connected to ORCA Document Query API at ${apiUrl}`);
-    } else {
-      err(`Error connecting to API at ${apiUrl}`);
-    }
-
-    // Swap heading and loading message
-    const loadSubhead = document.getElementById("connectingSubhead");
-    loadSubhead.hidden = isConnected;
-    const subhead = document.getElementById("subhead");
-    subhead.hidden = !isConnected;
-
-    // Connection status
-    const connStatus = document.getElementById("connection");
-    connStatus.textContent = isConnected ? "Connected" : "Disconnected";
-    connStatus.className = isConnected ? "connected" : "error";
-
-    // Server-side API version
-    const verStatus = document.getElementById("apiVersion");
-    verStatus.textContent = apiVersion;
-
-    // Show connection details if there's a connection, otherwise hide
-    const connDetails = document.getElementById("connectionDetails");
-    connDetails.hidden = !isConnected;
-
-    // Toggle search form
-    toggleSearch(isConnected);
-  }
-
-  // Client-side timestamp of last fetch
-  const lastPollStatus = document.getElementById("lastPoll");
-  lastPollStatus.textContent = fmtDate(lastPoll, true);
-  lastPollStatus.setAttribute("datetime", lastPoll.toISOString());
-
-  // Update search results
-  updateSearchResults(stateManager);
-
-  // Update corpus details if the checksum changes
-  if (checksum !== prevState?.checksum) {
-    console.log(`New checksum found, updating metadata (${checksum})`);
-    const docTotal = document.getElementById("totalDocuments");
-    docTotal.textContent = totalDocuments.toLocaleString();
-  }
-}
-
-function updateSearchResults(stateManager) {
-  const searchResults = document.getElementById("results");
-  searchResults.innerHTML = "";
-
-  const { searches } = stateManager.get();
-  if (Array.isArray(searches) && searches.length > 0) {
-    searches.forEach((search) => {
-      searchResults.appendChild(makeSearchResult(search));
-    });
-  }
-}
-
-function makeSearchResult(search) {
+export function update(stateManager) {
   const {
-    uid: searchUID,
-    checksum,
-    search_str,
-    results,
-    status,
-    updated,
-    created_at,
-    megadocs,
-  } = search;
-  const isDone = status === "SUCCESS";
+    apiVersion,
+    corpusChecksum,
+    corpusTotal,
+    isConnected,
+    lastPolledAt,
+    searches,
+  } = stateManager.get();
+  const prevState = stateManager.getPrev();
 
-  // Create <article> container for search result
-  const searchResult = make("article", { className: "result" });
-  searchResult.dataset.id = searchUID;
-  searchResult.dataset.checksum = checksum;
+  if (isConnected !== prevState?.isConnected) {
+    toggleIsConnected(isConnected);
+    if (!isConnected) return;
+  }
+  if (apiVersion !== prevState?.apiVersion) {
+    updateElement(dom.apiVersion, { textContent: apiVersion });
+  }
+  if (corpusChecksum !== prevState?.corpusChecksum) {
+    updateElement(dom.corpusChecksum, { textContent: corpusChecksum });
+  }
+  if (corpusTotal !== prevState?.corpusTotal) {
+    const localeTotal = corpusTotal.toLocaleString();
+    updateElement(dom.corpusTotal, { textContent: localeTotal });
+  }
+  if (lastPolledAt !== prevState?.lastPolledAt) {
+    updateTimeElement(dom.lastPolledAt, lastPolledAt);
+  }
+  if (searches !== prevState?.searches) {
+    updateSearchResults(stateManager);
+  }
+}
+
+function toggleVisible(e, isVisible) {
+  if (isVisible) {
+    e.classList.remove(cl.hidden);
+  } else {
+    e.classList.add(cl.hidden);
+  }
+}
+
+function toggleIsConnected(isConnected) {
+  dom.onConnect.forEach((e) => toggleVisible(e, isConnected));
+  dom.onDisconnect.forEach((e) => toggleVisible(e, !isConnected));
+  updateElement(dom.searchSubmit, { disabled: !isConnected });
+  console.log(`UI has been ${isConnected ? "unhidden" : "hidden"}`);
+}
+
+/**********************************
+ * Basic DOM manipulation methods *
+ **********************************/
+
+function createElement(tag, attributes = {}) {
+  return updateElement(document.createElement(tag), attributes);
+}
+
+function createSpinner() {
+  return createElement("span", { className: cl.spinner });
+}
+
+function createText(content) {
+  return document.createTextNode(content);
+}
+
+function createTimeElement(timestamp) {
+  return updateTimeElement(createElement("time"), timestamp);
+}
+
+function updateElement(e, attributes = {}) {
+  // Loop through the attributes and update them. Some need special handling.
+  for (const [attr, value] of Object.entries(attributes)) {
+    if (attr in e) e[attr] = value;
+    else e.setAttribute(attr, value);
+  }
+  return e;
+}
+
+function updateTimeElement(e, timestamp) {
+  // Save original timestamp as the element's `datetime` property
+  updateElement(e, { datetime: timestamp });
+
+  // Convert to readable string and save as text content
+  const localeTimestampOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+  const localeTimestamp = new Date(timestamp).toLocaleString(
+    "en-US",
+    localeTimestampOptions
+  );
+  return updateElement(e, { textContent: localeTimestamp });
+}
+
+/*************************
+ * Search result methods *
+ *************************/
+
+function createSearchElement(search) {
+  const { uid: searchUID, checksum, megadocs } = search;
+
+  const searchElement = createElement("article", {
+    className: cl.searchResult,
+  });
+  searchElement.dataset.id = searchUID;
+  searchElement.dataset["checksum"] = checksum;
 
   // Add search query as heading
-  const searchStr = make("h2", {
-    className: "searchStr",
-    textContent: search_str,
-  });
-  searchResult.appendChild(searchStr);
+  searchElement.appendChild(createSearchStrElement(search));
 
-  // Add search metadata, starting with number of results. Include status.
-  const searchMeta = make("ul");
-  const count = make("li", { textContent: `${results} results` });
-  if (!isDone) {
-    count.appendChild(text(` (${status.toLowerCase()})`));
-    count.appendChild(spinner());
-  }
-  searchMeta.appendChild(count);
-
-  // Add timestamp
-  const timestampOuter = make("li", {
-    textContent: isDone ? "Finished" : "Started",
+  // Add search metadata -
+  const searchMeta = createElement("ul", {
+    className: cl.searchMeta,
   });
-  const ts = isDone ? updated_at : created_at;
-  const timestamp = make("time", {
-    textContent: fmtDate(ts),
-    dateTime: ts,
-  });
-  timestampOuter.appendChild(timestamp);
-  searchMeta.appendChild(timestampOuter);
+  searchElement.appendChild(searchMeta);
 
-  // Add megadocs
-  if (Array.isArray(megadocs) && megadocs.length > 0) {
+  // - Result count
+  searchMeta.appendChild(createSearchCountElement(search));
+
+  // - Timestamp
+  searchMeta.appendChild(createSearchTimestampElement(search));
+
+  // - Megadocs
+  if (Array.isArray(search.megadocs) && search.megadocs.length > 0) {
     megadocs.forEach((megadoc) => {
-      searchMeta.appendChild(makeMegadoc(megadoc));
+      searchMeta.appendChild(createMegadocElement(megadoc));
     });
   }
 
-  // Add delete link
-  if (isDone) {
-    searchMeta.appendChild(makeDeleteLink(search));
+  // - Delete link
+  if (getSearchStatus(search) === "SUCCESS") {
+    searchMeta.appendChild(createDeleteElement());
   }
 
-  searchResult.appendChild(searchMeta);
-  return searchResult;
+  return searchElement;
 }
 
-function makeMegadoc(megadoc) {
+function createSearchStrElement(search) {
+  const { searchStr } = search;
+  return createElement("h2", {
+    className: cl.searchStr,
+    textContent: searchStr,
+  });
+}
+
+function createSearchCountElement(search) {
+  const { results } = search;
+  const searchCount = createElement("li", {
+    className: cl.searchCount,
+    textContent: `${results.toLocaleString()} results`,
+  });
+  if (getSearchStatus(search) === "STARTED") {
+    searchCount.appendChild(createSpinner());
+  }
+  return searchCount;
+}
+
+function createSearchTimestampElement(search) {
+  const { createdAt, updatedAt } = search;
+  const status = getSearchStatus(search);
+
+  const searchTimestamp = createElement("li", {
+    className: cl.searchTimestamp,
+    textContent: status === "SUCCESS" ? "Finished" : "Started",
+  });
+  searchTimestamp.appendChild(
+    createTimeElement(status === "SUCCESS" ? updatedAt : createdAt)
+  );
+
+  return searchTimestamp;
+}
+
+function createMegadocElement(megadoc) {
   const { uid: docUID, status, url } = megadoc;
   const filetype = megadoc.filetype.toLowerCase();
-  const filesize = fmtSize(megadoc.filesize);
+  const filesize = formatFilesize(megadoc.filesize);
 
-  const docMeta = make("li");
+  const docMeta = createElement("li");
+  docMeta.dataset["id"] = docUID;
 
   if (status === "SUCCESS") {
-    const docText = `Download ${filetype} (${filesize})`;
-    const docLink = make("a", {
-      className: "file",
-      href: url,
-      textContent: docText,
-    });
-    docLink.dataset.uid = docUID;
+    docMeta.className = cl.megadocDownload;
+    const docLink = createElement("a", { href: url, textContent: "💾 " });
+    docLink.appendChild(
+      createElement("i", { textContent: `Download ${filetype} (${filesize})` })
+    );
     docMeta.appendChild(docLink);
+  } else if (status === "SENDING") {
+    docMeta.className = cl.megadocSending;
+    docMeta.appendChild(createText(`☁️ Uploading ${filetype} (${filesize})`));
+    docMeta.appendChild(createSpinner());
   } else {
-    docMeta.className = "file";
-    docMeta.dataset.uid = docUID;
-    const progress = (megadoc.progress * 100.0).toFixed(2);
-    const docText =
-      status === "SENDING"
-        ? `Finalizing ${filetype}`
-        : `Creating ${filetype} (${progress}%)`;
-    docMeta.appendChild(text(docText));
-    docMeta.appendChild(spinner());
+    docMeta.className = cl.megadocStarted;
+    docMeta.appendChild(createText(`📝 Creating ${filetype} (${filesize})`));
+    docMeta.appendChild(createSpinner());
   }
-
   return docMeta;
 }
 
-function makeDeleteLink(search) {
-  let wasPollEnabled = togglePoll();
-  const linkMeta = make("li");
+function createDeleteElement() {
+  const delLinkMeta = createElement("li", { className: cl.delete });
 
-  // Create delete link-- clicking this will reveal the y/n prompt
-  const delLink = make("a", {
-    className: "delete",
+  // Create delete link; this will reveal the confirmation prompt
+  const delToggleLink = createElement("a", {
+    className: cl.searchDelete,
     href: "#",
-    textContent: "Delete",
   });
-  delLink.addEventListener("click", async function (event) {
-    event.preventDefault();
+  delToggleLink.appendChild(createElement("i", { textContent: "Delete" }));
+  delLinkMeta.appendChild(delToggleLink);
 
-    // Track previous polling status so we can go back to it after prompt
-    wasPollEnabled = togglePoll(); // Returns state w null arg
-    togglePoll(false);
-    delLink.hidden = true;
-    delPrompt.hidden = false;
-  });
-  linkMeta.appendChild(delLink);
-
-  // Create prompt--
-  const delPrompt = make("b", {
-    className: "prompt",
+  // Create prompt --
+  const delPrompt = createElement("div", {
+    className: cl.searchPrompt,
     textContent: "Delete?",
-    hidden: true,
   });
+  toggleVisible(delPrompt, false);
 
-  // Clicking OK will send a delete request through the API
-  const okLink = make("a", {
-    className: "promptOk",
+  // - OK link
+  const okLink = createElement("a", {
+    className: cl.deleteOk,
     href: "#",
     textContent: "OK",
   });
-  okLink.addEventListener("click", async function (event) {
-    event.preventDefault();
-    deleteSearch(search);
-    togglePoll(wasPollEnabled);
-    delLink.hidden = false;
-    delPrompt.hidden = true;
-  });
   delPrompt.appendChild(okLink);
 
-  // Clicking cancel will hide the prompt again
-  const cancelLink = make("a", {
-    className: "promptCancel",
+  // - Cancel link
+  const cancelLink = createElement("a", {
+    className: cl.deleteCancel,
     href: "#",
     textContent: "Cancel",
   });
-  cancelLink.addEventListener("click", async function (event) {
-    event.preventDefault();
-    togglePoll(wasPollEnabled);
-    delLink.hidden = false;
-    delPrompt.hidden = true;
-  });
   delPrompt.appendChild(cancelLink);
 
-  linkMeta.appendChild(delPrompt);
-  return linkMeta;
+  delLinkMeta.appendChild(delPrompt);
+  return delLinkMeta;
+}
+
+function updateSearchResults(stateManager) {
+  const { searches = [] } = stateManager.get();
+  if (!Array.isArray(searches) || searches.length === 0) return;
+
+  dom.searchList.innerHTML = "";
+  searches.forEach((search) => {
+    dom.searchList.appendChild(createSearchElement(search, stateManager));
+  });
+}
+
+/***********
+ * Helpers *
+ ***********/
+
+const cl = {
+  // Generic classes
+  spinner: "spinner",
+  hidden: "hidden",
+  onResult: "on-result",
+  onConnect: "on-connect",
+  onDisconnect: "on-disconnect",
+
+  // Status classes
+  apiVersion: "footer__api-version",
+  corpusChecksum: "footer__checksum-value",
+  corpusTotal: "header__corpus-total",
+  lastPolledAt: "footer__last-polled-timestamp",
+
+  // Forms and controls
+  searchForm: "header__search",
+  searchInput: "header__search-input",
+  searchSubmit: "header__search-submit",
+  optionsForm: "footer__options",
+  optionsEnablePoll: "footer__options-enable-polling",
+
+  // Dynamic content classes
+  searchList: "main",
+  search: "main__search",
+  searchResult: "main__search-result",
+  searchStr: "main__search-result-str",
+  searchMeta: "main__search-result-meta",
+  searchCount: "main__search-result-meta-count",
+  searchTimestamp: "main__search-result-meta-timestamp",
+  delete: "main__search-result-meta-delete",
+  deleteToggle: "main__search-result-meta-delete-link",
+  deletePrompt: "main__search-result-meta-delete-prompt",
+  deleteOk: "main__search-result-meta-delete-prompt-ok",
+  deleteCancel: "main__search-result-meta-delete-prompt-cancel",
+  megadocStarted: "main__search-result-meta-file-started",
+  megadocSending: "main__search-result-meta-file-sending",
+  megadocDownload: "main__search-result-meta-file-download",
+};
+
+const dom = {
+  // Generic elements
+  onResult: document.querySelectorAll(`.${cl.onResult}`),
+  onConnect: document.querySelectorAll(`.${cl.onConnect}`),
+  onDisconnect: document.querySelectorAll(`.${cl.onDisconnect}`),
+
+  // Status elements
+  apiVersion: document.querySelector(`.${cl.apiVersion}`),
+  corpusChecksum: document.querySelector(`.${cl.corpusChecksum}`),
+  corpusTotal: document.querySelector(`.${cl.corpusTotal}`),
+  lastPolledAt: document.querySelector(`.${cl.lastPolledAt}`),
+
+  // Forms and controls
+  searchForm: document.querySelector(`.${cl.searchForm}`),
+  searchInput: document.querySelector(`.${cl.searchInput}`),
+  searchSubmit: document.querySelector(`.${cl.searchSubmit}`),
+  optionsForm: document.querySelector(`.${cl.optionsForm}`),
+  optionsEnablePoll: document.querySelector(`.${cl.optionsEnablePoll}`),
+
+  // Search result elements
+  searchList: document.querySelector(`.${cl.searchList}`),
+};
+
+function formatFilesize(bytes) {
+  const units = ["", "k", "m", "g", "t"];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) {
+    bytes /= 1024;
+    i++;
+  }
+  return `${bytes.toFixed(1)} ${units[i]}b`;
+}
+
+function getSearchStatus(search) {
+  const { megadocs, status } = search;
+
+  if (status === "SUCCESS") return status;
+  else if (Array.isArray(megadocs) && megadocs.length > 0) {
+    megadocs.forEach((megadoc) => {
+      if (megadoc.status === "SENDING") return megadoc.status;
+    });
+  } else return status;
 }

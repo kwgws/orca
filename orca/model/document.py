@@ -46,6 +46,7 @@ class Image(Base, CommonMixin):
     media_folder = Column(String(255), default="")
     media_type = Column(String(255), default="")
     media_created_at = Column(DateTime, default=utc_old)
+    scan_created_at = Column(DateTime, default=utc_old)
     image_path = Column(String(255), default="")
     image_url = Column(String(255), default="")
     thumb_url = Column(String(255), default="")
@@ -155,6 +156,10 @@ class Document(Base, CommonMixin):
         return self.image.media_created_at
 
     @property
+    def scan_created_at(self):
+        return self.image.scan_created_at
+
+    @property
     def image_path(self):
         return self.image.image_path
 
@@ -226,7 +231,7 @@ class Document(Base, CommonMixin):
                 image_path=f"{image_path}",
                 image_url=f"{config.cdn.url}/{image_path}",
                 thumb_url=f"{config.cdn.url}/thumbs/{album}/{stem}.webp",
-                created_at=timestamp,
+                scan_created_at=timestamp,
             )
 
         document = Document(

@@ -6,7 +6,6 @@ import whoosh
 import whoosh.fields
 import whoosh.writing
 from natsort import natsorted
-from unidecode import unidecode
 
 from orca import config
 from orca.model import Corpus, Document, Image, with_session
@@ -72,15 +71,7 @@ def index_documents(self, _, session=None):
     for i, doc in enumerate(documents):
         if (i + 1) % config.db.batch_size == 0 or i + 1 == total:
             log.info(f"Indexing documents ({i + 1}/{total})")
-
-        text_path = config.data_path / doc.text_path
-        try:
-            with text_path.open() as f:
-                content = unidecode(f.read().strip())
-            writer.add_document(uid=doc.uid, content=content)
-
-        except IOError as e:
-            log.warning(f"Error parsing {text_path}: {e}")
+        writer.add_document(uid=doc.uid, content=doc.content)
 
     log.info(f"Finalizing index at {config.index_path}, this could take some time")
     writer.commit()

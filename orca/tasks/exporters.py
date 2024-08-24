@@ -18,6 +18,9 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
     log.info(f"Creating {filetype} megadoc for search with id {search_uid}")
     if not (search := Search.get(search_uid, session=session)):
         raise LookupError(f"Tried creating megadoc for invalid search {search_uid}")
+    if not search.documents or len(search.documents) == 0:
+        log.warning(f"No results for `{search.searchStr}`, skipping megadoc")
+        return
 
     # Look for a pre-existing megadoc
     if megadoc := next((md for md in search.megadocs if md.filetype == filetype), None):
@@ -28,13 +31,12 @@ def create_megadoc(self, search_uid: str, filetype, session=None):
     else:
         megadoc = search.add_megadoc(filetype, session=session)
 
-    log.info(f"Creating {filetype} megadoc for search `{search.search_str}`")
     megadoc.set_status("STARTED", session=session)
     for doc in sorted(search.documents, key=lambda doc: doc.created_at):
         if megadoc.filetype == ".docx":
-            doc.to_docx_file(config.data_path / megadoc.path)
+            doc.to_docx_file(megadoc.full_path)
         else:
-            doc.to_markdown_file(config.data_path / megadoc.path)
+            doc.to_markdown_file(megadoc.full_path)
         megadoc.tick()
 
     # Set status to "SENDING" to indicate we're ready for upload

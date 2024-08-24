@@ -76,9 +76,14 @@ class Corpus(Base):
         return result
 
     def as_dict(self):
-        return {
+        data = {
             "checksum": self.checksum,
             "total_documents": self.total_documents,
             "created_at": self.created_at.replace(tzinfo=timezone.utc).isoformat(),
-            "searches": [s.as_dict() for s in self.searches],
         }
+
+        # Append searches if we have any
+        if len(self.searches) > 0:
+            data["searches"] = [s.as_dict() for s in self.searches]
+
+        return data

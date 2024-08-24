@@ -49,17 +49,20 @@ def start_load(path):
 
 @with_session
 def get_dict(session=None):
-    data = {
-        "api_version": config.version,
-        "corpus": Corpus.get_latest(session=session).as_dict(),
-    }
-    return export_dict(data)
+    return export_dict(
+        {
+            "api_version": config.version,
+            "corpus": Corpus.get_latest(session=session).as_dict(),
+        }
+    )
 
 
 def start_search(search_str):
     """ """
-    megadoc_tasks = group(
-        chain(create_megadoc.s(filetype), upload_megadoc.s())
-        for filetype in config.megadoc_types
-    )
-    return chain(run_search.s(search_str), megadoc_tasks).apply_async()
+    return chain(
+        run_search.s(search_str),
+        group(
+            chain(create_megadoc.s(filetype), upload_megadoc.s())
+            for filetype in config.megadoc_types
+        ),
+    ).apply_async()

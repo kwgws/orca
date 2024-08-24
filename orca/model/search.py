@@ -43,8 +43,8 @@ class Search(Base, CommonMixin, StatusMixin):
 
         # Tag with most recent checksum
         corpus = Corpus.get_latest(session=session)
-        search.corpus = corpus
         corpus.searches.append(search)
+        search.corpus = corpus
 
         session.add_all([corpus, search])
         session.commit()
@@ -80,10 +80,8 @@ class Search(Base, CommonMixin, StatusMixin):
     def as_dict(self):
         rows = super().as_dict()
         rows.pop("corpus_checksum")
-        rows.update(
-            {
-                "results": len(self.documents),
-                "megadocs": [md.as_dict() for md in self.megadocs],
-            }
-        )
+        rows["results"] = len(self.documents)
+        rows["megadocs"] = [
+            doc.as_dict() for doc in sorted(self.megadocs, key=lambda doc: doc.filetype)
+        ]
         return rows

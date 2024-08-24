@@ -39,20 +39,16 @@ export function initialize(stateManager) {
       if (e.classList.contains(cl.deleteToggle)) {
         toggleVisible(toggle, false);
         toggleVisible(prompt, true);
-
-        updateElement(dom.searchSubmit, { disabled: true });
         stateManager.update({ isPollingEnabled: false });
       } else {
         toggleVisible(prompt, false);
         toggleVisible(toggle, true);
+        stateManager.update({ isPollingEnabled: true });
 
         if (e.classList.contains(cl.deleteOk)) {
           const searchId = searchElement.dataset.id;
           await api.deleteSearch(searchId, stateManager);
         }
-
-        updateElement(dom.searchSubmit, { disabled: false });
-        stateManager.update({ isPollingEnabled: true });
       }
     }
   });

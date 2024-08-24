@@ -1,10 +1,11 @@
+import json
 import logging
 from pathlib import Path
 
 from celery import chain, chord, group
 
 from orca import config
-from orca._helpers import export_dict
+from orca._helpers import create_crc, export_dict
 from orca.model import Corpus, create_tables, with_session
 from orca.tasks import celery  # noqa: F401
 from orca.tasks.exporters import create_megadoc, upload_megadoc
@@ -49,12 +50,12 @@ def start_load(path):
 
 @with_session
 def get_dict(session=None):
-    return export_dict(
-        {
-            "api_version": config.version,
-            "corpus": Corpus.get_latest(session=session).as_dict(),
-        }
-    )
+    data = {
+        "api_version": config.version,
+        "corpus": Corpus.get_latest(session=session).as_dict(),
+    }
+    data["checksum"] = create_crc(json.dumps(data, sort_keys=True))
+    return export_dict(data)
 
 
 def start_search(search_str):

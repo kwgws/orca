@@ -1,6 +1,6 @@
 const apiUrl = "https://api.orca.wgws.dev";
-const minInterval = 1000; // 1 sec
-const maxInterval = 60000; // 1 min
+const minInterval = 1500; // 1.5 secs
+const maxInterval = 768000; // ~12.5 mins
 let pollTimer = null;
 
 export function initialize(stateManager) {

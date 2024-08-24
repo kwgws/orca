@@ -306,13 +306,10 @@ function updateSearchResults(stateManager) {
   if (!Array.isArray(searches) || searches.length === 0) return;
 
   dom.searchList.innerHTML = "";
-  const searchRow = createElement("div", { className: "main__row" });
 
   searches.forEach((search) => {
-    searchRow.appendChild(createSearchElement(search, stateManager));
+    dom.searchList.appendChild(createSearchElement(search, stateManager));
   });
-
-  dom.searchList.appendChild(searchRow);
 }
 
 /***********
@@ -341,7 +338,7 @@ const cl = {
   optionsEnablePoll: "footer__options-enable-polling",
 
   // Dynamic content classes
-  searchList: "main",
+  searchList: "main__row",
   search: "main__search",
   searchResult: "main__search-result",
   searchStr: "main__search-result-str",

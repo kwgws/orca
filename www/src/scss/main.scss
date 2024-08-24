@@ -11,20 +11,23 @@ $enable-shadows: true;
  ***********/
 
 body {
-  font-family: "Ubuntu", sans-serif;
+  & {
+    font-family: "Ubuntu", sans-serif;
+    font-kerning: normal;
+    font-variant-numeric: proportional-nums;
+  }
 
   @include media-breakpoint-up(sm) {
     padding-top: 3rem;
     padding-bottom: 5rem;
   }
-
-  font-kerning: normal;
-  font-variant-numeric: proportional-nums;
 }
 
 a {
-  text-decoration: none;
-  text-shadow: $box-shadow-sm;
+  & {
+    text-decoration: none;
+    text-shadow: $box-shadow-sm;
+  }
 
   & > i {
     text-decoration: underline;
@@ -33,7 +36,9 @@ a {
 }
 
 .btn {
-  transition: all 0.2s ease-in-out;
+  & {
+    transition: all 0.2s ease-in-out;
+  }
 
   &:hover {
     transform: scale(1.05);
@@ -73,15 +78,17 @@ a {
 .header {
   &__title {
     &-heading {
-      font-family: "Love Ya Like A Sister", sans-serif;
-      font-weight: $font-weight-bolder;
-      text-shadow: $box-shadow;
+      & {
+        font-family: "Love Ya Like A Sister", sans-serif;
+        font-weight: $font-weight-bolder;
+        text-shadow: $box-shadow;
+      }
 
       &::before {
         @extend .mb-0;
         display: block;
         font-size: 175%;
-        content: "🐋";
+        content: "🐳";
         text-shadow: $box-shadow;
       }
     }
@@ -91,7 +98,9 @@ a {
         font-size: $font-size-base * 1.25;
         font-weight: $font-weight-medium;
       }
-      text-shadow: $box-shadow-sm;
+      & {
+        text-shadow: $box-shadow-sm;
+      }
     }
   }
 
@@ -114,11 +123,15 @@ a {
 
 .main {
   &__search {
-    @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
+    & {
+      @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
+    }
 
     &-result {
-      @extend .card, .card-body;
-      box-shadow: $box-shadow;
+      & {
+        @extend .card, .card-body;
+        box-shadow: $box-shadow;
+      }
 
       &-str {
         @extend .card-title, .text-bg-warning, .text-truncate;
@@ -131,9 +144,11 @@ a {
       }
 
       &-meta {
-        @extend .px-2;
-        list-style: none;
-        margin: 0;
+        & {
+          @extend .px-2;
+          list-style: none;
+          margin: 0;
+        }
 
         &-count {
           @extend .lead;
@@ -149,7 +164,9 @@ a {
           }
 
           &-prompt {
-            color: $danger;
+            & {
+              color: $danger;
+            }
 
             &-ok {
               @extend .btn, .btn-primary, .btn-sm;

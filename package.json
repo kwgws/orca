@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:css": "sass --quiet-deps --load-path=node_modules --style=compressed www/src/scss/main.scss:www/dist/css/styles.css",
-    "watch:css": "sass --quiet-deps --watch www/src/scss/main.scss:www/dist/css/styles.css",
+    "watch:css": "sass --quiet-deps --load-path=node_modules --watch www/src/scss/main.scss:www/dist/css/styles.css",
     "build:js": "webpack --config webpack.config.js",
     "watch:js": "webpack --watch --config webpack.config.js",
     "build": "npm run build:css && npm run build:js",

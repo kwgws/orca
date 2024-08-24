@@ -14,7 +14,6 @@ export function initialize(stateManager) {
 
     updateElement(dom.searchSubmit, { disabled: true });
     await api.createSearch(searchStr, stateManager);
-    await new Promise((r) => setTimeout(r, 1000)); // Wait 1s, just in case
     updateElement(dom.searchSubmit, { disabled: false });
   });
 
@@ -52,7 +51,7 @@ export function initialize(stateManager) {
           await api.deleteSearch(searchId, stateManager);
         }
 
-        updateElement(dom.searchSubmit, { disabled: true });
+        updateElement(dom.searchSubmit, { disabled: false });
         stateManager.update({ isPollingEnabled: true });
       }
     }
@@ -163,7 +162,8 @@ function updateTimeElement(e, timestamp) {
 function createSearchElement(search) {
   const { uid: searchUID, checksum, megadocs } = search;
 
-  const searchElement = createElement("article", {
+  const searchContainer = createElement("article", { className: cl.search });
+  const searchElement = createElement("div", {
     className: cl.searchResult,
   });
   searchElement.dataset.id = searchUID;
@@ -196,7 +196,8 @@ function createSearchElement(search) {
     searchMeta.appendChild(createDeleteElement());
   }
 
-  return searchElement;
+  searchContainer.appendChild(searchElement);
+  return searchContainer;
 }
 
 function createSearchStrElement(search) {
@@ -208,12 +209,12 @@ function createSearchStrElement(search) {
 }
 
 function createSearchCountElement(search) {
-  const { results } = search;
+  const { results, status } = search;
   const searchCount = createElement("li", {
     className: cl.searchCount,
     textContent: `${results.toLocaleString()} results`,
   });
-  if (getSearchStatus(search) === "STARTED") {
+  if (status === "STARTED") {
     searchCount.appendChild(createSpinner());
   }
   return searchCount;
@@ -225,7 +226,7 @@ function createSearchTimestampElement(search) {
 
   const searchTimestamp = createElement("li", {
     className: cl.searchTimestamp,
-    textContent: status === "SUCCESS" ? "Finished" : "Started",
+    textContent: status === "SUCCESS" ? "Finished " : "Started ",
   });
   searchTimestamp.appendChild(
     createTimeElement(status === "SUCCESS" ? updatedAt : createdAt)
@@ -235,7 +236,7 @@ function createSearchTimestampElement(search) {
 }
 
 function createMegadocElement(megadoc) {
-  const { uid: docUID, status, url } = megadoc;
+  const { uid: docUID, progress = 0.0, status, url } = megadoc;
   const filetype = megadoc.filetype.toLowerCase();
   const filesize = formatFilesize(megadoc.filesize);
 
@@ -243,6 +244,7 @@ function createMegadocElement(megadoc) {
   docMeta.dataset["id"] = docUID;
 
   if (status === "SUCCESS") {
+    // Megadoc complete, create download link
     docMeta.className = cl.megadocDownload;
     const docLink = createElement("a", { href: url, textContent: "💾 " });
     docLink.appendChild(
@@ -250,12 +252,16 @@ function createMegadocElement(megadoc) {
     );
     docMeta.appendChild(docLink);
   } else if (status === "SENDING") {
+    // Megadoc uploading, display status
     docMeta.className = cl.megadocSending;
     docMeta.appendChild(createText(`☁️ Uploading ${filetype} (${filesize})`));
     docMeta.appendChild(createSpinner());
   } else {
+    // Megadoc creating, display status
     docMeta.className = cl.megadocStarted;
-    docMeta.appendChild(createText(`📝 Creating ${filetype} (${filesize})`));
+    docMeta.appendChild(
+      createText(`📝 Creating ${filetype} (${(progress * 100.0).toFixed(2)}%)`)
+    );
     docMeta.appendChild(createSpinner());
   }
   return docMeta;
@@ -265,32 +271,30 @@ function createDeleteElement() {
   const delLinkMeta = createElement("li", { className: cl.delete });
 
   // Create delete link; this will reveal the confirmation prompt
-  const delToggleLink = createElement("a", {
-    className: cl.searchDelete,
-    href: "#",
+  const delToggleLink = createElement("button", {
+    className: cl.deleteToggle,
+    textContent: "Delete",
   });
-  delToggleLink.appendChild(createElement("i", { textContent: "Delete" }));
   delLinkMeta.appendChild(delToggleLink);
 
   // Create prompt --
   const delPrompt = createElement("div", {
-    className: cl.searchPrompt,
-    textContent: "Delete?",
+    className: cl.deletePrompt,
+    textContent: "Are you sure? ",
   });
   toggleVisible(delPrompt, false);
 
   // - OK link
-  const okLink = createElement("a", {
+  const okLink = createElement("button", {
     className: cl.deleteOk,
-    href: "#",
     textContent: "OK",
   });
   delPrompt.appendChild(okLink);
+  delPrompt.appendChild(createText(" "));
 
   // - Cancel link
-  const cancelLink = createElement("a", {
+  const cancelLink = createElement("button", {
     className: cl.deleteCancel,
-    href: "#",
     textContent: "Cancel",
   });
   delPrompt.appendChild(cancelLink);
@@ -304,9 +308,13 @@ function updateSearchResults(stateManager) {
   if (!Array.isArray(searches) || searches.length === 0) return;
 
   dom.searchList.innerHTML = "";
+  const searchRow = createElement("div", { className: "main__row" });
+
   searches.forEach((search) => {
-    dom.searchList.appendChild(createSearchElement(search, stateManager));
+    searchRow.appendChild(createSearchElement(search, stateManager));
   });
+
+  dom.searchList.appendChild(searchRow);
 }
 
 /***********
@@ -387,11 +395,15 @@ function formatFilesize(bytes) {
 
 function getSearchStatus(search) {
   const { megadocs, status } = search;
-
-  if (status === "SUCCESS") return status;
-  else if (Array.isArray(megadocs) && megadocs.length > 0) {
-    megadocs.forEach((megadoc) => {
-      if (megadoc.status === "SENDING") return megadoc.status;
-    });
-  } else return status;
+  if (Array.isArray(megadocs) && megadocs.length > 0) {
+    for (let i = 0; i < megadocs.length; i++) {
+      if (
+        megadocs[i].status === "SENDING" ||
+        megadocs[i].status === "STARTED"
+      ) {
+        return megadocs[i].status;
+      }
+    }
+  }
+  return status;
 }

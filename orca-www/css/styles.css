@@ -2871,7 +2871,7 @@ textarea.form-control-lg {
   clip: rect(0, 0, 0, 0);
   pointer-events: none;
 }
-.btn-check[disabled] + .btn, .btn-check[disabled] + .main__search-result-meta-delete-prompt-cancel, .btn-check[disabled] + .main__search-result-meta-delete-prompt-ok, .btn-check[disabled] + .header__search-submit, .btn-check:disabled + .btn, .btn-check:disabled + .main__search-result-meta-delete-prompt-cancel, .btn-check:disabled + .main__search-result-meta-delete-prompt-ok, .btn-check:disabled + .header__search-submit {
+.btn-check[disabled] + .btn, .btn-check[disabled] + .main__search-result-meta-delete-prompt-cancel, .btn-check[disabled] + .main__search-result-meta-delete-prompt-ok, .btn-check[disabled] + .main__search-result-meta-delete-link, .btn-check[disabled] + .header__search-submit, .btn-check:disabled + .btn, .btn-check:disabled + .main__search-result-meta-delete-prompt-cancel, .btn-check:disabled + .main__search-result-meta-delete-prompt-ok, .btn-check:disabled + .main__search-result-meta-delete-link, .btn-check:disabled + .header__search-submit {
   pointer-events: none;
   filter: none;
   opacity: 0.65;
@@ -3086,11 +3086,11 @@ textarea.form-control-lg {
 .header__search > .form-floating:focus-within {
   z-index: 5;
 }
-.input-group .btn, .input-group .main__search-result-meta-delete-prompt-cancel, .input-group .main__search-result-meta-delete-prompt-ok, .input-group .header__search-submit, .header__search .btn, .header__search .main__search-result-meta-delete-prompt-cancel, .header__search .main__search-result-meta-delete-prompt-ok, .header__search .header__search-submit {
+.input-group .btn, .input-group .main__search-result-meta-delete-prompt-cancel, .input-group .main__search-result-meta-delete-prompt-ok, .input-group .main__search-result-meta-delete-link, .input-group .header__search-submit, .header__search .btn, .header__search .main__search-result-meta-delete-prompt-cancel, .header__search .main__search-result-meta-delete-prompt-ok, .header__search .main__search-result-meta-delete-link, .header__search .header__search-submit {
   position: relative;
   z-index: 2;
 }
-.input-group .btn:focus, .input-group .main__search-result-meta-delete-prompt-cancel:focus, .input-group .main__search-result-meta-delete-prompt-ok:focus, .input-group .header__search-submit:focus, .header__search .btn:focus, .header__search .main__search-result-meta-delete-prompt-cancel:focus, .header__search .main__search-result-meta-delete-prompt-ok:focus, .header__search .header__search-submit:focus {
+.input-group .btn:focus, .input-group .main__search-result-meta-delete-prompt-cancel:focus, .input-group .main__search-result-meta-delete-prompt-ok:focus, .input-group .main__search-result-meta-delete-link:focus, .input-group .header__search-submit:focus, .header__search .btn:focus, .header__search .main__search-result-meta-delete-prompt-cancel:focus, .header__search .main__search-result-meta-delete-prompt-ok:focus, .header__search .main__search-result-meta-delete-link:focus, .header__search .header__search-submit:focus {
   z-index: 5;
 }
 
@@ -3115,6 +3115,7 @@ textarea.form-control-lg {
 .input-group-lg > .btn,
 .input-group-lg > .main__search-result-meta-delete-prompt-cancel,
 .input-group-lg > .main__search-result-meta-delete-prompt-ok,
+.input-group-lg > .main__search-result-meta-delete-link,
 .input-group-lg > .header__search-submit {
   padding: 0.5rem 1rem;
   font-size: 1.25rem;
@@ -3127,6 +3128,7 @@ textarea.form-control-lg {
 .input-group-sm > .btn,
 .input-group-sm > .main__search-result-meta-delete-prompt-cancel,
 .input-group-sm > .main__search-result-meta-delete-prompt-ok,
+.input-group-sm > .main__search-result-meta-delete-link,
 .input-group-sm > .header__search-submit {
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
@@ -3362,7 +3364,7 @@ textarea.form-control-lg {
   z-index: 4;
 }
 
-.btn, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .header__search-submit {
+.btn, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .main__search-result-meta-delete-link, .header__search-submit {
   --bs-btn-padding-x: 0.75rem;
   --bs-btn-padding-y: 0.375rem;
   --bs-btn-font-family: ;
@@ -3398,21 +3400,21 @@ textarea.form-control-lg {
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .header__search-submit {
+  .btn, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .main__search-result-meta-delete-link, .header__search-submit {
     transition: none;
   }
 }
-.btn:hover, .main__search-result-meta-delete-prompt-cancel:hover, .main__search-result-meta-delete-prompt-ok:hover, .header__search-submit:hover {
+.btn:hover, .main__search-result-meta-delete-prompt-cancel:hover, .main__search-result-meta-delete-prompt-ok:hover, .main__search-result-meta-delete-link:hover, .header__search-submit:hover {
   color: var(--bs-btn-hover-color);
   background-color: var(--bs-btn-hover-bg);
   border-color: var(--bs-btn-hover-border-color);
 }
-.btn-check + .btn:hover, .btn-check + .main__search-result-meta-delete-prompt-cancel:hover, .btn-check + .main__search-result-meta-delete-prompt-ok:hover, .btn-check + .header__search-submit:hover {
+.btn-check + .btn:hover, .btn-check + .main__search-result-meta-delete-prompt-cancel:hover, .btn-check + .main__search-result-meta-delete-prompt-ok:hover, .btn-check + .main__search-result-meta-delete-link:hover, .btn-check + .header__search-submit:hover {
   color: var(--bs-btn-color);
   background-color: var(--bs-btn-bg);
   border-color: var(--bs-btn-border-color);
 }
-.btn:focus-visible, .main__search-result-meta-delete-prompt-cancel:focus-visible, .main__search-result-meta-delete-prompt-ok:focus-visible, .header__search-submit:focus-visible {
+.btn:focus-visible, .main__search-result-meta-delete-prompt-cancel:focus-visible, .main__search-result-meta-delete-prompt-ok:focus-visible, .main__search-result-meta-delete-link:focus-visible, .header__search-submit:focus-visible {
   color: var(--bs-btn-hover-color);
   background-color: var(--bs-btn-hover-bg);
   background-image: var(--bs-gradient);
@@ -3420,25 +3422,25 @@ textarea.form-control-lg {
   outline: 0;
   box-shadow: var(--bs-btn-box-shadow), var(--bs-btn-focus-box-shadow);
 }
-.btn-check:focus-visible + .btn, .btn-check:focus-visible + .main__search-result-meta-delete-prompt-cancel, .btn-check:focus-visible + .main__search-result-meta-delete-prompt-ok, .btn-check:focus-visible + .header__search-submit {
+.btn-check:focus-visible + .btn, .btn-check:focus-visible + .main__search-result-meta-delete-prompt-cancel, .btn-check:focus-visible + .main__search-result-meta-delete-prompt-ok, .btn-check:focus-visible + .main__search-result-meta-delete-link, .btn-check:focus-visible + .header__search-submit {
   border-color: var(--bs-btn-hover-border-color);
   outline: 0;
   box-shadow: var(--bs-btn-box-shadow), var(--bs-btn-focus-box-shadow);
 }
-.btn-check:checked + .btn, .btn-check:checked + .main__search-result-meta-delete-prompt-cancel, .btn-check:checked + .main__search-result-meta-delete-prompt-ok, .btn-check:checked + .header__search-submit, :not(.btn-check) + .btn:active, :not(.btn-check) + .main__search-result-meta-delete-prompt-cancel:active, :not(.btn-check) + .main__search-result-meta-delete-prompt-ok:active, :not(.btn-check) + .header__search-submit:active, .btn:first-child:active, .main__search-result-meta-delete-prompt-cancel:first-child:active, .main__search-result-meta-delete-prompt-ok:first-child:active, .header__search-submit:first-child:active, .btn.active, .active.main__search-result-meta-delete-prompt-cancel, .active.main__search-result-meta-delete-prompt-ok, .active.header__search-submit, .btn.show, .show.main__search-result-meta-delete-prompt-cancel, .show.main__search-result-meta-delete-prompt-ok, .show.header__search-submit {
+.btn-check:checked + .btn, .btn-check:checked + .main__search-result-meta-delete-prompt-cancel, .btn-check:checked + .main__search-result-meta-delete-prompt-ok, .btn-check:checked + .main__search-result-meta-delete-link, .btn-check:checked + .header__search-submit, :not(.btn-check) + .btn:active, :not(.btn-check) + .main__search-result-meta-delete-prompt-cancel:active, :not(.btn-check) + .main__search-result-meta-delete-prompt-ok:active, :not(.btn-check) + .main__search-result-meta-delete-link:active, :not(.btn-check) + .header__search-submit:active, .btn:first-child:active, .main__search-result-meta-delete-prompt-cancel:first-child:active, .main__search-result-meta-delete-prompt-ok:first-child:active, .main__search-result-meta-delete-link:first-child:active, .header__search-submit:first-child:active, .btn.active, .active.main__search-result-meta-delete-prompt-cancel, .active.main__search-result-meta-delete-prompt-ok, .active.main__search-result-meta-delete-link, .active.header__search-submit, .btn.show, .show.main__search-result-meta-delete-prompt-cancel, .show.main__search-result-meta-delete-prompt-ok, .show.main__search-result-meta-delete-link, .show.header__search-submit {
   color: var(--bs-btn-active-color);
   background-color: var(--bs-btn-active-bg);
   background-image: none;
   border-color: var(--bs-btn-active-border-color);
   box-shadow: var(--bs-btn-active-shadow);
 }
-.btn-check:checked + .btn:focus-visible, .btn-check:checked + .main__search-result-meta-delete-prompt-cancel:focus-visible, .btn-check:checked + .main__search-result-meta-delete-prompt-ok:focus-visible, .btn-check:checked + .header__search-submit:focus-visible, :not(.btn-check) + .btn:active:focus-visible, :not(.btn-check) + .main__search-result-meta-delete-prompt-cancel:active:focus-visible, :not(.btn-check) + .main__search-result-meta-delete-prompt-ok:active:focus-visible, :not(.btn-check) + .header__search-submit:active:focus-visible, .btn:first-child:active:focus-visible, .main__search-result-meta-delete-prompt-cancel:first-child:active:focus-visible, .main__search-result-meta-delete-prompt-ok:first-child:active:focus-visible, .header__search-submit:first-child:active:focus-visible, .btn.active:focus-visible, .active.main__search-result-meta-delete-prompt-cancel:focus-visible, .active.main__search-result-meta-delete-prompt-ok:focus-visible, .active.header__search-submit:focus-visible, .btn.show:focus-visible, .show.main__search-result-meta-delete-prompt-cancel:focus-visible, .show.main__search-result-meta-delete-prompt-ok:focus-visible, .show.header__search-submit:focus-visible {
+.btn-check:checked + .btn:focus-visible, .btn-check:checked + .main__search-result-meta-delete-prompt-cancel:focus-visible, .btn-check:checked + .main__search-result-meta-delete-prompt-ok:focus-visible, .btn-check:checked + .main__search-result-meta-delete-link:focus-visible, .btn-check:checked + .header__search-submit:focus-visible, :not(.btn-check) + .btn:active:focus-visible, :not(.btn-check) + .main__search-result-meta-delete-prompt-cancel:active:focus-visible, :not(.btn-check) + .main__search-result-meta-delete-prompt-ok:active:focus-visible, :not(.btn-check) + .main__search-result-meta-delete-link:active:focus-visible, :not(.btn-check) + .header__search-submit:active:focus-visible, .btn:first-child:active:focus-visible, .main__search-result-meta-delete-prompt-cancel:first-child:active:focus-visible, .main__search-result-meta-delete-prompt-ok:first-child:active:focus-visible, .main__search-result-meta-delete-link:first-child:active:focus-visible, .header__search-submit:first-child:active:focus-visible, .btn.active:focus-visible, .active.main__search-result-meta-delete-prompt-cancel:focus-visible, .active.main__search-result-meta-delete-prompt-ok:focus-visible, .active.main__search-result-meta-delete-link:focus-visible, .active.header__search-submit:focus-visible, .btn.show:focus-visible, .show.main__search-result-meta-delete-prompt-cancel:focus-visible, .show.main__search-result-meta-delete-prompt-ok:focus-visible, .show.main__search-result-meta-delete-link:focus-visible, .show.header__search-submit:focus-visible {
   box-shadow: var(--bs-btn-active-shadow), var(--bs-btn-focus-box-shadow);
 }
-.btn-check:checked:focus-visible + .btn, .btn-check:checked:focus-visible + .main__search-result-meta-delete-prompt-cancel, .btn-check:checked:focus-visible + .main__search-result-meta-delete-prompt-ok, .btn-check:checked:focus-visible + .header__search-submit {
+.btn-check:checked:focus-visible + .btn, .btn-check:checked:focus-visible + .main__search-result-meta-delete-prompt-cancel, .btn-check:checked:focus-visible + .main__search-result-meta-delete-prompt-ok, .btn-check:checked:focus-visible + .main__search-result-meta-delete-link, .btn-check:checked:focus-visible + .header__search-submit {
   box-shadow: var(--bs-btn-active-shadow), var(--bs-btn-focus-box-shadow);
 }
-.btn:disabled, .main__search-result-meta-delete-prompt-cancel:disabled, .main__search-result-meta-delete-prompt-ok:disabled, .header__search-submit:disabled, .btn.disabled, .disabled.main__search-result-meta-delete-prompt-cancel, .disabled.main__search-result-meta-delete-prompt-ok, .disabled.header__search-submit, fieldset:disabled .btn, fieldset:disabled .main__search-result-meta-delete-prompt-cancel, fieldset:disabled .main__search-result-meta-delete-prompt-ok, fieldset:disabled .header__search-submit {
+.btn:disabled, .main__search-result-meta-delete-prompt-cancel:disabled, .main__search-result-meta-delete-prompt-ok:disabled, .main__search-result-meta-delete-link:disabled, .header__search-submit:disabled, .btn.disabled, .disabled.main__search-result-meta-delete-prompt-cancel, .disabled.main__search-result-meta-delete-prompt-ok, .disabled.main__search-result-meta-delete-link, .disabled.header__search-submit, fieldset:disabled .btn, fieldset:disabled .main__search-result-meta-delete-prompt-cancel, fieldset:disabled .main__search-result-meta-delete-prompt-ok, fieldset:disabled .main__search-result-meta-delete-link, fieldset:disabled .header__search-submit {
   color: var(--bs-btn-disabled-color);
   pointer-events: none;
   background-color: var(--bs-btn-disabled-bg);
@@ -3533,7 +3535,7 @@ textarea.form-control-lg {
   --bs-btn-disabled-border-color: #ffc107;
 }
 
-.btn-danger {
+.btn-danger, .main__search-result-meta-delete-link {
   --bs-btn-color: #fff;
   --bs-btn-bg: #dc3545;
   --bs-btn-border-color: #dc3545;
@@ -3743,14 +3745,14 @@ textarea.form-control-lg {
   color: var(--bs-btn-hover-color);
 }
 
-.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .main__search-result-meta-delete-prompt-cancel, .btn-group-lg > .main__search-result-meta-delete-prompt-ok, .btn-group-lg > .header__search-submit {
+.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .main__search-result-meta-delete-prompt-cancel, .btn-group-lg > .main__search-result-meta-delete-prompt-ok, .btn-group-lg > .main__search-result-meta-delete-link, .btn-group-lg > .header__search-submit {
   --bs-btn-padding-y: 0.5rem;
   --bs-btn-padding-x: 1rem;
   --bs-btn-font-size: 1.25rem;
   --bs-btn-border-radius: var(--bs-border-radius-lg);
 }
 
-.btn-sm, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .btn-group-sm > .btn, .btn-group-sm > .main__search-result-meta-delete-prompt-cancel, .btn-group-sm > .main__search-result-meta-delete-prompt-ok, .btn-group-sm > .header__search-submit {
+.btn-sm, .main__search-result-meta-delete-prompt-cancel, .main__search-result-meta-delete-prompt-ok, .main__search-result-meta-delete-link, .btn-group-sm > .btn, .btn-group-sm > .main__search-result-meta-delete-prompt-cancel, .btn-group-sm > .main__search-result-meta-delete-prompt-ok, .btn-group-sm > .main__search-result-meta-delete-link, .btn-group-sm > .header__search-submit {
   --bs-btn-padding-y: 0.25rem;
   --bs-btn-padding-x: 0.5rem;
   --bs-btn-font-size: 0.875rem;
@@ -4121,58 +4123,70 @@ textarea.form-control-lg {
   display: inline-flex;
   vertical-align: middle;
 }
-.btn-group > .btn, .btn-group > .main__search-result-meta-delete-prompt-cancel, .btn-group > .main__search-result-meta-delete-prompt-ok, .btn-group > .header__search-submit,
+.btn-group > .btn, .btn-group > .main__search-result-meta-delete-prompt-cancel, .btn-group > .main__search-result-meta-delete-prompt-ok, .btn-group > .main__search-result-meta-delete-link, .btn-group > .header__search-submit,
 .btn-group-vertical > .btn,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .main__search-result-meta-delete-link,
 .btn-group-vertical > .header__search-submit {
   position: relative;
   flex: 1 1 auto;
 }
-.btn-group > .btn-check:checked + .btn, .btn-group > .btn-check:checked + .main__search-result-meta-delete-prompt-cancel, .btn-group > .btn-check:checked + .main__search-result-meta-delete-prompt-ok, .btn-group > .btn-check:checked + .header__search-submit,
+.btn-group > .btn-check:checked + .btn, .btn-group > .btn-check:checked + .main__search-result-meta-delete-prompt-cancel, .btn-group > .btn-check:checked + .main__search-result-meta-delete-prompt-ok, .btn-group > .btn-check:checked + .main__search-result-meta-delete-link, .btn-group > .btn-check:checked + .header__search-submit,
 .btn-group > .btn-check:focus + .btn,
 .btn-group > .btn-check:focus + .main__search-result-meta-delete-prompt-cancel,
 .btn-group > .btn-check:focus + .main__search-result-meta-delete-prompt-ok,
+.btn-group > .btn-check:focus + .main__search-result-meta-delete-link,
 .btn-group > .btn-check:focus + .header__search-submit,
 .btn-group > .btn:hover,
 .btn-group > .main__search-result-meta-delete-prompt-cancel:hover,
 .btn-group > .main__search-result-meta-delete-prompt-ok:hover,
+.btn-group > .main__search-result-meta-delete-link:hover,
 .btn-group > .header__search-submit:hover,
 .btn-group > .btn:focus,
 .btn-group > .main__search-result-meta-delete-prompt-cancel:focus,
 .btn-group > .main__search-result-meta-delete-prompt-ok:focus,
+.btn-group > .main__search-result-meta-delete-link:focus,
 .btn-group > .header__search-submit:focus,
 .btn-group > .btn:active,
 .btn-group > .main__search-result-meta-delete-prompt-cancel:active,
 .btn-group > .main__search-result-meta-delete-prompt-ok:active,
+.btn-group > .main__search-result-meta-delete-link:active,
 .btn-group > .header__search-submit:active,
 .btn-group > .btn.active,
 .btn-group > .active.main__search-result-meta-delete-prompt-cancel,
 .btn-group > .active.main__search-result-meta-delete-prompt-ok,
+.btn-group > .active.main__search-result-meta-delete-link,
 .btn-group > .active.header__search-submit,
 .btn-group-vertical > .btn-check:checked + .btn,
 .btn-group-vertical > .btn-check:checked + .main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .btn-check:checked + .main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .btn-check:checked + .main__search-result-meta-delete-link,
 .btn-group-vertical > .btn-check:checked + .header__search-submit,
 .btn-group-vertical > .btn-check:focus + .btn,
 .btn-group-vertical > .btn-check:focus + .main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .btn-check:focus + .main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .btn-check:focus + .main__search-result-meta-delete-link,
 .btn-group-vertical > .btn-check:focus + .header__search-submit,
 .btn-group-vertical > .btn:hover,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:hover,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:hover,
+.btn-group-vertical > .main__search-result-meta-delete-link:hover,
 .btn-group-vertical > .header__search-submit:hover,
 .btn-group-vertical > .btn:focus,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:focus,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:focus,
+.btn-group-vertical > .main__search-result-meta-delete-link:focus,
 .btn-group-vertical > .header__search-submit:focus,
 .btn-group-vertical > .btn:active,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:active,
 .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:active,
+.btn-group-vertical > .main__search-result-meta-delete-link:active,
 .btn-group-vertical > .header__search-submit:active,
 .btn-group-vertical > .btn.active,
 .btn-group-vertical > .active.main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .active.main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .active.main__search-result-meta-delete-link,
 .btn-group-vertical > .active.header__search-submit {
   z-index: 1;
 }
@@ -4189,30 +4203,34 @@ textarea.form-control-lg {
 .btn-group {
   border-radius: var(--bs-border-radius);
 }
-.btn-group > :not(.btn-check:first-child) + .btn, .btn-group > :not(.btn-check:first-child) + .main__search-result-meta-delete-prompt-cancel, .btn-group > :not(.btn-check:first-child) + .main__search-result-meta-delete-prompt-ok, .btn-group > :not(.btn-check:first-child) + .header__search-submit,
+.btn-group > :not(.btn-check:first-child) + .btn, .btn-group > :not(.btn-check:first-child) + .main__search-result-meta-delete-prompt-cancel, .btn-group > :not(.btn-check:first-child) + .main__search-result-meta-delete-prompt-ok, .btn-group > :not(.btn-check:first-child) + .main__search-result-meta-delete-link, .btn-group > :not(.btn-check:first-child) + .header__search-submit,
 .btn-group > .btn-group:not(:first-child) {
   margin-left: calc(var(--bs-border-width) * -1);
 }
-.btn-group > .btn:not(:last-child):not(.dropdown-toggle), .btn-group > .main__search-result-meta-delete-prompt-cancel:not(:last-child):not(.dropdown-toggle), .btn-group > .main__search-result-meta-delete-prompt-ok:not(:last-child):not(.dropdown-toggle), .btn-group > .header__search-submit:not(:last-child):not(.dropdown-toggle),
+.btn-group > .btn:not(:last-child):not(.dropdown-toggle), .btn-group > .main__search-result-meta-delete-prompt-cancel:not(:last-child):not(.dropdown-toggle), .btn-group > .main__search-result-meta-delete-prompt-ok:not(:last-child):not(.dropdown-toggle), .btn-group > .main__search-result-meta-delete-link:not(:last-child):not(.dropdown-toggle), .btn-group > .header__search-submit:not(:last-child):not(.dropdown-toggle),
 .btn-group > .btn.dropdown-toggle-split:first-child,
 .btn-group > .dropdown-toggle-split.main__search-result-meta-delete-prompt-cancel:first-child,
 .btn-group > .dropdown-toggle-split.main__search-result-meta-delete-prompt-ok:first-child,
+.btn-group > .dropdown-toggle-split.main__search-result-meta-delete-link:first-child,
 .btn-group > .dropdown-toggle-split.header__search-submit:first-child,
 .btn-group > .btn-group:not(:last-child) > .btn,
 .btn-group > .btn-group:not(:last-child) > .main__search-result-meta-delete-prompt-cancel,
 .btn-group > .btn-group:not(:last-child) > .main__search-result-meta-delete-prompt-ok,
+.btn-group > .btn-group:not(:last-child) > .main__search-result-meta-delete-link,
 .btn-group > .btn-group:not(:last-child) > .header__search-submit {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.btn-group > .btn:nth-child(n+3), .btn-group > .main__search-result-meta-delete-prompt-cancel:nth-child(n+3), .btn-group > .main__search-result-meta-delete-prompt-ok:nth-child(n+3), .btn-group > .header__search-submit:nth-child(n+3),
+.btn-group > .btn:nth-child(n+3), .btn-group > .main__search-result-meta-delete-prompt-cancel:nth-child(n+3), .btn-group > .main__search-result-meta-delete-prompt-ok:nth-child(n+3), .btn-group > .main__search-result-meta-delete-link:nth-child(n+3), .btn-group > .header__search-submit:nth-child(n+3),
 .btn-group > :not(.btn-check) + .btn,
 .btn-group > :not(.btn-check) + .main__search-result-meta-delete-prompt-cancel,
 .btn-group > :not(.btn-check) + .main__search-result-meta-delete-prompt-ok,
+.btn-group > :not(.btn-check) + .main__search-result-meta-delete-link,
 .btn-group > :not(.btn-check) + .header__search-submit,
 .btn-group > .btn-group:not(:first-child) > .btn,
 .btn-group > .btn-group:not(:first-child) > .main__search-result-meta-delete-prompt-cancel,
 .btn-group > .btn-group:not(:first-child) > .main__search-result-meta-delete-prompt-ok,
+.btn-group > .btn-group:not(:first-child) > .main__search-result-meta-delete-link,
 .btn-group > .btn-group:not(:first-child) > .header__search-submit {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
@@ -4229,12 +4247,12 @@ textarea.form-control-lg {
   margin-right: 0;
 }
 
-.btn-sm + .dropdown-toggle-split, .main__search-result-meta-delete-prompt-cancel + .dropdown-toggle-split, .main__search-result-meta-delete-prompt-ok + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .btn-group-sm > .header__search-submit + .dropdown-toggle-split {
+.btn-sm + .dropdown-toggle-split, .main__search-result-meta-delete-prompt-cancel + .dropdown-toggle-split, .main__search-result-meta-delete-prompt-ok + .dropdown-toggle-split, .main__search-result-meta-delete-link + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .btn-group-sm > .header__search-submit + .dropdown-toggle-split {
   padding-right: 0.375rem;
   padding-left: 0.375rem;
 }
 
-.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .btn-group-lg > .main__search-result-meta-delete-prompt-cancel + .dropdown-toggle-split, .btn-group-lg > .main__search-result-meta-delete-prompt-ok + .dropdown-toggle-split, .btn-group-lg > .header__search-submit + .dropdown-toggle-split {
+.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .btn-group-lg > .main__search-result-meta-delete-prompt-cancel + .dropdown-toggle-split, .btn-group-lg > .main__search-result-meta-delete-prompt-ok + .dropdown-toggle-split, .btn-group-lg > .main__search-result-meta-delete-link + .dropdown-toggle-split, .btn-group-lg > .header__search-submit + .dropdown-toggle-split {
   padding-right: 0.75rem;
   padding-left: 0.75rem;
 }
@@ -4251,26 +4269,28 @@ textarea.form-control-lg {
   align-items: flex-start;
   justify-content: center;
 }
-.btn-group-vertical > .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .header__search-submit,
+.btn-group-vertical > .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-link, .btn-group-vertical > .header__search-submit,
 .btn-group-vertical > .btn-group {
   width: 100%;
 }
-.btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:not(:first-child), .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:not(:first-child), .btn-group-vertical > .header__search-submit:not(:first-child),
+.btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:not(:first-child), .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:not(:first-child), .btn-group-vertical > .main__search-result-meta-delete-link:not(:first-child), .btn-group-vertical > .header__search-submit:not(:first-child),
 .btn-group-vertical > .btn-group:not(:first-child) {
   margin-top: calc(var(--bs-border-width) * -1);
 }
-.btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .header__search-submit:not(:last-child):not(.dropdown-toggle),
+.btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .main__search-result-meta-delete-prompt-ok:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .main__search-result-meta-delete-link:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .header__search-submit:not(:last-child):not(.dropdown-toggle),
 .btn-group-vertical > .btn-group:not(:last-child) > .btn,
 .btn-group-vertical > .btn-group:not(:last-child) > .main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .btn-group:not(:last-child) > .main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .btn-group:not(:last-child) > .main__search-result-meta-delete-link,
 .btn-group-vertical > .btn-group:not(:last-child) > .header__search-submit {
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
 }
-.btn-group-vertical > .btn ~ .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .btn, .btn-group-vertical > .btn ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .btn ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .header__search-submit ~ .btn, .btn-group-vertical > .header__search-submit ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .header__search-submit ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .btn ~ .header__search-submit, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .header__search-submit, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .header__search-submit, .btn-group-vertical > .header__search-submit ~ .header__search-submit,
+.btn-group-vertical > .btn ~ .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .btn, .btn-group-vertical > .btn ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .btn, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .btn ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .main__search-result-meta-delete-link ~ .btn, .btn-group-vertical > .main__search-result-meta-delete-link ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .main__search-result-meta-delete-link ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .btn ~ .main__search-result-meta-delete-link, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .main__search-result-meta-delete-link, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .main__search-result-meta-delete-link, .btn-group-vertical > .main__search-result-meta-delete-link ~ .main__search-result-meta-delete-link, .btn-group-vertical > .header__search-submit ~ .btn, .btn-group-vertical > .header__search-submit ~ .main__search-result-meta-delete-prompt-cancel, .btn-group-vertical > .header__search-submit ~ .main__search-result-meta-delete-prompt-ok, .btn-group-vertical > .header__search-submit ~ .main__search-result-meta-delete-link, .btn-group-vertical > .btn ~ .header__search-submit, .btn-group-vertical > .main__search-result-meta-delete-prompt-cancel ~ .header__search-submit, .btn-group-vertical > .main__search-result-meta-delete-prompt-ok ~ .header__search-submit, .btn-group-vertical > .main__search-result-meta-delete-link ~ .header__search-submit, .btn-group-vertical > .header__search-submit ~ .header__search-submit,
 .btn-group-vertical > .btn-group:not(:first-child) > .btn,
 .btn-group-vertical > .btn-group:not(:first-child) > .main__search-result-meta-delete-prompt-cancel,
 .btn-group-vertical > .btn-group:not(:first-child) > .main__search-result-meta-delete-prompt-ok,
+.btn-group-vertical > .btn-group:not(:first-child) > .main__search-result-meta-delete-link,
 .btn-group-vertical > .btn-group:not(:first-child) > .header__search-submit {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
@@ -5327,7 +5347,7 @@ textarea.form-control-lg {
   display: none;
 }
 
-.btn .badge, .main__search-result-meta-delete-prompt-cancel .badge, .main__search-result-meta-delete-prompt-ok .badge, .header__search-submit .badge {
+.btn .badge, .main__search-result-meta-delete-prompt-cancel .badge, .main__search-result-meta-delete-prompt-ok .badge, .main__search-result-meta-delete-link .badge, .header__search-submit .badge {
   position: relative;
   top: -1px;
 }
@@ -7278,7 +7298,7 @@ textarea.form-control-lg {
   background-color: currentcolor;
   opacity: 0.5;
 }
-.placeholder.btn::before, .placeholder.main__search-result-meta-delete-prompt-cancel::before, .placeholder.main__search-result-meta-delete-prompt-ok::before, .placeholder.header__search-submit::before {
+.placeholder.btn::before, .placeholder.main__search-result-meta-delete-prompt-cancel::before, .placeholder.main__search-result-meta-delete-prompt-ok::before, .placeholder.main__search-result-meta-delete-link::before, .placeholder.header__search-submit::before {
   display: inline-block;
   content: "";
 }
@@ -12447,6 +12467,7 @@ a,
 .btn,
 .main__search-result-meta-delete-prompt-cancel,
 .main__search-result-meta-delete-prompt-ok,
+.main__search-result-meta-delete-link,
 .header__search-submit {
   transition: all 0.2s ease-in-out;
 }
@@ -12454,6 +12475,7 @@ a:hover,
 .btn:hover,
 .main__search-result-meta-delete-prompt-cancel:hover,
 .main__search-result-meta-delete-prompt-ok:hover,
+.main__search-result-meta-delete-link:hover,
 .header__search-submit:hover {
   transform: scale(1.05);
 }
@@ -12461,6 +12483,7 @@ a:active,
 .btn:active,
 .main__search-result-meta-delete-prompt-cancel:active,
 .main__search-result-meta-delete-prompt-ok:active,
+.main__search-result-meta-delete-link:active,
 .header__search-submit:active {
   transform: scale(0.9);
 }
@@ -12469,9 +12492,7 @@ a:active,
 .container,
 .footer,
 .main,
-.header,
-.grid,
-.main__row {
+.header {
   transition: all 0.1s ease-in-out;
 }
 
@@ -12541,6 +12562,12 @@ a:active,
 .main__search-result-meta {
   list-style: none;
   margin: 0;
+}
+.main__search-result-meta-delete-link {
+  --bs-btn-padding-y: 0.1rem;
+  --bs-btn-padding-x: 0.25rem;
+  --bs-btn-font-size: 0.65rem;
+  margin-bottom: 3px;
 }
 .main__search-result-meta-delete-prompt {
   color: #dc3545;

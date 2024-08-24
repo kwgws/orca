@@ -47,8 +47,7 @@ a,
 }
 
 .card,
-.container,
-.grid {
+.container {
   transition: all 0.1s ease-in-out;
 }
 
@@ -137,7 +136,7 @@ a,
   }
 
   &__search {
-    @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
+    @extend .g-col-4;
 
     &-result {
       @extend .bg-light, .bg-gradient, .card, .card-body;
@@ -167,6 +166,14 @@ a,
         }
 
         &-delete {
+          &-link {
+            @extend .btn, .btn-danger, .btn-sm;
+            --bs-btn-padding-y: 0.1rem;
+            --bs-btn-padding-x: 0.25rem;
+            --bs-btn-font-size: 0.65rem;
+            margin-bottom: 3px;
+          }
+
           &-prompt {
             color: $danger;
 

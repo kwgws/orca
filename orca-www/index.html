@@ -16,41 +16,43 @@
 <body>
 
 <!-- Header -->
-<header class="header">
+<header class="header container mt-5">
   <hgroup class="header__title">
     <h1 class="header__title-heading">ORCA Doc<span class="on-big">ument</span> Query</h1>
-    <p class="header__title-subheading">
+    <p class="header__title-subheading text-nowrap">
       <span class="header__title-subheading-loading on-disconnect">Connecting&hellip;<span class="spinner"></span></span>
       <span class="header__title-subheading-loaded on-connect hidden"><span class="on-big">Searching </span><span class="on-small">＋</span><span class="header__corpus-total">271,102</span> documents</span>
     </p>
   </hgroup>
-  <form class="header__search on-connect hidden" rel="search">
-    <input class="header__search-input" type="text" required>
-    <button class="header__search-submit" type="submit" disabled>🔍<span class="on-big">&nbsp;Search</span></button>
+  <form class="header__search input-group on-connect hidden" rel="search">
+    <input class="header__search-input form-control" type="text" required>
+    <button class="header__search-submit btn btn-primary" type="submit" disabled>🔍<span class="on-big">&nbsp;Search</span></button>
   </form>
-  <nav class="header__nav">
+  <nav class="header__nav my-3">
     <div class="header__menu-item">
-      <a class="header__menu-link link-info" target="_blank" href="https://api.orca.wgws.dev">⚙️ <i>View raw JSON output</i></a>
+      <a class="header__menu-link" target="_blank" href="https://api.orca.wgws.dev">⚙️ <i>View raw JSON output</i></a>
     </div>
     <div class="header__menu-item">
-      <a class="header__menu-link link-info" target="_blank" href="https://api.orca.wgws.dev/log/orca.log.txt">👷‍♀️ <i>View debug log</i></a>
+      <a class="header__menu-link" target="_blank" href="https://api.orca.wgws.dev/log/orca.log.txt">👷‍♀️ <i>View debug log</i></a>
     </div>
   </nav>
 </header>
 
 <!-- Main; search results filled dynamically -->
-<main class="main">
+<main class="main container">
+  <div class="main__row grid">
+  </div>
 </main>
 
 <!-- Footer -->
-<footer class="footer">
-  <form class="footer__options">
-    <label class="footer__options-enable-polling-label">
-      <input class="footer__options-enable-polling" type="checkbox" checked>
+<footer class="footer container px-3">
+  <form class="footer__options form-check my-3">
+    <label class="footer__options-enable-polling-label form-check-label">
+      <input class="footer__options-enable-polling form-check-input" type="checkbox" checked>
       Automatic polling
     </label>
   </form>
-  <section class="footer__details">
+  <section class="footer__details my-3">
     <small>
       <div class="footer__connection">
         API status:
@@ -71,10 +73,10 @@
       </div>
     </small>
   </section>
-  <section class="footer__about">
+  <section class="footer__about my-3">
     <div>ORCA Document Query</div>
-    <div><a class="link-info" target="_blank" href="https://github.com/seangilleran/orca">👩‍💻 <i>GitHub Repo</i></a></div>
-    <br /><div><a class="link-info" href="#">☝️ <i>Back to top</i></a></div>
+    <div><a class="" target="_blank" href="https://github.com/seangilleran/orca">👩‍💻 <i>GitHub Repo</i></a></div>
+    <br /><div><a class=" mb-5" href="#">☝️ <i>Back to top</i></a></div>
   </section>
   </small>
   </nav>

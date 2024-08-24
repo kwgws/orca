@@ -3,7 +3,6 @@
 $enable-cssgrid: true;
 $enable-gradients: true;
 $enable-shadows: true;
-$info: #3d8bfd;
 
 @import "bootstrap/scss/bootstrap";
 
@@ -33,7 +32,6 @@ a {
   }
 }
 
-a,
 .btn {
   transition: all 0.2s ease-in-out;
 
@@ -73,9 +71,6 @@ a,
  *****************/
 
 .header {
-  @extend .container;
-  @extend .mt-5;
-
   &__title {
     &-heading {
       font-family: "Love Ya Like A Sister", sans-serif;
@@ -92,7 +87,6 @@ a,
     }
 
     &-subheading {
-      @extend .text-nowrap;
       @include media-breakpoint-up(sm) {
         font-size: $font-size-base * 1.25;
         font-weight: $font-weight-medium;
@@ -102,24 +96,15 @@ a,
   }
 
   &__search {
-    @extend .input-group;
-
     &-input {
-      @extend .form-control;
       max-width: 400px;
       font-family: "Ubuntu Mono", monospace;
       box-shadow: $box-shadow;
     }
 
     &-submit {
-      @extend .btn;
-      @extend .btn-primary;
       box-shadow: $box-shadow;
     }
-  }
-
-  &__nav {
-    @extend .my-3;
   }
 }
 
@@ -128,12 +113,6 @@ a,
  ***********/
 
 .main {
-  @extend .container;
-
-  &__row {
-    @extend .grid;
-  }
-
   &__search {
     @extend .g-col-12, .g-col-md-6, .g-col-xl-4;
 
@@ -199,26 +178,6 @@ a,
  **********/
 
 .footer {
-  @extend .container;
-  @extend .px-3;
-
-  &__options {
-    @extend .form-check;
-    @extend .my-3;
-
-    &-enable-polling {
-      @extend .form-check-input;
-
-      &-label {
-        @extend .form-check-label;
-      }
-    }
-  }
-
-  &__details {
-    @extend .my-3;
-  }
-
   &__connection {
     &-connected {
       color: $success;
@@ -231,14 +190,6 @@ a,
 
   &__checksum-value {
     font-family: "Ubuntu Mono", sans-serif;
-  }
-
-  &__about {
-    @extend .my-3;
-  }
-
-  &__nav-top {
-    @extend .mt-3, .mb-5;
   }
 }
 

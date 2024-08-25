@@ -191,7 +191,7 @@ function createSearchElement(search) {
 
   // - Delete link
   if (getSearchStatus(search) === "SUCCESS") {
-    searchMeta.appendChild(createDeleteElement());
+    searchElement.appendChild(createDeleteElement());
   }
 
   searchContainer.appendChild(searchElement);
@@ -266,7 +266,7 @@ function createMegadocElement(megadoc) {
 }
 
 function createDeleteElement() {
-  const delLinkMeta = createElement("li", { className: cl.delete });
+  const delLinkMeta = createElement("div", { className: cl.delete });
 
   // Create delete link; this will reveal the confirmation prompt
   const delToggleLink = createElement("button", {

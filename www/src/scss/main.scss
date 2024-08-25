@@ -11,10 +11,17 @@ $enable-shadows: true;
  ***********/
 
 body {
-  & {
-    font-family: "Ubuntu", sans-serif;
-    font-kerning: normal;
-    font-variant-numeric: proportional-nums;
+  font-family: "Ubuntu", sans-serif;
+  font-kerning: normal;
+  font-variant-numeric: proportional-nums;
+  background-color: $gray-200;
+  background-image: var(--bs-gradient);
+  background-attachment: fixed;
+
+  @media (prefers-color-scheme: dark) {
+    background-color: $dark;
+    background-image: var(--bs-gradient);
+    background-attachment: fixed;
   }
 
   @include media-breakpoint-up(sm) {
@@ -154,8 +161,10 @@ a {
         }
 
         &-delete {
+          @extend .mt-2;
+
           &-link {
-            @extend .btn, .btn-danger, .btn-sm;
+            @extend .btn, .btn-outline-danger, .btn-sm;
             --bs-btn-padding-y: 0.1rem;
             --bs-btn-padding-x: 0.25rem;
             --bs-btn-font-size: 0.65rem;

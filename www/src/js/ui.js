@@ -392,10 +392,7 @@ function getSearchStatus(search) {
   const { megadocs, status } = search;
   if (Array.isArray(megadocs) && megadocs.length > 0) {
     for (let i = 0; i < megadocs.length; i++) {
-      if (
-        megadocs[i].status === "SENDING" ||
-        megadocs[i].status === "STARTED"
-      ) {
+      if (megadocs[i].status === "SENDING" || megadocs[i].status === "STARTED") {
         return megadocs[i].status;
       }
     }

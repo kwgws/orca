@@ -1,89 +1,109 @@
-import logging
-from datetime import timezone
+"""
+Module for managing document corpuses within the application.
 
-from sqlalchemy import Column, DateTime, Integer, String, desc
-from sqlalchemy.orm import relationship
+This module provides the `Corpus` class and associated functionality for taking
+snapshots of document collections, which is crucial for ensuring the
+consistency and integrity of search results over time. By capturing a specific
+set of documents at a moment in time, the `Corpus` class allows for versioning,
+comparison, and generation of diffs, making it possible to track changes and
+maintain historical accuracy.
+"""
+
+import asyncio
+import logging
+from pathlib import Path
+
+from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from orca import config
-from orca._helpers import create_crc, utc_now
-from orca.model.base import Base, documents_corpuses, with_session
-from orca.model.document import Document
+from orca.helpers import create_checksum
+
+from .base import Base, with_async_session
+from .document import Document
 
 log = logging.getLogger(__name__)
 
 
+_corpus_documents = Table(
+    "corpus_documents",
+    Base.metadata,
+    Column("corpus_guid", ForeignKey("corpuses.guid")),
+    Column("document_guid", ForeignKey("documents.guid")),
+)
+"""Many-to-many relationship table specifying which `Document`s belong to which
+`Corpus`es.
+"""
+
+
 class Corpus(Base):
-    """We can use Corpuses to take a snapshot of the collection, compare
-    versions, and generate diffs. This is important to maintain the integrity
-    of a given set of search results, since any changes to the corpus will
-    necessarily change those results.
+    """Represents a collection of documents at a specific point in time.
+
+    The `Corpus` class allows for the creation of snapshots of document sets,
+    enabling version comparison and diff generation. This is crucial for
+    maintaining the integrity of search results, as any modifications to the
+    corpus will alter the outcome of those searches.
+
+    Attributes:
+        checksum (str): Checksum of all the text contained within this `Corpus`'
+            list of `Document`s.
+        documents (list[Document]): List of `Document`s contained within this
+            `Corpus`.
+        document_count (int, optional): Cached count of all the `Document`s
+            contained within this `Corpus`. Provided automatically but can be
+            overridden for edge cases or testing.
     """
 
-    __tablename__ = "corpuses"
-    checksum = Column(String(8), primary_key=True)
-    total_documents = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=utc_now)
-    comments = Column(String, default="")
-    documents = relationship(
-        "Document", back_populates="corpuses", secondary=documents_corpuses
+    checksum: Mapped[str] = mapped_column(String(8))
+    documents: Mapped[list[Document]] = relationship(
+        secondary=_corpus_documents, lazy="selectin"
     )
-    searches = relationship(
-        "Search", back_populates="corpus", cascade="all, delete-orphan"
-    )
+    document_count: Mapped[int] = mapped_column(default=0)
 
     @classmethod
-    @with_session
-    def create(cls, session=None):
-        """Take a snapshot of the current tables and save."""
-        documents = Document.get_all(session=session)
-        total = len(documents)
-        log.info(f"Adding {total} documents to corpus")
+    @with_async_session
+    async def create(
+        cls,
+        *,
+        data_path: Path = config.data_path,
+        immediate: bool = True,
+        session: AsyncSession,
+    ) -> "Corpus":
+        """Creates and persists a new corpus of all current documents.
 
-        # Generate and checksum
-        log.info("Generating checksum, this may take some time")
-        checksum = create_crc("".join([d.content for d in documents]))
-        log.info(f"Checksum: {checksum}")
-        corpus = cls(checksum=checksum, documents=documents, total_documents=total)
+        This method retrieves all documents, sorts them by their creation date,
+        and generates a unique checksum based on the serialized content of each
+        document. The resulting `Corpus` object, containing the checksum, the
+        document list, and the document count, is saved to the database.
 
-        session.add(corpus)
-        session.commit()
+        Args:
+            data_path (Path, optional): Base data path where metadata files are
+                stored. This is usually provided by `config.data_path` but can
+                be overridden here for edge cases or testing.
+            immediate (bool, optional): If `True`, the session is committed
+                after saving the `Corpus`. Default is `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
 
-        # Go back and add our corpus to each and every document so we can use
-        # it to cross-reference later.
-        for i, document in enumerate(documents):
-            document.corpus = corpus
-            session.add(document)
-            if (i + 1) % config.db.batch_size == 0 or (i + 1) == total:
-                log.info(f"Adding document to corpus ({i + 1}/{total})")
-                session.commit()
+        Returns:
+            The newly created `Corpus` object.
+        """
+        documents: list[Document] = await Document.get_all(session=session)
+        document_count = len(documents)
 
-        log.info("Done creating corpus")
-        return corpus
+        log.info("🧮 Generating checksum for %d documents", document_count)
+        documents.sort(key=lambda doc: doc.created_at)
+        raw = "".join(
+            await asyncio.gather(*(d.get_text_async(data_path) for d in documents))
+        )
+        checksum = create_checksum(raw)
 
-    @classmethod
-    @with_session
-    def get_all(cls, session=None):
-        if not (result := session.query(cls).order_by(desc(cls.created_at)).all()):
-            log.warning("Tried getting all corpuses but none exist")
-        return result
-
-    @classmethod
-    @with_session
-    def get_latest(cls, session=None):
-        """Return the most recent corpus."""
-        if not (result := session.query(cls).order_by(desc(cls.created_at)).first()):
-            log.warning("Tried getting most recent corpus but none exist")
-        return result
-
-    def as_dict(self):
-        data = {
-            "checksum": self.checksum,
-            "total_documents": self.total_documents,
-            "created_at": self.created_at.replace(tzinfo=timezone.utc).isoformat(),
-        }
-
-        # Append searches if we have any
-        if len(self.searches) > 0:
-            data["searches"] = [s.as_dict() for s in self.searches]
-
-        return data
+        return await super().create(
+            checksum=checksum,
+            documents=documents,
+            document_count=document_count,
+            immediate=immediate,
+            session=session,
+        )

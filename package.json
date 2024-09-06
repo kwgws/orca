@@ -1,20 +1,74 @@
 {
   "name": "orca",
-  "version": "1.0.0",
-  "description": "🐋 ORCA Document Query",
-  "main": "index.js",
-  "scripts": {
-    "build:css": "sass --quiet-deps --load-path=node_modules --style=compressed www/src/scss/main.scss:www/dist/css/styles.css",
-    "watch:css": "sass --quiet-deps --load-path=node_modules --watch www/src/scss/main.scss:www/dist/css/styles.css",
-    "build:js": "webpack --config webpack.config.js",
-    "watch:js": "webpack --watch --config webpack.config.js",
-    "build": "npm run build:css && npm run build:js",
-    "watch": "npm run watch:css & npm run watch:js"
+  "displayName": "ORCA Document Query 🐋",
+  "description": "AI-powered web stack for digital humanities research",
+  "version": "0.1.0",
+  "author": {
+    "name": "kwg",
+    "url": "https://k.wgws.dev"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "readme": "README",
+  "license": "LICENSE",
+  "homepage": "https://github.com/kwgws/orca",
+  "keywords": [
+    "artificial intelligence",
+    "AI",
+    "digital humanities",
+    "DH",
+    "document analysis",
+    "natural language processing",
+    "NLP",
+    "optical character recognition",
+    "OCR",
+    "research",
+    "search",
+    "topic modelling"
+  ],
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/kwgws/orca"
+  },
+  "bugs": {
+    "url": "https://github.com/kwgws/orca/issues"
+  },
+  "main": "./www/src/js/main.js",
+  "scripts": {
+    "build": "NODE_ENV=production webpack",
+    "debug": "NODE_ENV=development webpack",
+    "watch": "NODE_ENV=development webpack --watch",
+    "serve": "NODE_ENV=development webpack serve"
+  },
+  "engines": {
+    "node": ">=20.x.x",
+    "npm": ">=10.x.x"
+  },
+  "browserslist": [
+    "> 0.25%",
+    "not dead"
+  ],
   "dependencies": {
-    "bootstrap": "^5.3.3"
+    "bootstrap": "^5.x.x"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.x.x",
+    "@babel/preset-env": "^7.x.x",
+    "autoprefixer": "^10.4.20",
+    "babel-loader": "^9.x.x",
+    "clean-webpack-plugin": "^4.x.x",
+    "copy-webpack-plugin": "^12.x.x",
+    "css-loader": "^7.x.x",
+    "css-minimizer-webpack-plugin": "^7.x.x",
+    "html-loader": "^5.x.x",
+    "html-minimizer-webpack-plugin": "^5.x.x",
+    "html-webpack-plugin": "^5.x.x",
+    "mini-css-extract-plugin": "^2.x.x",
+    "postcss-loader": "^8.1.1",
+    "sass": "^1.x.x",
+    "sass-loader": "^16.x.x",
+    "style-loader": "^4.x.x",
+    "terser-webpack-plugin": "^5.x.x",
+    "webpack": "^5.x.x",
+    "webpack-cli": "^5.x.x",
+    "webpack-dev-server": "^5.x.x"
   }
 }

@@ -1,5 +1,6 @@
 "use strict";
 
+import "../scss/main.scss";
 import { StateManager } from "./state.js";
 import * as api from "./api.js";
 import * as ui from "./ui.js";
@@ -20,18 +21,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   };
 
   const getPreferredTheme = () => {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   };
 
   const applyTheme = () => {
     setTheme(getPreferredTheme());
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", () => {
-        setTheme(getPreferredTheme());
-      });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      setTheme(getPreferredTheme());
+    });
   };
 
   applyTheme();

@@ -4,19 +4,71 @@ $enable-cssgrid: true;
 $enable-gradients: true;
 $enable-shadows: true;
 
-@import "bootstrap/scss/bootstrap";
+$offcanvas-box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+
+@import "bootstrap/scss/functions";
+
+$border-radius: 0.4rem;
+
+// Required
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+
+// Components
+@import "bootstrap/scss/type";
+// @import "bootstrap/scss/images";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+// @import "bootstrap/scss/tables";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+// @import "bootstrap/scss/dropdown";
+// @import "bootstrap/scss/button-group";
+// @import "bootstrap/scss/nav";
+// @import "bootstrap/scss/navbar"; // Requires nav
+@import "bootstrap/scss/card";
+// @import "bootstrap/scss/breadcrumb";
+// @import "bootstrap/scss/accordion";
+// @import "bootstrap/scss/pagination";
+@import "bootstrap/scss/badge";
+// @import "bootstrap/scss/alert";
+// @import "bootstrap/scss/progress";
+// @import "bootstrap/scss/list-group";
+// @import "bootstrap/scss/close";
+// @import "bootstrap/scss/toasts";
+// @import "bootstrap/scss/modal"; // Requires transitions
+// @import "bootstrap/scss/tooltip";
+// @import "bootstrap/scss/popover";
+// @import "bootstrap/scss/carousel";
+// @import "bootstrap/scss/spinners";
+@import "bootstrap/scss/offcanvas"; // Requires transitions
+// @import "bootstrap/scss/placeholders";
+
+// Helpers
+@import "bootstrap/scss/helpers";
+
+// Utilities
+@import "bootstrap/scss/utilities/api";
 
 /***********
  * General *
  ***********/
 
 body {
-  font-family: "Ubuntu", sans-serif;
-  font-kerning: normal;
-  font-variant-numeric: proportional-nums;
-  background-color: $gray-200;
-  background-image: var(--bs-gradient);
-  background-attachment: fixed;
+  & {
+    font-family: "Ubuntu", sans-serif;
+    font-kerning: normal;
+    font-variant-numeric: proportional-nums;
+    background-color: $gray-200;
+    background-image: var(--bs-gradient);
+    background-attachment: fixed;
+  }
 
   @media (prefers-color-scheme: dark) {
     background-color: $dark;
@@ -100,12 +152,13 @@ a {
     }
 
     &-subheading {
+      & {
+        text-shadow: $box-shadow-sm;
+      }
+
       @include media-breakpoint-up(sm) {
         font-size: $font-size-base * 1.25;
         font-weight: $font-weight-medium;
-      }
-      & {
-        text-shadow: $box-shadow-sm;
       }
     }
   }

@@ -1,361 +1,312 @@
-"""Model to track documents, anything to do with ORCA's corpus.
+"""
+Models to track artifacts and related metadata within ORCA's corpus.
+
+This module provides ORM models for managing scans and documents within ORCA's
+corpus. Each `Scan` represents an immutable image file associated with an
+artifact, along with its metadata. The `Document` model tracks specific
+revisions of text or metadata associated with these scans, allowing for
+versioning and historical record-keeping.
 """
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Self
 
+import aiofiles
+from dateutil.parser import ParserError
 from dateutil.parser import parse as parse_datetime
-from docx import Document as Docx
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey, String, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from unidecode import unidecode
 
 from orca import config
-from orca._helpers import utc_old
-from orca.model.base import (
-    Base,
-    CommonMixin,
-    documents_corpuses,
-    documents_searches,
-    with_session,
-)
+from orca.helpers import dt_old
+
+from .base import Base, with_async_session
 
 log = logging.getLogger(__name__)
 
 
-class Image(Base, CommonMixin):
-    """Each document is represented first by an immutable image file. These
-    won't change as the document itself is revised.
+class Scan(Base):
+    """Represents an immutable image file associated with an artifact.
 
-    We need to be able to make exceptions, though, for documents which might
-    come to us _without_ an image file; that might be imported eg as text only.
-    Nevertheless, for organizational purposes, this is where we'll store as the
-    base object.
+    This model stores metadata for the base image file of an artifact and
+    serves as its primary reference point. Every artifact in ORCA's corpus must
+    have at least one `Scan` associated with it and at least one `Document`
+    associated with that `Scan`.
+
+    Attributes:
+        stem (str): The original filename without extension. This can be used
+            to construct other filenames/URLs or to parse essential metadata.
+            Typically formatted as: `000001_2022-09-27_13-12-42_image_5992`,
+            where:
+            - `000001` is the album index.
+            - `2022-09-27_13-12-42` is the scan timestamp.
+            - `image_5992` is the scan title.
+        album (str): The album name, used to organize `Scan` objects into
+            folders. Typically based on the year and month of the scan, though
+            other configurations are possible.
+        album_index (int): The index of the `Scan` within its album.
+        title (str): The title of the `Scan`, usually derived from the original
+            file stem.
+        path (str, optional): The relative path to the original image file.
+        url (str, optional): The full URL of the image file.
+        thumb_url (str, optional): The full URL of the thumbnail image.
+        scanned_at (datetime, optional): The timestamp of when the image was
+            taken or scanned, in UTC. Defaults to January 1, 1970.
+        media_archive (str, optional): The archive or institution holding the
+            original artifact.
+        media_collection (str, optional): The collection within the archive.
+        media_box (str, optional): The box name or number within the collection.
+        media_folder (str, optional): The folder name or number within the box.
+        media_type (str, optional): A description of the type of artifact (e.g.,
+            photograph, manuscript).
+        media_created_at (datetime, optional): The timestamp of when the
+            artifact was originally created. Defaults to January 1, 1970.
     """
 
-    album_index = Column(Integer, nullable=False)
-    stem = Column(String(255), nullable=False)
-    album = Column(String(255), nullable=False)
-    title = Column(String(255), default="")
-    media_archive = Column(String(255), default="")
-    media_collection = Column(String(255), default="")
-    media_box = Column(String(255), default="")
-    media_folder = Column(String(255), default="")
-    media_type = Column(String(255), default="")
-    media_created_at = Column(DateTime, default=utc_old)
-    scan_created_at = Column(DateTime, default=utc_old)
-    image_path = Column(String(255), default="")
-    image_url = Column(String(255), default="")
-    thumb_url = Column(String(255), default="")
-    documents = relationship(
-        "Document", back_populates="image", cascade="all, delete-orphan"
-    )
+    stem: Mapped[str] = mapped_column(String(255))
+    album: Mapped[str] = mapped_column(String(255))
+    album_index: Mapped[int] = mapped_column()
+    title: Mapped[str] = mapped_column(String(255))
+    path: Mapped[str] = mapped_column(String(255), default="")
+    url: Mapped[str] = mapped_column(String(255), default="")
+    thumb_url: Mapped[str] = mapped_column(String(255), default="")
+    scanned_at: Mapped[datetime] = mapped_column(default_factory=dt_old)
+    media_archive: Mapped[str] = mapped_column(String(255), default="")
+    media_collection: Mapped[str] = mapped_column(String(255), default="")
+    media_box: Mapped[str] = mapped_column(String(255), default="")
+    media_folder: Mapped[str] = mapped_column(String(255), default="")
+    media_type: Mapped[str] = mapped_column(String(255), default="")
+    media_created_at: Mapped[datetime] = mapped_column(default_factory=dt_old)
 
-    @classmethod
-    @with_session
-    def create_from_file(cls, path, session=None, batch_only=False):
-        return Document.create_from_file(
-            path, None, session=session, batch_only=batch_only
-        )
+    @with_async_session
+    async def delete(self, *, session: AsyncSession) -> None:
+        """Deletes this `Scan` instance.
 
-    def add_document_from_file(self, path, session=None, batch_only=False):
-        return Document.create_from_file(
-            path, self, session=session, batch_only=batch_only
-        )
+        This method will also delete any associated `Document` objects,
+        ensuring that all related data is removed from the database.
 
-    def as_dict(self):
-        rows = super().as_dict()
-        rows.pop("image_path")
-        if docs := [doc.as_dict() for doc in self.documents]:
-            keys = set(docs[0].keys())
-            keys_to_remove = {
-                "stem",
-                "title",
-                "album",
-                "album_index",
-                "media_archive",
-                "media_collection",
-                "media_box",
-                "media_folder",
-                "media_type",
-                "media_created_at",
-                "image_url",
-                "thumb_url",
-            }
-            for doc in docs:
-                for key in keys.intersection(keys_to_remove):
-                    doc.pop(key)
-            rows["documents"] = docs
-        return rows
+        Args:
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+        """
+        log.debug("🗑️ Deleting Scan <%s> and all associated Documents", self.guid)
+        for doc in await Document.get_all_for_scan(self, session=session):
+            await doc.delete(session=session)
+        await session.delete(self)
+        await session.flush()
 
 
-class Document(Base, CommonMixin):
-    """Documents here represent rather a specific revision of a given document.
-    This is useful if we want to change something later: if we want to revise
-    the text, or run the image through a different model, etc.
+class Document(Base):
+    """Represents a specific revision of a document within ORCA's corpus.
 
-    A specific collection of documents will be stored in a Corpus. This should
-    eventually let us do versioning and diff with our queries.
+    The `Document` model captures revisions of a document, allowing for
+    versioning and tracking changes over time. This is useful for maintaining
+    different iterations of an artifact, whether changes involve text
+    corrections or reprocessing the associated image. `Document` objects are
+    grouped within a `Corpus`, facilitating version control and diffing.
+
+    Attributes:
+        scan_guid (str): The GUID of this `Document`'s parent `Scan`.
+        scan (Scan): A mapped relationship to the parent `Scan`.
+        batch_name (str, optional): `Document` objects can be organized by
+            batch on disk to help keep different versions organized before they
+            are sorted by `Corpus` in the database. The default batch is "00".
+        json_path (str, optional): The path to this `Document`'s associated
+            JSON metadata, usually the raw output from an OCR model.
+        json_url (str, optional): The URL of the stored JSON metadata.
+        text_path (str, optional): The path to this `Document`'s associated
+            text content, usually the processed text from the OCR model.
+        text_url (str, optional): The URL of the stored text content.
     """
 
-    batch = Column(String(255), nullable=False)
-    json_path = Column(String(255), default="")
-    json_url = Column(String(255), default="")
-    text_path = Column(String(255), default="")
-    text_url = Column(String(255), default="")
-    image_uid = Column(String(22), ForeignKey("images.uid"), nullable=False)
-    image = relationship("Image", back_populates="documents")
-    corpuses = relationship(
-        "Corpus", back_populates="documents", secondary=documents_corpuses
+    scan_guid: Mapped[str] = mapped_column(
+        String(22), ForeignKey("scans.guid"), init=False
     )
-    searches = relationship(
-        "Search", back_populates="documents", secondary=documents_searches
-    )
+    scan: Mapped["Scan"] = relationship(lazy="joined")
+    batch_name: Mapped[str] = mapped_column(String(255), default="00")
+    json_path: Mapped[str] = mapped_column(String(255), default="")
+    json_url: Mapped[str] = mapped_column(String(255), default="")
+    text_path: Mapped[str] = mapped_column(String(255), default="")
+    text_url: Mapped[str] = mapped_column(String(255), default="")
 
-    @property
-    def stem(self):
-        return self.image.stem
+    async def get_json_async(
+        self, data_path: Path = config.data_path
+    ) -> dict[str, Any]:
+        """Asynchronously retrieves JSON metadata.
 
-    @property
-    def title(self):
-        return self.image.title
+        This coroutine retrieves the JSON metadata associated with the
+        `Document`. If the file is missing or cannot be read, an empty
+        dictionary is returned.
 
-    @property
-    def album(self):
-        return self.image.album
+        Args:
+            data_path (Path, optional): Base data path where metadata files are
+                stored. This is usually provided by `config.data_path` but can
+                be overridden here for edge cases or testing.
 
-    @property
-    def album_index(self):
-        return self.image.album_index
-
-    @property
-    def media_archive(self):
-        return self.image.media_archive
-
-    @property
-    def media_collection(self):
-        return self.image.media_collection
-
-    @property
-    def media_box(self):
-        return self.image.media_box
-
-    @property
-    def media_folder(self):
-        return self.image.media_folder
-
-    @property
-    def media_type(self):
-        return self.image.media_type
-
-    @property
-    def media_created_at(self):
-        return self.image.media_created_at
-
-    @property
-    def scan_created_at(self):
-        return self.image.scan_created_at
-
-    @property
-    def image_path(self):
-        return self.image.image_path
-
-    @property
-    def image_url(self):
-        return self.image.image_url
-
-    @property
-    def thumb_url(self):
-        return self.image.thumb_url
-
-    @property
-    def json(self):
+        Returns:
+            The JSON metadata or an empty dictionary on error.
+        """
+        path = data_path / self.json_path
+        log.debug("📝 Getting JSON metadata for Document <%s> at %s", self.guid, path)
         try:
-            with (config.data_path / self.json_path).open() as f:
-                return json.load(f)
-        except IOError:
-            log.exception(f"Error loading file: {self.json_path}")
-            raise
+            async with aiofiles.open(path) as f:
+                return json.loads(await f.read()) or {}
+        except (FileNotFoundError, PermissionError):
+            log.warning(f"🚧 Cannot read JSON metadata from file '{path}'")
+            return {}
 
-    @property
-    def content(self):
+    async def get_text_async(self, data_path: Path = config.data_path) -> str:
+        """Asynchronously retrieves text content.
+
+        This coroutine retrieves the text content associated with the
+        `Document`. If the file is missing or cannot be read, an empty string
+        is returned.
+
+        Args:
+            data_path (Path, optional): Base data path where metadata files are
+                stored. This is usually provided by `config.data_path` but can
+                be overridden here for edge cases or testing.
+
+        Returns:
+            The text content or an empty string on error.
+        """
+        path = data_path / self.text_path
+        log.debug("📝 Getting text content for Document <%s> at %s", self.guid, path)
         try:
-            with (config.data_path / self.text_path).open() as f:
-                return unidecode(f.read().strip())
-        except IOError:
-            log.exception(f"Error loading file: {self.text_path}")
-            raise
+            async with aiofiles.open(path) as f:
+                return unidecode((await f.read()).strip()) or ""
+        except (FileNotFoundError, PermissionError):
+            log.warning(f"🚧 Cannot read text from file '{path}'")
+            return ""
 
     @classmethod
-    @with_session
-    def create_from_file(cls, path, image: Image, session=None, batch_only=False):
-        """Commit a new Image/Document to the database. Use `batch_only` to
-        indicate we only want to add to our current `session` rather than
-        committing outright.
+    @with_async_session
+    async def get_all_for_scan(cls, scan: Scan, *, session: AsyncSession) -> list[Self]:
+        """Retrieves all `Document` instances associated with a given `Scan`.
 
-        This is based on a very specific kind of filename, which typically
-        looks like this: `000001_2022-09-27_13-12-42_image_5992.json`. The data
-        is separated by underscores. The first part is the index. The second
-        two are the date and time. Any remaining parts are the title.
+        This method fetches all documents that are associated with the
+        specified `Scan` instance from the database. We provide this as a
+        method instead of a `relationship` column in order to avoid recursion.
+
+        Args:
+            scan (Scan): The `Scan` instance for which to find associated
+                documents.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+        Returns:
+            A list of `Document` instances associated with the given `Scan`.
+        """
+        log.debug("🔍 Getting all Documents for Scan <%s>", scan.guid)
+        result = await session.execute(select(cls).where(cls.scan_guid == scan.guid))
+        return [doc for doc in result.scalars().all()] or []
+
+    @classmethod
+    @with_async_session
+    async def create_from_file(
+        cls,
+        path: str | Path,
+        scan: Scan | None,
+        *,
+        batch_name: str = config.batch_name,
+        immediate: bool = True,
+        session: AsyncSession,
+    ) -> Self:
+        """Creates and persists a new `Document` to the database.
+
+        This method processes a file based on its filename and creates a
+        `Document` to represent it in the database. If  no `Scan` is provided,
+        it creates one of those as well. The filename **must** follow **this**
+        specific format:
+
+        >>> ".../album/000001_2022-09-27_13-12-42_image_5992.json"
+
+        Setting `immediate` to `False` will not commit the session. This is so
+        that we can add documents in bulk and only commit at intervals.
+
+        **Note**: This method does not verify if the file actually exists! It
+        only parses the text of the file path. This is an intentional
+        workaround for edge cases and testing.
+
+        Args:
+            path (str or Path): The file path to parse.
+            scan (Scan, optional): An existing `Scan` object to associate with
+                the `Document`. If not provided, a new `Scan` will be created.
+            batch_name (str, optional): Batch name, used to construct paths.
+                This is usually provided by `config.data_path` but can be
+                overridden here for edge cases or testing.
+            immediate (bool, optional): If `True`, the session is committed
+                after saving the `Scan` and `Document`. Default is `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+
+        Returns:
+            The new `Document` object. Its associated scan can be accessed via
+                `doc.scan`.
+
+        Raises:
+            TypeError: Filename could not be parsed; likely the format is not
+                correct.
         """
 
-        if not (path := Path(path)).is_file():
-            raise FileNotFoundError(f"File not found: {path}")
+        filepath = Path(path) if not isinstance(path, Path) else path
+        log.debug("✨ Creating new Document from filename '%s'", filepath)
 
-        album = path.parent.name
-        stem = path.stem
+        stem = filepath.stem
         split = stem.split("_")
-        if len(split) < 3:
-            raise ValueError(f"Invalid filename format: {stem}")
+        album = filepath.parent.name
+        if len(split) < 3 or album == "":
+            raise TypeError(f"Cannot parse filename '{filepath}'")
 
         # Parse the datetime from the filename using dateutil
         try:
-            timestamp = parse_datetime(f"{split[1]} {split[2].replace('-', ':')}")
-        except Exception as e:
-            raise ValueError(f"Error parsing timestamp from filename: {stem}") from e
+            timestamp_str = f"{split[1]} {split[2].replace('-', ':')}"
+            timestamp = parse_datetime(timestamp_str)
+        except (ParserError, OverflowError):
+            raise TypeError(f"Cannot parse timestamp from filename '{filepath}'")
 
         # These paths need to be relative so we can make them portable
-        json_path = Path(config.batch_name) / "json" / album / f"{stem}.json"
-        text_path = Path(config.batch_name) / "text" / album / f"{stem}.txt"
+        json_path = Path(batch_name) / "json" / album / f"{stem}.json"
+        text_path = Path(batch_name) / "text" / album / f"{stem}.txt"
         image_path = Path("img") / album / f"{stem}.webp"
 
-        if not image or not isinstance(image, Image):
-            image = Image(
-                album_index=int(split[0]),
-                stem=stem,
-                title="_".join(split[3:]),
-                album=album,
-                image_path=f"{image_path}",
-                image_url=f"{config.cdn.url}/{image_path}",
-                thumb_url=f"{config.cdn.url}/thumbs/{album}/{stem}.webp",
-                scan_created_at=timestamp,
-            )
-
-        document = Document(
-            batch=config.batch_name,
-            json_path=f"{json_path}",
-            json_url=f"{config.cdn.url}/{json_path}",
-            text_path=f"{text_path}",
-            text_url=f"{config.cdn.url}/{text_path}",
-        )
-
-        document.image = image
-        image.documents.append(document)
-        session.add_all([image, document])
-        if not batch_only:
-            session.commit()
-        return image
-
-    def to_markdown_file(self, path: Path):
-        """Appends content to a markdown file with metadata."""
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a") as f:
-                f.write(
-                    (
-                        "---\n"
-                        f"date: {self.created_at.strftime('%B %d, %Y at %-I:%M %p')}\n"
-                        f"album: {self.title} - {self.album_index} of {self.album}\n"
-                        f"image: {self.image_url}\n"
-                        "---\n"
-                        "\n"
-                        f"{self.content}\n"
-                        "\n"
-                        "\n"
-                        "\n"
-                    )
-                )
-
-        except IOError:
-            log.exception(f"Error writing to file: {path}")
-            raise
-
-    def to_docx_file(self, path: Path):
-        """Generate or update a .DOCX file with text content and metadata."""
-        try:
-            # Open existing .DOCX file or create a new one
-            path.parent.mkdir(parents=True, exist_ok=True)
-            x = Docx(path.as_posix()) if path.exists() else Docx()
-
-            # Add heading with metadata
-            x.add_heading(self.created_at.strftime("%B %d, %Y at %-I:%M %p"), level=1)
-            p = x.add_paragraph()
-            run = p.add_run()
-            run.text = f"{self.title} - {self.album_index} of {self.album}\n"
-            run.font.bold = True
-
-            # Add a link to the image file. To do this we need to manipulate
-            # the underlying XML directly.
-            run = OxmlElement("w:r")
-
-            link = OxmlElement("w:hyperlink")  # Create link to image URL
-            link.set(
-                qn("r:id"),
-                x.part.relate_to(
-                    self.image_url,
-                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",  # noqa: E501
-                    is_external=True,
+        if not scan:
+            return await cls.create(
+                scan=await Scan.create(
+                    stem=stem,
+                    album=album,
+                    album_index=int(split[0]),
+                    title="_".join(split[3:]),
+                    path=f"{image_path}",
+                    url=f"{config.s3.url}/{image_path}",
+                    thumb_url=f"{config.s3.url}/thumbs/{album}/{stem}.webp",
+                    scanned_at=timestamp,
+                    immediate=immediate,
+                    session=session,
                 ),
+                batch_name=batch_name,
+                json_path=f"{json_path}",
+                json_url=f"{config.s3.url}/{json_path}",
+                text_path=f"{text_path}",
+                text_url=f"{config.s3.url}/{text_path}",
+                immediate=immediate,
+                session=session,
             )
 
-            # Create and style the link
-            rPr = OxmlElement("w:rPr")
-            color = OxmlElement("w:color")  # Blue
-            color.set(qn("w:val"), "0000FF")
-            rPr.append(color)
-            underline = OxmlElement("w:u")
-            underline.set(qn("w:val"), "single")  # Underlined
-            rPr.append(underline)
-            bold = OxmlElement("w:b")
-            rPr.append(bold)  # Bold
-            run.append(rPr)
-
-            text_tag = OxmlElement("w:t")  # Set text value to URL
-            text_tag.text = self.image_url
-            run.append(text_tag)
-
-            link.append(run)  # Add to paragraph
-            p._p.append(link)  # Done!
-
-            # Add OCRed text content followed by page break
-            x.add_paragraph("-----")
-            x.add_paragraph(self.content)
-            x.add_page_break()
-
-            # Save and move on. Phew!
-            x.save(path)
-
-        except Exception:
-            log.exception(f"Unexpected error while creating .DOCX file: {path}")
-            raise
-
-    def as_dict(self):
-        rows = super().as_dict()
-
-        # Get rid of redundant image_uid and any local paths
-        for key in {"image_uid", "json_path", "text_path"}:
-            rows.pop(key)
-
-        # Even though the Image class is storing documents for logical reasons,
-        # most of our operations will happen on Documents directly. We should
-        # expect this to be the most common interface for Image metadata.
-        rows.update(
-            {
-                "stem": self.stem,
-                "title": self.title,
-                "album": self.album,
-                "album_index": self.album_index,
-                "media_archive": self.media_archive,
-                "media_collection": self.media_collection,
-                "media_box": self.media_box,
-                "media_folder": self.media_folder,
-                "media_type": self.media_type,
-                "media_created_at": self.media_created_at,
-                "image_url": self.image_url,
-                "thumb_url": self.thumb_url,
-            }
+        return await cls.create(
+            scan=scan,
+            batch_name=batch_name,
+            json_path=f"{json_path}",
+            json_url=f"{config.s3.url}/{json_path}",
+            text_path=f"{text_path}",
+            text_url=f"{config.s3.url}/{text_path}",
+            immediate=immediate,
+            session=session,
         )
-        return rows

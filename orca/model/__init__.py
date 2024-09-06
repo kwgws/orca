@@ -1,16 +1,22 @@
-from orca.model.base import (  # noqa: F401
-    Base,
-    CommonMixin,
-    SessionLocal,
-    StatusMixin,
-    create_tables,
-    documents_corpuses,
-    documents_searches,
-    get_session,
-    handle_sql_errors,
-    with_session,
+"""
+This submodule provides the core ORM models and utilities for managing
+documents, search results, and database interactions within the ORCA system. It
+consolidates tools for asynchronous session management, base model classes, and
+specialized models for handling documents, corpuses, and search results. It
+ensures consistency and integrity in database operations, while offering a
+robust foundation for interacting with the various artifacts and metadata
+within ORCA's corpus.
+"""
+
+from .base import Base, StatusMixin  # noqa: F401
+from .corpus import Corpus  # noqa: F401
+from .db import (  # noqa: F401
+    db_lock,
+    get_async_engine,
+    get_async_session,
+    init_async_engine,
+    save,
+    with_async_session,
 )
-from orca.model.corpus import Corpus  # noqa: F401
-from orca.model.document import Document, Image  # noqa: F401
-from orca.model.megadoc import Megadoc  # noqa: F401
-from orca.model.search import Search  # noqa: F401
+from .document import Document, Scan  # noqa: F401
+from .search import Megadoc, Search  # noqa: F401

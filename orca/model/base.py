@@ -1,245 +1,287 @@
-"""Database tools including session management, helper functions, and mixins.
+"""
+Base SQLAlchemy mixins. All classes in the model need to inherit from `Base`.
+
+This module provides foundational classes for SQLAlchemy models, offering
+common attributes and methods for CRUD operations, status tracking, and
+serialization. By inheriting from these mixins, models gain essential
+functionalities that streamline database interactions, reduce redundancy, and
+ensure consistent behavior across the application.
 """
 
+import json
 import logging
-from contextlib import contextmanager
-from datetime import datetime, timezone
-from functools import wraps
-from random import random
+from dataclasses import asdict
+from datetime import datetime
+from typing import Any, Self
 
-from slugify import slugify
-from sqlalchemy import Column, DateTime, ForeignKey, String, Table, create_engine
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
-from sqlalchemy.orm import declarative_base, declared_attr, scoped_session, sessionmaker
+from sqlalchemy import String, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncSession
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    MappedAsDataclass,
+    declared_attr,
+    mapped_column,
+)
 
-from orca import config
-from orca._helpers import create_uid, utc_now
+from ..helpers import create_checksum, create_guid, dt_now, serialize
+from .db import save, with_async_session
 
 log = logging.getLogger(__name__)
 
-# SQLite database initialization
-Base = declarative_base()
-engine = create_engine(config.db.uri)
-SessionLocal = scoped_session(sessionmaker(bind=engine))
 
+class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
+    """Base model class, provides common table properties and CRUD methods.
 
-# Database session management
-@contextmanager
-def get_session():
-    """Provide transactional scope around a series of operations."""
-    session = SessionLocal()
-    try:
-        yield session
-    except SQLAlchemyError as e:
-        log.exception(f"Error occurred while accessing the database: {e}")
-        raise
-    except Exception as e:
-        log.exception(f"An unexpected error occurred: {e}")
-        raise
-    finally:
-        session.close()
+    This class should be inherited by all SQLAlchemy models in the application.
+    It includes fundamental attributes such as a globally unique identifier
+    (GUID), and timestamps for creation and last update. Additionally, it
+    offers a suite of methods for basic CRUD (Create, Read, Update, Delete)
+    operations, ensuring that each model has a consistent interface for
+    interacting with the database.
 
-
-def handle_sql_errors(func):
-    """SQL error handler decorator. An active session must be passed in through
-    the keyword arguments.
+    Attributes:
+        guid (str): Stable, URL-safe, 22-character unique identifier.
+        created_at (datetime): When the object was created (UTC).
+        updated_at (datetime): When the object was last updated (UTC).
     """
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not (session := kwargs.get("session")):
-            raise AttributeError("No session provided for SQL operation")
+    __abstract__ = True  # only to be used as a mixin
+    guid: Mapped[str] = mapped_column(
+        String(22), init=False, primary_key=True, default_factory=create_guid
+    )
+    created_at: Mapped[datetime] = mapped_column(init=False, insert_default=dt_now())
+    updated_at: Mapped[datetime] = mapped_column(
+        init=False, insert_default=dt_now(), onupdate=dt_now()
+    )
+    tags: Mapped[str] = mapped_column(String(255), init=False, insert_default="")
+    comment: Mapped[str] = mapped_column(init=False, insert_default="")
 
-        def try_rollback(exc):
-            if session.is_active and session.in_transaction():
-                log.warning(f"Rolling back transaction: {exc}")
-                session.rollback()
+    @declared_attr  # type: ignore (SQLAlchemy handles conversion)
+    def __tablename__(cls) -> str:
+        """Generates table name based on class name."""
+        name = cls.__name__.lower()
+        return f"{name}{'es' if name.endswith('s') or name.endswith('ch') else 's'}"
 
-        for attempt in range(1, config.db.retries + 1):
-            try:
-                return func(*args, **kwargs)
+    @classmethod
+    @with_async_session
+    async def get(cls, guid: str, *, session: AsyncSession) -> Self | None:
+        """Retrieves an object from the database by its GUID.
 
-            # Operation errors usually signify a collision error or something
-            # else we ought to be able to retry. Give it another shot then
-            # apply an exponential backoff.
-            except OperationalError as e:
-                backoff_delay = attempt**2 + random()
-                log.warning(
-                    "Error in database operation ,"
-                    f"retrying ({attempt}/{config.db.retries}) "
-                    f"in {backoff_delay:.2f} seconds"
-                )
-                try_rollback(e)
+        Args:
+            guid (str): The object's GUID.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
 
-        raise RuntimeError("SQL Operation failed after multiple attempts")
+        Returns:
+            Reference to the object, or `None` if not found.
+        """
+        log.debug("🔍 Getting %s <%s>", cls.__name__, guid)
+        return await session.get(cls, guid)
 
-    return wrapper
+    @classmethod
+    @with_async_session
+    async def get_all(cls, *, session: AsyncSession) -> list[Self]:
+        """Retrieves all instances of an object from the database.
 
+        Args:
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
 
-def with_session(func):
-    """Decorator to manage local copy of `SessionLocal`.
+        Returns:
+            List of all objects found. If none, will return an empty list.
+        """
+        log.debug("🔍 Getting all %s", cls.__tablename__)
+        result = await session.execute(select(cls))
+        return [obj for obj in result.scalars().all()]
 
-    `SessionLocal` can be created externally and passed through the `session`
-    keyword argument or it can be automatically instantiated here. Either way,
-    operations will be passed along through `handle_sql_errors()`.
-    """
+    @classmethod
+    @with_async_session
+    async def get_latest(cls, *, session: AsyncSession) -> Self | None:
+        """Retrieves the most recent instance from the database.
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if session := kwargs.get("session"):
-            return handle_sql_errors(func)(*args, **kwargs)
-        with get_session() as session:
-            kwargs["session"] = session
-            return handle_sql_errors(func)(*args, **kwargs)
+        This method queries the database for the latest entry based on the
+        creation timestamp and returns it. If no entries are found, it
+        returns `None`.
 
-    return wrapper
+        Args:
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
 
-
-# Helper functions
-def create_tables():
-    """Populate database and create tables.
-
-    This must be run at least once before anything else can happen.
-    """
-    Base.metadata.create_all(engine)
-
-
-# Mixins
-class CommonMixin:
-    """Mixin for common item properties and functionality including ID, status,
-    timestamp, and simple CRUD methods.
-    """
-
-    @declared_attr
-    def __tablename__(cls):
-        return f"{cls.__name__.lower()}s"
-
-    uid = Column(String(22), primary_key=True, default=create_uid)
-    created_at = Column(DateTime, nullable=False, default=utc_now)
-    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
-    tags = Column(String(255), default="")
-    comments = Column(String, default="")
-
-    @property
-    def redis_key(self):
-        """Get a key representing this item in the Redis database."""
+        Returns:
+            The most recent instance, or `None` if none exist.
+        """
+        log.debug("🔍 Getting latest %s", cls.__name__)
         return (
-            f"{slugify(config.app_name)}"
-            f":{slugify(self.__tablename__)}"
-            f":{slugify(self.uid)}"
+            (await session.execute(select(cls).order_by(desc(cls.created_at))))
+            .scalars()
+            .first()
         )
 
     @classmethod
-    @with_session
-    def get(cls, uid: str, session=None):
-        """Get item by UID."""
-        if not (result := session.query(cls).filter_by(uid=uid).first()):
-            log.debug(f"No {cls.__tablename__} with uid {uid}")
-        return result
+    @with_async_session
+    async def get_total(cls, *, session: AsyncSession) -> int:
+        """Counts total instances of this object in the database.
+
+        Args:
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+
+        Returns:
+            Count of all instances of this object in the database.
+        """
+        log.debug("🔍 Getting total number of %s", cls.__tablename__)
+        result = await session.execute(select(func.count()).select_from(cls))
+        return result.scalar() or 0
 
     @classmethod
-    @with_session
-    def get_all(cls, session=None) -> list:
-        """Get a list of all items in this table."""
-        if not (result := session.query(cls).all()):
-            log.debug(f"No items in {cls.__tablename__}")
-        return result
+    @with_async_session
+    async def create(
+        cls, *args, immediate: bool = True, session: AsyncSession, **kwargs
+    ) -> Self:
+        """Creates and persists a new instance of this object.
 
-    @classmethod
-    @with_session
-    def get_total(cls, session=None):
-        """Get total number of items in this table."""
-        if not (result := session.query(cls).count()):
-            log.debug(f"No {cls.__tablename__} or no items in table")
-        return int(result)
+        Args:
+            *args: Positional arguments to be passed to the object's default
+                constructor.
+            immediate (bool, optional): If `True`, commits the session
+                immediately after saving the object. Defaults to `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+            **kwargs: Keyword arguments to be passed to the object's default
+                constructor.
 
-    @with_session
-    def update(self, session=None, **kwargs):
-        """Update columns based on values passed as keyword arguments."""
-        save = False
-        for key, value in kwargs.items():
-            if hasattr(self, key) and (old_value := getattr(self, key)) != kwargs[key]:
-                log.debug(
-                    f"Updating {self.__tablename__} with uid {self.uid} "
-                    f"[{key}]: {old_value} -> {value}"
-                )
-                save = True
-                setattr(self, key, value)
-        if save:
-            session.add(self)
-            session.commit()
+        Returns:
+            New instance of this object, now saved to the database.
+        """
+        log.debug("✨ Creating new %s", cls.__name__)
+        obj = cls(*args, **kwargs)
+        await save(obj, immediate=immediate, session=session)
+        return obj
+
+    @with_async_session
+    async def update(
+        self, data: dict[str, Any], *, immediate: bool = True, session: AsyncSession
+    ) -> None:
+        """Updates the current instance with provided dictionary.
+
+        Args:
+            data (dict[str, Any]): Dictionary containing column values to update.
+            immediate (bool, optional): If `True`, commits the session
+                immediately after saving the object. Defaults to `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+        """
+        is_update = False
+        for key in [k for k in self.__table__.columns.keys() if k in data.keys()]:
+            if data[key] != getattr(self, key):
+                setattr(self, key, data[key])
+                is_update = True
+        if is_update:
+            log.debug("🛠️ Updating %s <%s>", type(self).__name__, self.guid)
+            await save(self, immediate=immediate, session=session)
         else:
             log.debug(
-                f"Tried updating {self.__tablename__} with uid {self.uid} "
-                f"but no new values were passed"
+                "🚧 Tried updating %s <%s> but no new values provided",
+                type(self).__name__,
+                self.guid,
             )
 
-    @with_session
-    def delete(self, session=None):
-        """Delete this row from the table."""
-        log.debug(f"Deleting {self.__tablename__} with uid {id}")
-        session.delete(self)
-        session.commit()
+    @with_async_session
+    async def delete(self, *, immediate: bool = True, session: AsyncSession) -> None:
+        """Deletes this instance from the database, then flushes the session.
 
-    def as_dict(self):
-        """Serialize table to `dict`."""
-        rows = {}
-        for column in self.__table__.columns:
-            if isinstance(value := getattr(self, column.name), datetime):
-                value = value.replace(tzinfo=timezone.utc).isoformat()
-            rows[column.name] = value
-        return rows
+        Args:
+            immediate (bool, optional): If `True`, flushes the session
+                immediately after deleting the object. Defaults to `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+        """
+        log.debug("🗑️ Deleting %s <%s>", type(self).__name__, self.guid)
+        await session.delete(self)
+        if immediate:
+            await session.flush()
+
+    def as_dict(self, excl: set[str] | None = None, to_js=False) -> dict[str, Any]:
+        """Serializes this instance to dictionary.
+
+        This uses the built-in dataclass `asdict()` method to recursively
+        serialize this instance. We also pass this dictionary to a helper
+        method which ensures all the native data objects it contains--like
+        timestamps and paths--are converted to simpler forms.
+
+        Args:
+            excl: (set[str], optional): Keys to ignore.
+            to_js (bool, optional): Convert dictionary keys to snakeCase for
+                export to a JavaScript environment. Defaults to `False`.
+
+        Returns:
+            Serialized dictionary of values.
+        """
+        log.debug("📝 Serializing %s <%s>", type(self).__name__, self.guid)
+        data = serialize(asdict(self), excl=excl, recursive=True, to_js=to_js)
+        if "checksum" not in data.keys():
+            data["checksum"] = create_checksum(json.dumps(data, sort_keys=True))
+        return data
 
 
-class StatusMixin:
-    """Mixin for status tracking. Includes `self.status` property and
-    `self.set_status()` method.
+class StatusMixin(MappedAsDataclass, DeclarativeBase):
+    """Mixin for status tracking.
+
+    This mixin provides a simple way to track the status of an instance using
+    predefined statuses. It includes a `status` field that can be set to one of
+    several values, representing different stages in the lifecycle of the
+    instance.
+
+    Attributes:
+        status (str): The current status of the instance, with a default value
+            of 'PENDING'.
     """
 
-    status = Column(String, nullable=False, default="PENDING")
+    __abstract__ = True
+    status: Mapped[str] = mapped_column(String(7), init=False, insert_default="PENDING")
 
-    @with_session
-    def set_status(self, status, session=None):
-        """Set status of this instance.
+    @with_async_session
+    async def set_status(
+        self, status: str, *, immediate: bool = True, session: AsyncSession
+    ) -> None:
+        """Sets the status of this instance.
 
-        Possible values are:
-        - `'PENDING'`: Default for all instances.
-        - `'STARTED'`: Work has started on this table.
-        - `'SENDING'`: Work has finished but results are still being uploaded.
-        - `'SUCCESS'`: Work has finished and results are ready.
-        - `'FAILURE'`: Something went wrong. We'll need to restart.
+        This method updates the status of the instance to one of the allowed
+        values and saves the change to the database. The valid statuses are:
+
+        - `'PENDING'`: Default status for new instances.
+        - `'STARTED'`: Work on the instance has begun.
+        - `'STOPPED'`: Reserved for future use.
+        - `'SENDING'`: Work is finished but results are being uploaded.
+        - `'SUCCESS'`: Work is completed and results are ready.
+        - `'FAILURE'`: Reserved for future use.
+
+        Args:
+            status (str): The status to set for the instance.
+            immediate (bool, optional): If `True`, commits the session
+                immediately after saving the object. Defaults to `True`.
+            session (AsyncSession, optional): An active asynchronous database
+                session. If not provided, the method will create and manage its
+                own session.
+
+        Raises:
+            ValueError: Provided status is not an accepted value.
         """
-        statuses = {"PENDING", "STARTED", "SENDING", "SUCCESS", "FAILURE"}
-        if status not in statuses:
-            log.warning(
-                f"Tried setting status of {self.__tablename__} with uid {self.uid} to "
-                f"{status}; status must be one of {', '.join(statuses)}"
+        status_set = ["PENDING", "STARTED", "SENDING", "SUCCESS"]
+        if status.upper() not in status_set:
+            status_set_str = (
+                ", ".join(f"'{s}'" for s in status_set[:-1])
+                + f", or {f"'{status_set[-1]}'"}"
             )
-            return
-
-        log.debug(
-            f"Setting status of {self.__tablename__} with uid {self.uid} to {status}"
-        )
+            raise ValueError(f"Invalid status '{status}', must be {status_set_str}")
+        log.debug("🛠️ Setting status of %s to '%s'", type(self).__name__, status)
         self.status = status
-        session.add(self)
-        session.commit()
-
-
-# Many-many table to correlate corpuses with specific document versions.
-documents_corpuses = Table(
-    "corpus_documents",
-    Base.metadata,
-    Column(
-        "corpus_checksum", String(8), ForeignKey("corpuses.checksum"), primary_key=True
-    ),
-    Column("document_uid", String(22), ForeignKey("documents.uid"), primary_key=True),
-)
-
-
-# Many-many table to correlate searches with the documents they find.
-documents_searches = Table(
-    "search_documents",
-    Base.metadata,
-    Column("search_uid", String(22), ForeignKey("searches.uid"), primary_key=True),
-    Column("document_uid", String(22), ForeignKey("documents.uid"), primary_key=True),
-)
+        await save(self, immediate=immediate, session=session)

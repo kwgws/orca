@@ -1,8 +1,0 @@
-**/bin
-**/data
-**/log
-**/poetry.lock
-**/package-lock.json
-**/node_modules
-**/.vscode
-**/.venv

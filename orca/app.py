@@ -15,9 +15,9 @@ from typing import Any
 from natsort import natsorted
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import config
-from .helpers import create_checksum
-from .model import (
+from orca import config
+from orca.helpers import create_checksum
+from orca.model import (
     Base,
     Corpus,
     Search,
@@ -26,7 +26,7 @@ from .model import (
     init_async_engine,
     with_async_session,
 )
-from .tasks import (
+from orca.tasks import (
     create_index,
     create_megadoc,
     create_search,

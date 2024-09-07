@@ -8,9 +8,9 @@ robust foundation for interacting with the various artifacts and metadata
 within ORCA's corpus.
 """
 
-from .base import Base, StatusMixin  # noqa: F401
-from .corpus import Corpus  # noqa: F401
-from .db import (  # noqa: F401
+from orca.model.base import Base, StatusMixin  # noqa: F401
+from orca.model.corpus import Corpus  # noqa: F401
+from orca.model.db import (  # noqa: F401
     db_lock,
     get_async_engine,
     get_async_session,
@@ -18,5 +18,5 @@ from .db import (  # noqa: F401
     save,
     with_async_session,
 )
-from .document import Document, Scan  # noqa: F401
-from .search import Megadoc, Search  # noqa: F401
+from orca.model.document import Document, Scan  # noqa: F401
+from orca.model.search import Megadoc, Search  # noqa: F401

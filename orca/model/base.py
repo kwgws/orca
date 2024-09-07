@@ -24,8 +24,8 @@ from sqlalchemy.orm import (
     mapped_column,
 )
 
-from ..helpers import create_checksum, create_guid, dt_now, serialize
-from .db import save, with_async_session
+from orca.helpers import create_checksum, create_guid, dt_now, serialize
+from orca.model.db import save, with_async_session
 
 log = logging.getLogger(__name__)
 

@@ -19,9 +19,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from orca import config
 from orca.helpers import create_checksum
-
-from .base import Base, with_async_session
-from .document import Document
+from orca.model.base import Base, with_async_session
+from orca.model.document import Document
 
 log = logging.getLogger(__name__)
 

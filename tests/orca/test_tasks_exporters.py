@@ -4,9 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from orca.model import Document, Megadoc, Search
-from orca.tasks.exporter import create_megadoc
-from orca.tasks.importer import create_index, import_documents
-from orca.tasks.searcher import create_search
+from orca.tasks import create_index, create_megadoc, create_search, import_documents
 
 
 @pytest.mark.asyncio

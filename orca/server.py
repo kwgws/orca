@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import app
-from .model import get_async_session
+from orca import app
+from orca.model import get_async_session
 
 log = logging.getLogger(__name__)
 

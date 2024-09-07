@@ -1,7 +1,6 @@
 import pytest_asyncio
 
-from orca.model import get_async_engine, get_async_session, init_async_engine
-from orca.model.base import Base
+from orca.model import Base, get_async_engine, get_async_session, init_async_engine
 
 
 @pytest_asyncio.fixture(scope="function")

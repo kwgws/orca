@@ -8,7 +8,7 @@ from whoosh.qparser import QueryParser
 from whoosh.searching import Results
 
 from orca.model import Document
-from orca.tasks.importer import create_index, import_documents
+from orca.tasks import create_index, import_documents
 
 
 @pytest.mark.asyncio

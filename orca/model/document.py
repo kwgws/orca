@@ -24,8 +24,7 @@ from unidecode import unidecode
 
 from orca import config
 from orca.helpers import dt_old
-
-from .base import Base, with_async_session
+from orca.model.base import Base, with_async_session
 
 log = logging.getLogger(__name__)
 

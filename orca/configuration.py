@@ -181,8 +181,8 @@ def _load_config():
         _is_config_initialized = True
         return config
 
-    except Exception as e:
-        raise ValueError(f"Could not load configuration from {_config_path}") from e
+    except Exception:
+        raise ValueError(f"Could not load configuration from {_config_path}")
 
 
 # Load the configuration and apply the logging settings immediately

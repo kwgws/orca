@@ -17,11 +17,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from orca import config
 from orca.helpers import dt_now
-
-from .base import Base, StatusMixin
-from .corpus import Corpus
-from .db import save, with_async_session
-from .document import Document
+from orca.model.base import Base, StatusMixin
+from orca.model.corpus import Corpus
+from orca.model.db import save, with_async_session
+from orca.model.document import Document
 
 log = logging.getLogger(__name__)
 

@@ -3,11 +3,7 @@
   "displayName": "ORCA Document Query 🐋",
   "description": "AI-powered web stack for digital humanities research",
   "version": "0.1.0",
-  "author": {
-    "name": "kwg",
-    "url": "https://k.wgws.dev"
-  },
-  "readme": "README",
+  "author": "kwg (https://k.wgws.dev)",
   "license": "LICENSE",
   "homepage": "https://github.com/kwgws/orca",
   "keywords": [
@@ -26,7 +22,7 @@
   ],
   "repository": {
     "type": "github",
-    "url": "https://github.com/kwgws/orca"
+    "url": "git+https://github.com/kwgws/orca.git"
   },
   "bugs": {
     "url": "https://github.com/kwgws/orca/issues"
@@ -54,7 +50,6 @@
     "@babel/preset-env": "^7.x.x",
     "autoprefixer": "^10.4.20",
     "babel-loader": "^9.x.x",
-    "clean-webpack-plugin": "^4.x.x",
     "copy-webpack-plugin": "^12.x.x",
     "css-loader": "^7.x.x",
     "css-minimizer-webpack-plugin": "^7.x.x",
@@ -70,5 +65,8 @@
     "webpack": "^5.x.x",
     "webpack-cli": "^5.x.x",
     "webpack-dev-server": "^5.x.x"
+  },
+  "directories": {
+    "test": "tests"
   }
 }

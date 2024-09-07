@@ -1,38 +1,3 @@
-/**
- * Webpack configuration file for building and serving the ORCA Document Query
- * single-page application web client.
- *
- * This configuration supports both development and production modes, optimizing
- * the output based on the environment. It handles SCSS compilation, HTML
- * processing, asset management, and various optimizations.
- *
- * Features:
- * - **Mode**: Automatically switches between development and production modes.
- * - **Entry Point**: Main JavaScript file located at `./www/src/js/main.js`.
- * - **Output**: Bundles JavaScript into `./www/dist` directory.
- * - **DevServer**: Serves content at `localhost:9000`.
- * - **Loaders**:
- *   - Babel: Transpiles JavaScript files for compatibility with older browsers.
- *   - SCSS: Compiles SCSS files to CSS and extracts them to separate files.
- *   - HTML: Processes HTML files to bundle them with the appropriate assets.
- *   - Images: Copies PNG icons from `./www/src/img/icons` to output directory.
- * - **Plugins**:
- *   - `CleanWebpackPlugin`: Cleans the output directory before each build.
- *   - `MiniCssExtractPlugin`: Extracts CSS into separate files.
- *   - `HTMLWebpackPlugin`: Generates an HTML file and injects bundled assets.
- *   - `CopyWebpackPlugin`: Copies extra favicons to output directory.
- * - **Optimization**:
- *   - In production mode, minimizes JavaScript, CSS, and HTML files, and
- *     removes console logs using Terser, CSSMinimizer, and HtmlMinimizer.
- * - **Ignore Warnings**: Silences Bootstrap v5.3 depreciation warnings.
- *
- * Environment Variables:
- * - `NODE_ENV`: Determines the mode ("development" or "production").
- *
- * @module webpack.config.js
- */
-
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HTMLWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
@@ -51,6 +16,7 @@ module.exports = {
     filename: `js/bundle${isDev ? "" : ".[contenthash:8].min"}.js`,
     path: path.resolve(__dirname, "./www/dist"),
     assetModuleFilename: "[name][ext]",
+    clean: true,
   },
   ignoreWarnings: [
     { message: /node_modules\/sass-loader\/dist\/cjs\.js/ },
@@ -100,7 +66,6 @@ module.exports = {
     ],
   },
   plugins: [
-    new CleanWebpackPlugin(),
     new MiniCssExtractPlugin({
       filename: `css/styles${isDev ? "" : ".[contenthash:8].min"}.css`,
     }),

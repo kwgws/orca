@@ -21,7 +21,6 @@ from orca.model import (
     Base,
     Corpus,
     Search,
-    db_lock,
     get_async_engine,
     init_async_engine,
     with_async_session,
@@ -52,21 +51,18 @@ async def init_database(
         path (Path): The path where the SQL file should be created, defaulting
             to the value in the configuration.
     """
-    async with db_lock:
-        log.info(
-            "🗄️ Creating new SQL database file at %s",
-            path,
-        )
-        await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
-        await asyncio.to_thread(path.unlink, missing_ok=True)
+    log.info(
+        "🗄️ Creating new SQL database file at %s",
+        path,
+    )
+    await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+    await asyncio.to_thread(path.unlink, missing_ok=True)
 
-        log.info("🗄️ Initializing database at %s", uri)
-        await init_async_engine(uri)
-        engine = get_async_engine()
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        # await asyncio.to_thread(path.chmod, 0o660)  # just in case
+    log.info("🗄️ Initializing database at %s", uri)
+    await init_async_engine(uri)
+    engine = get_async_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @with_async_session
@@ -109,7 +105,7 @@ async def import_albums(
         return
 
     try:
-        log.info("📚 Importing documents from %d albums in %s", len(albums), batch_path)
+        log.info("📚 Importing documents from %s", batch_path)
         await import_documents(batch_path, batch_name=batch_name, session=session)
         await create_index(data_path=data_path, index_path=index_path, session=session)
     except (RuntimeError, TypeError, ValueError):

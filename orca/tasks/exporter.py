@@ -22,7 +22,7 @@ from docx.oxml.ns import qn
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from orca import config
-from orca.model import Document, Megadoc, Search, with_async_session
+from orca.model import Document, Megadoc, Search, file_semaphore, with_async_session
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +62,9 @@ async def _to_markdown_file_async(
         f"{await doc.get_text_async(data_path=data_path)}\n"
         f"{'\n\n\n' if not is_last_page else ''}"
     )
-    async with aiofiles.open(path, "a") as f:
-        await f.write(content)
+    async with file_semaphore:
+        async with aiofiles.open(path, "a") as f:
+            await f.write(content)
 
 
 def _to_docx_file(

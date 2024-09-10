@@ -48,6 +48,8 @@ Example:
     >>>         pass
 """
 
+file_semaphore = asyncio.Semaphore(config.open_file_limit)
+
 TRANS_EXC = (
     sqlalchemy.exc.InterfaceError,
     sqlalchemy.exc.InternalError,
@@ -178,6 +180,13 @@ def get_async_engine() -> AsyncEngine:
     if not _engine:
         raise ValueError("Cannot access database engine before it has been initialized")
     return _engine
+
+
+async def teardown_async_engine() -> None:
+    global _engine
+    if not _engine:
+        raise ValueError("Cannot tear down engine before it has been initialized")
+    await _engine.dispose()
 
 
 @asynccontextmanager

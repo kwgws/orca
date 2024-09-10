@@ -61,6 +61,7 @@ def import_albums(data_path, batch_name, index_path):
     print(f"Batch Name: {batch_name}")
     print(f"Index Path: {index_path}")
 
+    asyncio.run(init_async_engine())
     asyncio.run(app.import_albums(data_path, batch_name, index_path))
     print("Album import complete! 📚")
 
@@ -96,6 +97,7 @@ def search(search_str, data_path, index_path, megadoc_types):
     print(f"Index Path: {index_path}")
     print(f"Megadoc Types: {megadoc_types}")
 
+    asyncio.run(init_async_engine())
     asyncio.run(
         app.search_to_megadocs(search_str, data_path, index_path, megadoc_types)
     )
@@ -108,6 +110,7 @@ def search(search_str, data_path, index_path, megadoc_types):
 def debug(host, port):
     """Run the debug server."""
     print(f"Launching debug server at {host}:{port} 🖥️")
+
     asyncio.run(init_async_engine())
     uvicorn.run(wsgi_app, host=host, port=port)
 

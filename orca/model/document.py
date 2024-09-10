@@ -24,7 +24,8 @@ from unidecode import unidecode
 
 from orca import config
 from orca.helpers import dt_old
-from orca.model.base import Base, with_async_session
+from orca.model.base import Base
+from orca.model.db import file_semaphore, with_async_session
 
 log = logging.getLogger(__name__)
 
@@ -151,14 +152,17 @@ class Document(Base):
         Returns:
             The JSON metadata or an empty dictionary on error.
         """
-        path = data_path / self.json_path
-        log.debug("📝 Getting JSON metadata for Document <%s> at %s", self.guid, path)
-        try:
-            async with aiofiles.open(path) as f:
-                return json.loads(await f.read()) or {}
-        except (FileNotFoundError, PermissionError):
-            log.warning(f"🚧 Cannot read JSON metadata from file '{path}'")
-            return {}
+        async with file_semaphore:
+            path = data_path / self.json_path
+            log.debug(
+                "📝 Getting JSON metadata for Document <%s> at %s", self.guid, path
+            )
+            try:
+                async with aiofiles.open(path) as f:
+                    return json.loads(await f.read()) or {}
+            except (FileNotFoundError, PermissionError):
+                log.warning(f"🚧 Cannot read JSON metadata from file '{path}'")
+                return {}
 
     async def get_text_async(self, data_path: Path = config.data_path) -> str:
         """Asynchronously retrieves text content.
@@ -175,14 +179,17 @@ class Document(Base):
         Returns:
             The text content or an empty string on error.
         """
-        path = data_path / self.text_path
-        log.debug("📝 Getting text content for Document <%s> at %s", self.guid, path)
-        try:
-            async with aiofiles.open(path) as f:
-                return unidecode((await f.read()).strip()) or ""
-        except (FileNotFoundError, PermissionError):
-            log.warning(f"🚧 Cannot read text from file '{path}'")
-            return ""
+        async with file_semaphore:
+            path = data_path / self.text_path
+            log.debug(
+                "📝 Getting text content for Document <%s> at %s", self.guid, path
+            )
+            try:
+                async with aiofiles.open(path) as f:
+                    return unidecode((await f.read()).strip()) or ""
+            except (FileNotFoundError, PermissionError):
+                log.warning(f"🚧 Cannot read text from file '{path}'")
+                return ""
 
     @classmethod
     @with_async_session

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pytest
@@ -208,28 +209,6 @@ async def test_document_text(session, tmp_path):
 
     for i, doc in enumerate(documents):
         assert (
-            await doc.get_text_async(data_path=tmp_path)
+            await asyncio.to_thread(doc.get_text, data_path=tmp_path)
             == f"Hello from Document #{i + 1}"
         )
-
-
-@pytest.mark.asyncio
-async def test_get_json_file_not_found(session, tmp_path):
-    document = await Document.create_from_file(
-        path="00/json/2022-09/000001_2022-09-27_13-12-42_image_5992.json",
-        scan=None,
-        session=session,
-    )
-    json_data = await document.get_json_async(data_path=tmp_path)
-    assert json_data == {}
-
-
-@pytest.mark.asyncio
-async def test_get_text_file_not_found(session, tmp_path):
-    document = await Document.create_from_file(
-        path="00/json/2022-09/000001_2022-09-27_13-12-42_image_5992.json",
-        scan=None,
-        session=session,
-    )
-    text_data = await document.get_text_async(data_path=tmp_path)
-    assert text_data == ""

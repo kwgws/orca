@@ -14,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Self
 
-import aiofiles
 from dateutil.parser import ParserError
 from dateutil.parser import parse as parse_datetime
 from sqlalchemy import ForeignKey, String, select
@@ -25,7 +24,7 @@ from unidecode import unidecode
 from orca import config
 from orca.helpers import dt_old
 from orca.model.base import Base
-from orca.model.db import file_semaphore, with_async_session
+from orca.model.db import with_async_session
 
 log = logging.getLogger(__name__)
 
@@ -135,10 +134,8 @@ class Document(Base):
     text_path: Mapped[str] = mapped_column(String(255), default="")
     text_url: Mapped[str] = mapped_column(String(255), default="")
 
-    async def get_json_async(
-        self, data_path: Path = config.data_path
-    ) -> dict[str, Any]:
-        """Asynchronously retrieves JSON metadata.
+    def get_json(self, data_path: Path = config.data_path) -> dict[str, Any]:
+        """Retrieves JSON metadata.
 
         This coroutine retrieves the JSON metadata associated with the
         `Document`. If the file is missing or cannot be read, an empty
@@ -152,20 +149,17 @@ class Document(Base):
         Returns:
             The JSON metadata or an empty dictionary on error.
         """
-        async with file_semaphore:
-            path = data_path / self.json_path
-            log.debug(
-                "📝 Getting JSON metadata for Document <%s> at %s", self.guid, path
-            )
-            try:
-                async with aiofiles.open(path) as f:
-                    return json.loads(await f.read()) or {}
-            except (FileNotFoundError, PermissionError):
-                log.warning(f"🚧 Cannot read JSON metadata from file '{path}'")
-                return {}
+        path = data_path / self.json_path
+        log.debug("📝 Getting JSON metadata for Document <%s> at %s", self.guid, path)
+        try:
+            content = unidecode(path.read_text().strip())
+            return json.loads(content) or {}
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+            log.warning(f"🚧 Cannot read JSON metadata from file '{path}'")
+            return {}
 
-    async def get_text_async(self, data_path: Path = config.data_path) -> str:
-        """Asynchronously retrieves text content.
+    def get_text(self, data_path: Path = config.data_path) -> str:
+        """Retrieves text content.
 
         This coroutine retrieves the text content associated with the
         `Document`. If the file is missing or cannot be read, an empty string
@@ -179,17 +173,13 @@ class Document(Base):
         Returns:
             The text content or an empty string on error.
         """
-        async with file_semaphore:
-            path = data_path / self.text_path
-            log.debug(
-                "📝 Getting text content for Document <%s> at %s", self.guid, path
-            )
-            try:
-                async with aiofiles.open(path) as f:
-                    return unidecode((await f.read()).strip()) or ""
-            except (FileNotFoundError, PermissionError):
-                log.warning(f"🚧 Cannot read text from file '{path}'")
-                return ""
+        path = data_path / self.text_path
+        log.debug("📝 Getting text content for Document <%s> at %s", self.guid, path)
+        try:
+            return unidecode(path.read_text().strip())
+        except (FileNotFoundError, PermissionError):
+            log.warning(f"🚧 Cannot read text from file '{path}'")
+            return ""
 
     @classmethod
     @with_async_session

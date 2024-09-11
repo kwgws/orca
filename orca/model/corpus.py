@@ -9,8 +9,8 @@ comparison, and generation of diffs, making it possible to track changes and
 maintain historical accuracy.
 """
 
-import asyncio
 import logging
+from io import StringIO
 from pathlib import Path
 
 from sqlalchemy import Column, ForeignKey, String, Table
@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from orca import config
-from orca.helpers import create_checksum
+from orca.helpers import create_checksum, do
 from orca.model.base import Base, with_async_session
 from orca.model.document import Document
 
@@ -91,13 +91,19 @@ class Corpus(Base):
         """
         documents: list[Document] = await Document.get_all(session=session)
         document_count = len(documents)
-
         log.info("🧮 Generating checksum for %d documents", document_count)
+
         documents.sort(key=lambda doc: doc.created_at)
-        raw = "".join(
-            await asyncio.gather(*(d.get_text_async(data_path) for d in documents))
-        )
-        checksum = create_checksum(raw)
+        buffer = StringIO()
+
+        for i, document in enumerate(documents):
+            if do(i, document_count, config.db.batch_size):
+                log.info("⏳ Checking documents (%d/%d)", i + 1, document_count)
+            log.debug("⏳ Checking documents (%d/%d)", i + 1, document_count)
+            buffer.write(document.get_text(data_path=data_path))
+
+        checksum = create_checksum(buffer.getvalue())
+        log.info("🌸 Finished generating checksum")
 
         return await super().create(
             checksum=checksum,

@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -50,7 +51,7 @@ async def test_search(session, tmp_path):
 
     for i, doc in enumerate(documents):
         assert (
-            await doc.get_text_async(data_path=tmp_path)
+            await asyncio.to_thread(doc.get_text, data_path=tmp_path)
             == f"Hello from Document #{i + 1}"
         )
 

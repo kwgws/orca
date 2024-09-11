@@ -22,18 +22,18 @@ from docx.oxml.ns import qn
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from orca import config
-from orca.model import Document, Megadoc, Search, file_semaphore, with_async_session
+from orca.model import Document, Megadoc, Search, with_async_session
 
 log = logging.getLogger(__name__)
 
 
-async def _to_markdown_file_async(
+def _to_markdown_file(
     doc: Document,
     megadoc: Megadoc,
     is_last_page: bool = False,
     data_path: Path = config.data_path,
 ) -> None:
-    """Asynchronously creates and appends content to a markdown file.
+    """Creates and appends content to a markdown file.
 
     This function generates a markdown file using metadata from the provided
     `Document` and appends it to a file at the specified path. The content
@@ -50,7 +50,7 @@ async def _to_markdown_file_async(
             overridden here for edge cases or testing.
     """
     path = data_path / megadoc.path
-    await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     content = (
         "---\n"
@@ -59,18 +59,16 @@ async def _to_markdown_file_async(
         f"image: {doc.scan.url}\n"
         "---\n"
         "\n"
-        f"{await doc.get_text_async(data_path=data_path)}\n"
+        f"{doc.get_text(data_path=data_path)}\n"
         f"{'\n\n\n' if not is_last_page else ''}"
     )
-    async with file_semaphore:
-        async with aiofiles.open(path, "a") as f:
-            await f.write(content)
+    with path.open("a") as f:
+        f.write(content)
 
 
 def _to_docx_file(
     doc: Document,
     megadoc: Megadoc,
-    text: str,
     is_last_page: bool = False,
     data_path: Path = config.data_path,
 ) -> None:
@@ -88,8 +86,6 @@ def _to_docx_file(
             scanned document, including title, date, and URL to the image.
         megadoc (Megadoc): A `Megadoc` instance that holds the destination path
             where the DOCX file will be saved.
-        text (str): The OCR-ed text extracted from the scanned document. This
-            is passed as a string to avoid complexities with sync/async code.
         is_last_page (bool, optional): If `True`, omit the page break at the
             end of the text content. Defaults to `False`.
         data_path (Path, optional): The base directory path where the DOCX
@@ -136,7 +132,7 @@ def _to_docx_file(
     p._p.append(link)
 
     x.add_paragraph("-----")
-    x.add_paragraph(text)
+    x.add_paragraph(doc.get_text(data_path=data_path))
     if not is_last_page:
         x.add_page_break()
 
@@ -205,12 +201,13 @@ async def create_megadoc(
     for i, doc in enumerate(sorted(documents, key=lambda doc: doc.created_at)):
         is_last_page = not i + 1 < search.document_count
         if filetype == ".docx":
-            text = await doc.get_text_async(data_path)
             await asyncio.to_thread(
-                _to_docx_file, doc, megadoc, text, is_last_page, data_path
+                _to_docx_file, doc, megadoc, is_last_page, data_path
             )
         elif filetype in {".md", ".txt"}:
-            await _to_markdown_file_async(doc, megadoc, is_last_page, data_path)
+            await asyncio.to_thread(
+                _to_markdown_file, doc, megadoc, is_last_page, data_path
+            )
         else:
             raise NotImplementedError(f"Cannot create megadoc of type {filetype}")
 

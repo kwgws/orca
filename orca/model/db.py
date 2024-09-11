@@ -48,8 +48,6 @@ Example:
     >>>         pass
 """
 
-file_semaphore = asyncio.Semaphore(config.open_file_limit)
-
 TRANS_EXC = (
     sqlalchemy.exc.InterfaceError,
     sqlalchemy.exc.InternalError,

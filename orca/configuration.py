@@ -122,7 +122,6 @@ class Config:
     root_path: Path = field(default=Path.cwd())
     batch_name: str = field(default="00")
     megadoc_types: tuple[str, ...] = field(default=(".txt", ".docx"))
-    open_file_limit: int = field(default=512)
 
     @property
     def data_path(self):

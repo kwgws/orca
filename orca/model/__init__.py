@@ -12,7 +12,6 @@ from orca.model.base import Base, StatusMixin  # noqa: F401
 from orca.model.corpus import Corpus  # noqa: F401
 from orca.model.db import (  # noqa: F401
     db_lock,
-    file_semaphore,
     get_async_engine,
     get_async_session,
     init_async_engine,

@@ -130,7 +130,7 @@ async def create_index(
             log.debug("⏳ Indexing documents (%d/%d)", i + 1, document_count)
         writer.add_document(
             guid=document.guid,
-            content=await document.get_text_async(data_path=data_path),
+            content=document.get_text(data_path=data_path),
         )
 
     log.info("⏳ Finalizing search index, this may take some time")

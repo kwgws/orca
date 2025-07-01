@@ -1,0 +1,40 @@
+[project]
+name = "orca"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain-chroma>=0.2.4",
+    "langchain-community>=0.3.26",
+    "langchain-ollama>=0.3.3",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.4",
+    "tiktoken>=0.9.0",
+    "unstructured>=0.18.1",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.5",
+    "isort>=6.0.1",
+    "mypy>=1.16.1",
+    "pipdeptree>=2.26.1",
+    "pytest>=8.4.1",
+    "ruff>=0.12.1",
+    "setuptools>=80.9.0",
+    "wheel>=0.45.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+fix = true
+lint.select = [
+    "E",  # pycodestyle errors
+    "F",  # Pyflakes
+    "B",  # Bugbear
+    "I",  # isort
+    "UP", # pyupgrade
+    "RUF" # Ruff-specific goodies
+]

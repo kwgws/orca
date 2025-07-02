@@ -9,10 +9,9 @@ log = logging.getLogger(__name__)
 class ChatStage(Enum):
     """Discrete states in the chat flow."""
 
-    WAITING_FOR_USER = auto()
-    SENDING_TO_MODEL = auto()
-    STREAM_FROM_CHAT = auto()
-    SUMMARIZING_CHAT = auto()
+    AWAITING_INPUT = auto()
+    STARTED_STREAM = auto()
+    STARTED_PRECIS = auto()
 
 
 class StageTracker:
@@ -24,8 +23,8 @@ class StageTracker:
     def set(self, session_id: str, stage: ChatStage) -> None:
         """Record ``stage`` for ``session_id`` and log the transition."""
         self._stages[session_id] = stage
-        log.info("Set stage: [%s] %s", session_id, stage.name)
+        log.debug("Set stage [%s]: %s", session_id, stage.name)
 
     def get(self, session_id: str) -> ChatStage:
         """Return the most recent stage for ``session_id``."""
-        return self._stages.get(session_id, ChatStage.WAITING_FOR_USER)
+        return self._stages.get(session_id, ChatStage.AWAITING_INPUT)

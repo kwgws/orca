@@ -8,10 +8,10 @@ The project requires Python 3.12 or newer and is not yet packaged for general us
 Set environment variables to point at your models (or rely on the defaults):
 
 ```
-CHAT_MODEL_NAME=<name>
-CHAT_MODEL_URL=<http://host:port>
-SUMMARIZER_MODEL_NAME=<name>
-SUMMARIZER_MODEL_URL=<http://host:port>
+LLM=<name>
+LLM_URL=<http(s)://host:port>
+EDITOR_LLM=<alias>
+EDITOR_LLM_URL=<http(s)://host:port>
 ```
 
 Run the built-in demo:
@@ -21,4 +21,4 @@ python -m orca_chat
 ```
 
 It will stream a response for a sample prompt and log stage transitions and
-summaries to the console.
+précis to the console.

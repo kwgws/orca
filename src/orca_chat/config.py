@@ -104,7 +104,6 @@ class LLMConfig:
             "top_k": self.top_k,
             "top_p": self.top_p,
             "repetition_penalty": self.repetition_penalty,
-            "system": self.system,
             "stop": list(self.stop) or None,
         }
         data.update(self.extra_params)

@@ -6,4 +6,4 @@ class SessionState:
 
     def __init__(self) -> None:
         self.history = InMemoryChatMessageHistory()
-        self.summary = ""
+        self.precis = ""

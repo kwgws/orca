@@ -1,31 +1,30 @@
 """High-level orchestration of chat sessions."""
 
+import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
-from orca_chat.chains import build_chat_core, build_summarizer
+from orca_chat.chains import build_editor_llm, build_llm
 from orca_chat.config import LLMConfig, LLMRegistry
 from orca_chat.history import SessionState
 from orca_chat.stages import ChatStage, StageTracker
 
 log = logging.getLogger(__name__)
 
-__all__ = ["ChatController"]
-
 
 class ChatController:
-    """Manage chat conversations and running summaries for multiple sessions."""
+    """Manage chat conversations and running précis for multiple sessions."""
 
     def __init__(
         self,
         registry: LLMRegistry,
+        alias: str | None = None,
         *,
-        default_alias: str | None = None,
-        summarizer_alias: str | None = None,
+        editor_alias: str | None = None,
         retrieval_factory: Callable[[str], BaseRetriever] | None = None,
         stage_tracker: StageTracker | None = None,
     ) -> None:
@@ -35,25 +34,28 @@ class ChatController:
         ----------
         registry:
             Mapping of model aliases to :class:`LLMConfig` objects.
-        default_alias:
+        alias:
             Alias of the chat model to use for regular conversations.
-        summarizer_alias:
-            Alias of the model used for history summarization.
+        editor_alias:
+            Alias of the model used for writing prècis.
         retrieval_factory:
             Optional callback returning a :class:`BaseRetriever` for an alias.
         stage_tracker:
             Custom :class:`StageTracker` for monitoring stage transitions.
         """
         self._registry = registry
-        self._default_alias = default_alias or next(iter(registry))
-        self._summarizer_alias = summarizer_alias or self._default_alias
+        self._alias = alias or next(iter(registry))
+        self._editor_alias = editor_alias or self._alias
 
         self._states: dict[str, SessionState] = {}
         self._chains: dict[tuple[str, str], RunnableWithMessageHistory] = {}
-
+        self._editors: dict[str, Runnable] = {}
         self._retrieval_factory = retrieval_factory
-        self._summarizers: dict[str, Runnable] = {}
         self._stage_tracker = stage_tracker or StageTracker()
+
+    def get_stage(self, session_id: str) -> ChatStage:
+        """Return the current :class:`ChatStage` for ``session_id``."""
+        return self._stage_tracker.get(session_id)
 
     async def ainvoke_reply(
         self,
@@ -61,42 +63,8 @@ class ChatController:
         message: str,
         *,
         alias: str | None = None,
-    ) -> str:
-        """Return the model's reply as a single string."""
-        self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
-        alias = alias or self._default_alias
-        log_message = message.replace("\n", " ")
-        log.info(
-            "Invoking model: [%s, %s] %s (%d chars)",
-            session_id,
-            alias,
-            log_message[:100] + "..." if len(message) > 100 else log_message,
-            len(message),
-        )
-        chain = self._get_chain(session_id, self._default_alias)
-        cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
-
-        self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
-        try:
-            result = await chain.ainvoke({"input": message}, config=cfg)
-        except Exception:
-            self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
-            log.exception("Failed to invoke model")
-            raise
-        log_result = result.replace("\n", " ")
-        log.info(
-            "Received reply: [%s, %s] %s (%d chars)",
-            session_id,
-            alias,
-            log_result[:100] + "..." if len(result) > 100 else log_result,
-            len(result),
-        )
-
-        self._stage_tracker.set(session_id, ChatStage.SUMMARIZING_CHAT)
-        await self._refresh_summary(session_id, self._summarizer_alias)
-
-        self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
-        return str(result).strip()
+    ):
+        return await self._run(session_id, message, alias=alias)
 
     async def astream_reply(
         self,
@@ -105,59 +73,23 @@ class ChatController:
         *,
         alias: str | None = None,
     ) -> AsyncIterator[str]:
-        """Yield the reply token by token as it is generated."""
-        self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
-        alias = alias or self._default_alias
-        log_message = message.replace("\n", " ")
-        log.info(
-            "Streaming from model: [%s, %s] %s (%d chars)",
-            session_id,
-            alias,
-            log_message[:100] + "..." if len(message) > 100 else log_message,
-            len(message),
-        )
-        chain = self._get_chain(session_id, self._default_alias)
-        cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
+        queue: asyncio.Queue[str] = asyncio.Queue()
 
-        self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
-        result = ""
+        async def _push(token: str) -> None:
+            await queue.put(token)
+
+        task = asyncio.create_task(self._run(session_id, message, alias=alias, on_token=_push))
         try:
-            async for token in chain.astream({"input": message}, config=cfg):
-                result += token
-                yield str(token)
-        except Exception:
-            self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
-            log.exception("Failed to stream from model")
-            raise
-        yield "\n"
-        log_result = result.replace("\n", " ")
-        log.info(
-            "Received reply: [%s, %s] %s (%d chars)",
-            session_id,
-            alias,
-            log_result[:100] + "..." if len(result) > 100 else log_result,
-            len(result),
-        )
-
-        self._stage_tracker.set(session_id, ChatStage.SUMMARIZING_CHAT)
-        await self._refresh_summary(session_id, self._summarizer_alias)
-
-        self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
-        return
-
-    def stage(self, session_id: str) -> ChatStage:
-        """Return the current :class:`ChatStage` for ``session_id``."""
-        return self._stage_tracker.get(session_id)
+            while True:
+                token = await queue.get()
+                yield token
+                queue.task_done()
+        finally:
+            await task
 
     def _state(self, session_id: str) -> SessionState:
         """Lazy-initialize and return ``SessionState`` for ``session_id``."""
         return self._states.setdefault(session_id, SessionState())
-
-    def _ensure_summarizer(self, alias: str) -> None:
-        """Instantiate the summarizer chain for ``alias`` if needed."""
-        if alias not in self._summarizers:
-            cfg: LLMConfig = self._registry[alias]
-            self._summarizers[alias] = build_summarizer(cfg)
 
     def _get_chain(self, session_id: str, alias: str):
         """Return the chat chain for ``session_id`` and ``alias``."""
@@ -168,7 +100,7 @@ class ChatController:
         state = self._state(session_id)
         cfg: LLMConfig = self._registry[alias]
         retriever = self._retrieval_factory(alias) if self._retrieval_factory else None
-        core = build_chat_core(cfg, state.summary, retriever)
+        core = build_llm(cfg, state.precis, retriever)
 
         chain = RunnableWithMessageHistory(
             core,
@@ -179,19 +111,79 @@ class ChatController:
         self._chains[key] = chain
         return chain
 
-    async def _refresh_summary(self, session_id: str, alias: str) -> None:
-        """Regenerate the running summary for ``session_id``."""
-        self._ensure_summarizer(alias)
-        summarizer = self._summarizers[alias]
+    async def _run(
+        self,
+        session_id: str,
+        message: str,
+        *,
+        alias: str | None = None,
+        editor_alias: str | None = None,
+        on_token: Callable[[str], Awaitable[None]] | None = None,
+    ):
+        """Send message to the model, stream or return response, and update precis."""
+        self._stage_tracker.set(session_id, ChatStage.STARTED_STREAM)
+        alias = alias or self._alias
+        chain = self._get_chain(session_id, alias)
+        cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
+        reply = ""
 
-        state = self._state(session_id)
-        new_summary = await summarizer.ainvoke({"history": state.history.messages})
-        state.summary = str(new_summary).strip()
-        log_result = state.summary.replace("\n", " ")
+        log_message = message.replace("\n", " ")
         log.info(
-            "Updated summary: [%s, %s] %s (%d chars)",
+            "%s [%s, %s]: %s (%d chars)",
+            "Streaming" if on_token else "Invoking",
             session_id,
             alias,
-            log_result[:100] + "..." if len(state.summary) > 100 else log_result,
-            len(state.summary),
+            log_message[:100] + "..." if len(message) > 100 else log_message,
+            len(message),
+        )
+
+        try:
+            if on_token is None:
+                reply = await chain.ainvoke({"input": message}, config=cfg)
+            else:
+                async for chunk in chain.astream({"input": message}, config=cfg):
+                    token = str(chunk)
+                    reply += token
+                    await on_token(token)
+        except Exception as e:
+            self._stage_tracker.set(session_id, ChatStage.AWAITING_INPUT)
+            log.error("Model call failed [%s, %s]: %s", session_id, alias, e)
+            raise
+
+        log_reply = reply.replace("\n", " ")
+        log.info(
+            "Replied [%s, %s]: %s (%d chars)",
+            session_id,
+            alias,
+            log_reply[:100] + "..." if len(reply) > 100 else log_reply,
+            len(reply),
+        )
+
+        self._stage_tracker.set(session_id, ChatStage.STARTED_PRECIS)
+        await self._edit(session_id, editor_alias or self._editor_alias)
+
+        self._stage_tracker.set(session_id, ChatStage.AWAITING_INPUT)
+        return reply.strip()
+
+    def _get_editor(self, editor_alias: str) -> None:
+        """Instantiate the editor chain for ``editor_alias`` if needed."""
+        if editor_alias not in self._editors:
+            cfg: LLMConfig = self._registry[editor_alias]
+            self._editors[editor_alias] = build_editor_llm(cfg)
+
+    async def _edit(self, session_id: str, alias: str) -> None:
+        """Regenerate the running precis for ``session_id``."""
+        self._get_editor(alias)
+        editor = self._editors[alias]
+
+        state = self._state(session_id)
+        new_precis = await editor.ainvoke({"history": state.history.messages})
+        state.precis = str(new_precis).strip()
+        log_result = state.precis.replace("\n", " ")
+        log.info(
+            "Summarized [%s, %s]: %s (%d chars)",
+            session_id,
+            alias,
+            log_result[:100] + "..." if len(state.precis) > 100 else log_result,
+            len(state.precis),
         )

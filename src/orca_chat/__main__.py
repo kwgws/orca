@@ -15,8 +15,6 @@ log = logging.getLogger()
 log.setLevel(logging.INFO)
 log.addHandler(handler)
 
-__all__ = ["demo"]
-
 
 PROMPT = "Explain why the sky is blue."
 
@@ -25,19 +23,19 @@ def _build_registry() -> LLMRegistry:
     """Populate a :class:`LLMRegistry` from environment variables."""
     registry = LLMRegistry()
 
-    chat_cfg = LLMConfig(
-        model=os.environ.get("CHAT_MODEL_NAME", "chat"),
+    cfg = LLMConfig(
+        model=os.environ.get("LLM", "default"),
         temperature=0.7,
-        base_url=os.environ.get("CHAT_MODEL_URL", "http://localhost:11434"),
+        base_url=os.environ.get("LLM_URL", "http://localhost:11434"),
     )
-    registry.add(chat_cfg, "chat")
+    registry.add(cfg, "default")
 
-    summarizer_cfg = LLMConfig(
-        model=os.environ.get("SUMMARIZER_MODEL_NAME", "summarizer"),
+    editor_cfg = LLMConfig(
+        model=os.environ.get("EDITOR_LLM", "precis"),
         temperature=0.2,
-        base_url=os.environ.get("SUMMARIZER_MODEL_URL", "http://localhost:11434"),
+        base_url=os.environ.get("EDITOR_LLM_URL", "http://localhost:11434"),
     )
-    registry.add(summarizer_cfg, "summarizer")
+    registry.add(editor_cfg, "editor")
 
     return registry
 
@@ -47,21 +45,16 @@ async def demo() -> None:
     log = logging.getLogger(__name__)
 
     registry = _build_registry()
-    controller = ChatController(registry, default_alias="chat", summarizer_alias="summarizer")
+    controller = ChatController(registry, editor_alias="editor")
 
     log.info("Sending prompt: %s", PROMPT)
     async for token in controller.astream_reply("demo", PROMPT):
         print(token, end="", flush=True)
 
-    log.info("Done!")
 
-
-def _run() -> None:
+if __name__ == "__main__":
     try:
         asyncio.run(demo())
     except KeyboardInterrupt:
         log.info("Aborted by user")
-
-
-if __name__ == "__main__":
-    _run()
+        exit(1)

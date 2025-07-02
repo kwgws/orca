@@ -16,7 +16,7 @@ PROMPT = "Explain why the sky is blue."
 
 
 def _build_registry() -> LLMRegistry:
-    """Populate an :class:`LLMRegistry` from environment variables."""
+    """Populate a :class:`LLMRegistry` from environment variables."""
     registry = LLMRegistry()
 
     chat_cfg = LLMConfig(

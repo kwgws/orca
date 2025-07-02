@@ -1,3 +1,6 @@
+"""High-level orchestration of chat sessions."""
+
+import logging
 from collections.abc import AsyncIterator, Callable
 
 from langchain_core.retrievers import BaseRetriever
@@ -9,10 +12,13 @@ from orca_chat.config import LLMConfig, LLMRegistry
 from orca_chat.history import SessionState
 from orca_chat.stages import ChatStage, StageTracker
 
+logger = logging.getLogger(__name__)
+
 __all__ = ["ChatController"]
 
 
 class ChatController:
+    """Manage chat conversations and running summaries for multiple sessions."""
     def __init__(
         self,
         registry: LLMRegistry,
@@ -22,6 +28,21 @@ class ChatController:
         retrieval_factory: Callable[[str], BaseRetriever] | None = None,
         stage_tracker: StageTracker | None = None,
     ) -> None:
+        """Create a new controller.
+
+        Parameters
+        ----------
+        registry:
+            Mapping of model aliases to :class:`LLMConfig` objects.
+        default_alias:
+            Alias of the chat model to use for regular conversations.
+        summarizer_alias:
+            Alias of the model used for history summarization.
+        retrieval_factory:
+            Optional callback returning a :class:`BaseRetriever` for an alias.
+        stage_tracker:
+            Custom :class:`StageTracker` for monitoring stage transitions.
+        """
         self._registry = registry
         self._default_alias = default_alias or next(iter(registry))
         self._summarizer_alias = summarizer_alias or self._default_alias
@@ -38,6 +59,7 @@ class ChatController:
         session_id: str,
         message: str,
     ) -> str:
+        """Return the model's reply as a single string."""
         self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
         chain = self._get_chain(session_id, self._default_alias)
         cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
@@ -56,6 +78,7 @@ class ChatController:
         session_id: str,
         message: str,
     ) -> AsyncIterator[str]:
+        """Yield the reply token by token as it is generated."""
         self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
         chain = self._get_chain(session_id, self._default_alias)
         cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
@@ -71,17 +94,21 @@ class ChatController:
         return
 
     def stage(self, session_id: str) -> ChatStage:
+        """Return the current :class:`ChatStage` for ``session_id``."""
         return self._stage_tracker.get(session_id)
 
     def _state(self, session_id: str) -> SessionState:
+        """Lazy-initialize and return ``SessionState`` for ``session_id``."""
         return self._states.setdefault(session_id, SessionState())
 
     def _ensure_summarizer(self, alias: str) -> None:
+        """Instantiate the summarizer chain for ``alias`` if needed."""
         if alias not in self._summarizers:
             cfg: LLMConfig = self._registry[alias]
             self._summarizers[alias] = build_summarizer(cfg)
 
     def _get_chain(self, session_id: str, alias: str):
+        """Return the chat chain for ``session_id`` and ``alias``."""
         key = (session_id, alias)
         if key in self._chains:
             return self._chains[key]
@@ -101,6 +128,7 @@ class ChatController:
         return chain
 
     async def _refresh_summary(self, session_id: str, alias: str) -> None:
+        """Regenerate the running summary for ``session_id``."""
         self._ensure_summarizer(alias)
         summarizer = self._summarizers[alias]
 
@@ -108,4 +136,4 @@ class ChatController:
         new_summary = await summarizer.ainvoke({"history": state.history.messages})
         state.summary = str(new_summary).strip()
 
-        print(f"\n\n[{alias}] summary -> {session_id}]: {state.summary[:200]!r}", flush=True)
+        logger.info("[%s] summary -> %s: %s", alias, session_id, state.summary[:200])

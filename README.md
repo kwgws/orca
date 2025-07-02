@@ -5,12 +5,6 @@ The project requires Python 3.12 or newer and is not yet packaged for general us
 
 ## Quickstart
 
-```bash
-git clone <this repo>
-cd orca
-pip install -e .[dev]
-```
-
 Set environment variables to point at your models (or rely on the defaults):
 
 ```

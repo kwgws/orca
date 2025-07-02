@@ -12,13 +12,14 @@ from orca_chat.config import LLMConfig, LLMRegistry
 from orca_chat.history import SessionState
 from orca_chat.stages import ChatStage, StageTracker
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 __all__ = ["ChatController"]
 
 
 class ChatController:
     """Manage chat conversations and running summaries for multiple sessions."""
+
     def __init__(
         self,
         registry: LLMRegistry,
@@ -58,14 +59,33 @@ class ChatController:
         self,
         session_id: str,
         message: str,
+        *,
+        alias: str | None = None,
     ) -> str:
         """Return the model's reply as a single string."""
         self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
+        alias = alias or self._default_alias
+        log_message = message.replace("\n", " ")
+        log.info(
+            "Invoking model: [%s, %s] %s (%d chars)",
+            session_id,
+            alias,
+            log_message[:100] + "..." if len(message) > 100 else log_message,
+            len(message),
+        )
         chain = self._get_chain(session_id, self._default_alias)
         cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
 
         self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
         result = await chain.ainvoke({"input": message}, config=cfg)
+        log_result = result.replace("\n", " ")
+        log.info(
+            "Received reply: [%s, %s] %s (%d chars)",
+            session_id,
+            alias,
+            log_result[:100] + "..." if len(result) > 100 else log_result,
+            len(result),
+        )
 
         self._stage_tracker.set(session_id, ChatStage.SUMMARIZING_CHAT)
         await self._refresh_summary(session_id, self._summarizer_alias)
@@ -77,15 +97,37 @@ class ChatController:
         self,
         session_id: str,
         message: str,
+        *,
+        alias: str | None = None,
     ) -> AsyncIterator[str]:
         """Yield the reply token by token as it is generated."""
         self._stage_tracker.set(session_id, ChatStage.SENDING_TO_MODEL)
+        alias = alias or self._default_alias
+        log_message = message.replace("\n", " ")
+        log.info(
+            "Streaming from model: [%s, %s] %s (%d chars)",
+            session_id,
+            alias,
+            log_message[:100] + "..." if len(message) > 100 else log_message,
+            len(message),
+        )
         chain = self._get_chain(session_id, self._default_alias)
         cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
 
         self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
-        async for tok in chain.astream({"input": message}, config=cfg):
-            yield str(tok)
+        result = ""
+        async for token in chain.astream({"input": message}, config=cfg):
+            result += token
+            yield str(token)
+        yield "\n"
+        log_result = result.replace("\n", " ")
+        log.info(
+            "Received reply: [%s, %s] %s (%d chars)",
+            session_id,
+            alias,
+            log_result[:100] + "..." if len(result) > 100 else log_result,
+            len(result),
+        )
 
         self._stage_tracker.set(session_id, ChatStage.SUMMARIZING_CHAT)
         await self._refresh_summary(session_id, self._summarizer_alias)
@@ -135,5 +177,11 @@ class ChatController:
         state = self._state(session_id)
         new_summary = await summarizer.ainvoke({"history": state.history.messages})
         state.summary = str(new_summary).strip()
-
-        logger.info("[%s] summary -> %s: %s", alias, session_id, state.summary[:200])
+        log_result = state.summary.replace("\n", " ")
+        log.info(
+            "Updated summary: [%s, %s] %s (%d chars)",
+            session_id,
+            alias,
+            log_result[:100] + "..." if len(state.summary) > 100 else log_result,
+            len(state.summary),
+        )

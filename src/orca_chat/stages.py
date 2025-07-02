@@ -3,7 +3,7 @@
 import logging
 from enum import Enum, auto
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 class ChatStage(Enum):
@@ -24,7 +24,7 @@ class StageTracker:
     def set(self, session_id: str, stage: ChatStage) -> None:
         """Record ``stage`` for ``session_id`` and log the transition."""
         self._stages[session_id] = stage
-        logger.info("[stage → %s]: %s", session_id, stage.name)
+        log.info("Set stage: [%s] %s", session_id, stage.name)
 
     def get(self, session_id: str) -> ChatStage:
         """Return the most recent stage for ``session_id``."""

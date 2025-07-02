@@ -1,4 +1,4 @@
-"""Lightweight state tracking for chat sessions."""
+"""Lightweight state tracking for :class:`ChatController`"""
 
 import logging
 from enum import Enum, auto

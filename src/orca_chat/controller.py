@@ -1,4 +1,11 @@
-"""High-level orchestration of chat sessions."""
+"""
+Chat session controller for orchestrating LLM-based conversations.
+
+This module defines the `ChatController` class, which manages multi-session
+chat interactions using large language models (LLMs). It handles stateful
+message history, chat stage transitions, streaming or non-streaming model
+responses, and the generation of running précis (summaries) per session.
+"""
 
 import asyncio
 import logging
@@ -17,7 +24,12 @@ log = logging.getLogger(__name__)
 
 
 class ChatController:
-    """Manage chat conversations and running précis for multiple sessions."""
+    """Manage chat conversations and running précis for multiple sessions.
+
+    This class coordinates interactions with multiple language models,
+    maintains per-session state and history, handles chat stages, and
+    generates summaries of each session.
+    """
 
     def __init__(
         self,
@@ -28,7 +40,7 @@ class ChatController:
         retriever_factory: Callable[[str], BaseRetriever] | None = None,
         stage_tracker: StageTracker | None = None,
     ) -> None:
-        """Create a new controller.
+        """Create a new :class:`ChatController`.
 
         Parameters
         ----------
@@ -54,7 +66,7 @@ class ChatController:
         self._stage_tracker = stage_tracker or StageTracker()
 
     def get_stage(self, session_id: str) -> ChatStage:
-        """Return the current :class:`ChatStage` for ``session_id``."""
+        """Return the current :class:`ChatStage` for the ``session_id``."""
         return self._stage_tracker.get(session_id)
 
     async def ainvoke_reply(
@@ -64,6 +76,22 @@ class ChatController:
         *,
         alias: str | None = None,
     ):
+        """Send a message to the model and return the generated reply.
+
+        Parameters
+        ----------
+        session_id : str
+            The identifier for the chat session.
+        message : str
+            The user message to send.
+        alias : str, optional
+            Alias of the model to use, if not the controller default.
+
+        Returns
+        ------
+        str
+            The model's reply.
+        """
         return await self._run(session_id, message, alias=alias)
 
     async def astream_reply(
@@ -73,6 +101,22 @@ class ChatController:
         *,
         alias: str | None = None,
     ) -> AsyncIterator[str]:
+        """Send a message to the model and stream the reply token-by-token.
+
+        Parameters
+        ----------
+        session_id : str
+            The identifier for the chat session.
+        message : str
+            The user message to send.
+        alias : str, optional
+            Alias of the model to use, if not the controller default.
+
+        Yields
+        ------
+        str
+            The next token in the model's reply.
+        """
         queue: asyncio.Queue[str] = asyncio.Queue()
 
         async def _push(token: str) -> None:
@@ -175,9 +219,9 @@ class ChatController:
         """Regenerate the running precis for ``session_id``."""
         self._get_editor(alias)
         editor = self._editors[alias]
-
         state = self._state(session_id)
         new_precis = await editor.ainvoke({"history": state.history.messages})
+
         state.precis = str(new_precis).strip()
         log_result = state.precis.replace("\n", " ")
         log.info(

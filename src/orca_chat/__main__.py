@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+from pathlib import Path
 
 from orca_chat.config import LLMConfig, LLMRegistry
 from orca_chat.controller import ChatController
@@ -16,16 +17,16 @@ log.setLevel(logging.INFO)
 log.addHandler(handler)
 
 
-PROMPT = "Explain why the sky is blue."
+PROMPT = "Tell me about yourself."
 
 
 def _build_registry() -> LLMRegistry:
-    """Populate a :class:`LLMRegistry` from environment variables."""
     registry = LLMRegistry()
 
     cfg = LLMConfig(
         model=os.environ.get("LLM", "default"),
         temperature=0.7,
+        system=Path("./config/system_prompt.txt").read_text().strip(),
         base_url=os.environ.get("LLM_URL", "http://localhost:11434"),
     )
     registry.add(cfg, "default")
@@ -41,7 +42,6 @@ def _build_registry() -> LLMRegistry:
 
 
 async def demo() -> None:
-    """Stream a single reply for ``PROMPT`` using the configured models."""
     log = logging.getLogger(__name__)
 
     registry = _build_registry()

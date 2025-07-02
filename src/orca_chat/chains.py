@@ -34,7 +34,26 @@ def build_llm(
     precis: str,
     retriever: BaseRetriever | None,
 ) -> Runnable:
-    """Assemble prompt → LLM → parser, optionally wrapped with retrieval."""
+    """Construct a language model processing chain.
+
+    Arguments
+    ---------
+    cfg: LLMConfig
+        Configuration for the LLM, including base URL, timeout, and request
+        parameters.
+    precis: str
+        A short summary or context string used to shape the system prompt.
+    retriever: BaseRetriever, optional
+        Optional retriever object for retrieval-augmented generation with
+        history awareness.
+
+    Returns
+    -------
+    Runnable:
+        A composable LangChain pipeline that includes prompt formatting, model
+        invocation, and output parsing. If a retriever is provided, the
+        pipeline includes history-aware retrieval.
+    """
     llm = ChatOllama(
         base_url=cfg.base_url,
         client_kwargs={"timeout": Timeout(cfg.timeout_s)},
@@ -53,7 +72,20 @@ def build_llm(
 
 
 def build_editor_llm(cfg: LLMConfig) -> Runnable:
-    """Return a runnable that condenses full chat history into a short précis."""
+    """Construct a language model processing chain specialized for summary.
+
+    Arguments
+    ---------
+    cfg: LLMConfig
+        Configuration for the LLM, including base URL, timeout, and request
+        parameters.
+
+    Returns
+    -------
+    Runnable:
+        A LangChain pipeline that takes a conversation history and produces a
+        concise summary using a ChatOllama instance.
+    """
     llm = ChatOllama(
         base_url=cfg.base_url,
         client_kwargs={"timeout": Timeout(cfg.timeout_s)},

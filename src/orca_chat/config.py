@@ -1,4 +1,5 @@
-"""LLM configuration primitives.
+"""
+LLM configuration primitives.
 
 This module keeps all the twistable knobs for our language models in one place,
 so higher level code can swap or fine tune models without rummaging through
@@ -26,39 +27,39 @@ class LLMConfig:
 
     Fields
     ----------
-    model:
+    model: str
         Model identifier (e.g. ``"llama3"``).
 
-    temperature:
+    temperature: float, optional
         **Softmax temperature τ.** Lower -> more deterministic;
         higher -> more creative. Typical range 0.2 - 1.2.
 
-    top_k:
+    top_k: int, optional
         **Top-K sampling.** Keep only the *k* most-likely tokens, renormalize
         probabilities to 1.0, then sample. Typical range 20 - 100.
 
-    top_p:
+    top_p: float, optional
         **Nucleus (Top-P) sampling.** Select the smallest set of tokens whose
         cumulative probability >= *p*, then sample from that set.
         Typical values 0.8 - 0.95.
 
-    repetition_penalty:
+    repetition_penalty: float, optional
         Multiply logits of already-generated tokens by this factor (< 1
         discourages loops, > 1 encourages repetition). Common: 0.9 - 1.1.
 
-    system:
+    system: str, optional
         System-level message prepended to every conversation.
 
-    stop:
+    stop: Sequence[str], optional
         Token(s) at which generation should halt cleanly.
 
-    base_url:
+    base_url: str, optional
         Endpoint of the inference server.
 
-    timeout_s:
+    timeout_s: int, optional
         HTTP timeout (seconds) for a single completion request.
 
-    extra_params:
+    extra_params: Mapping[str, Any], optional
         Provider-specific kwargs passed straight through to the backend.
     """
 

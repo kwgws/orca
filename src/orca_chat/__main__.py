@@ -56,5 +56,12 @@ async def demo() -> None:
     log.info("Done!")
 
 
+def _run() -> None:
+    try:
+        asyncio.run(demo())
+    except KeyboardInterrupt:
+        log.info("Aborted by user")
+
+
 if __name__ == "__main__":
-    asyncio.run(demo())
+    _run()

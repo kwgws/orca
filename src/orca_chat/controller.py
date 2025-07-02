@@ -77,7 +77,12 @@ class ChatController:
         cfg: RunnableConfig = {"configurable": {"session_id": session_id}}
 
         self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
-        result = await chain.ainvoke({"input": message}, config=cfg)
+        try:
+            result = await chain.ainvoke({"input": message}, config=cfg)
+        except Exception:
+            self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
+            log.exception("Failed to invoke model")
+            raise
         log_result = result.replace("\n", " ")
         log.info(
             "Received reply: [%s, %s] %s (%d chars)",
@@ -116,9 +121,14 @@ class ChatController:
 
         self._stage_tracker.set(session_id, ChatStage.STREAM_FROM_CHAT)
         result = ""
-        async for token in chain.astream({"input": message}, config=cfg):
-            result += token
-            yield str(token)
+        try:
+            async for token in chain.astream({"input": message}, config=cfg):
+                result += token
+                yield str(token)
+        except Exception:
+            self._stage_tracker.set(session_id, ChatStage.WAITING_FOR_USER)
+            log.exception("Failed to stream from model")
+            raise
         yield "\n"
         log_result = result.replace("\n", " ")
         log.info(

@@ -1,3 +1,4 @@
+from httpx import Timeout
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -21,7 +22,14 @@ __all__ = [
 
 def build_summarizer(cfg: LLMConfig) -> Runnable:
     """Return a runnable that condenses full chat history into < 250 words."""
-    llm = ChatOllama(base_url=cfg.base_url, **cfg.to_request_dict())
+    llm = ChatOllama(
+        base_url=cfg.base_url,
+        client_kwargs={"timeout": Timeout(cfg.timeout_s)},
+        **cfg.to_request_dict(),
+    ).with_retry(
+        stop_after_attempt=5,
+        exponential_jitter_params={"initial": 1.0, "max": float(cfg.timeout_s)},
+    )
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage("Summarize the conversation so far in < 250 words."),
@@ -51,7 +59,14 @@ def build_chat_core(
     retriever: BaseRetriever | None,
 ) -> Runnable:
     """Assemble prompt → LLM → parser, optionally wrapped with retrieval."""
-    llm = ChatOllama(base_url=cfg.base_url, **cfg.to_request_dict())
+    llm = ChatOllama(
+        base_url=cfg.base_url,
+        client_kwargs={"timeout": Timeout(cfg.timeout_s)},
+        **cfg.to_request_dict(),
+    ).with_retry(
+        stop_after_attempt=5,
+        exponential_jitter_params={"initial": 1.0, "max": float(cfg.timeout_s)},
+    )
     core: Runnable = chat_prompt(cfg, summary) | llm | StrOutputParser()
 
     if retriever:

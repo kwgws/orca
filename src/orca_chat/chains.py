@@ -53,7 +53,7 @@ def build_llm(
 
 
 def build_editor_llm(cfg: LLMConfig) -> Runnable:
-    """Return a runnable that condenses full chat history into a short prècis."""
+    """Return a runnable that condenses full chat history into a short précis."""
     llm = ChatOllama(
         base_url=cfg.base_url,
         client_kwargs={"timeout": Timeout(cfg.timeout_s)},

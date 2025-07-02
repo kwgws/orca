@@ -25,7 +25,7 @@ class ChatController:
         alias: str | None = None,
         *,
         editor_alias: str | None = None,
-        retrieval_factory: Callable[[str], BaseRetriever] | None = None,
+        retriever_factory: Callable[[str], BaseRetriever] | None = None,
         stage_tracker: StageTracker | None = None,
     ) -> None:
         """Create a new controller.
@@ -37,8 +37,8 @@ class ChatController:
         alias:
             Alias of the chat model to use for regular conversations.
         editor_alias:
-            Alias of the model used for writing prècis.
-        retrieval_factory:
+            Alias of the model used for writing précis.
+        retriever_factory:
             Optional callback returning a :class:`BaseRetriever` for an alias.
         stage_tracker:
             Custom :class:`StageTracker` for monitoring stage transitions.
@@ -50,7 +50,7 @@ class ChatController:
         self._states: dict[str, SessionState] = {}
         self._chains: dict[tuple[str, str], RunnableWithMessageHistory] = {}
         self._editors: dict[str, Runnable] = {}
-        self._retrieval_factory = retrieval_factory
+        self._retriever_factory = retriever_factory
         self._stage_tracker = stage_tracker or StageTracker()
 
     def get_stage(self, session_id: str) -> ChatStage:
@@ -99,7 +99,7 @@ class ChatController:
 
         state = self._state(session_id)
         cfg: LLMConfig = self._registry[alias]
-        retriever = self._retrieval_factory(alias) if self._retrieval_factory else None
+        retriever = self._retriever_factory(alias) if self._retriever_factory else None
         core = build_llm(cfg, state.precis, retriever)
 
         chain = RunnableWithMessageHistory(

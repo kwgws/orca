@@ -45,7 +45,10 @@ async def demo() -> None:
     log = logging.getLogger(__name__)
 
     registry = _build_registry()
-    controller = ChatController(registry, editor_alias="editor")
+    controller = ChatController(
+        registry,
+        editor_alias="editor",
+    )
 
     log.info("Sending prompt: %s", PROMPT)
     async for token in controller.astream_reply("demo", PROMPT):

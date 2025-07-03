@@ -20,14 +20,6 @@ class ChatStage(Enum):
 
 
 @dataclass(slots=True)
-class SessionState:
-    """Lightweight container for per-session state."""
-
-    history: InMemoryChatMessageHistory = field(default_factory=InMemoryChatMessageHistory)
-    precis: str = ""
-
-
-@dataclass(slots=True)
 class StageTracker:
     """Keep track of the current :class:`ChatStage` for each session."""
 
@@ -41,3 +33,11 @@ class StageTracker:
     def get(self, session_id: str) -> ChatStage:
         """Return the most recent stage for ``session_id``."""
         return self._stages.get(session_id, ChatStage.AWAITING_INPUT)
+
+
+@dataclass(slots=True)
+class SessionState:
+    """Lightweight container for per-session state."""
+
+    history: InMemoryChatMessageHistory = field(default_factory=InMemoryChatMessageHistory)
+    precis: str = ""

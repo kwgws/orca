@@ -228,7 +228,14 @@ class ChatController:
 
         # TODO: Occasionally this returns a blank précis--we need to make sure
         #       that doesn't happen before we replace the old one!
-        new_precis = await editor.ainvoke({"history": state.history.messages})
+        edit = await editor.ainvoke({"history": state.history.messages})
+        new_precis = str(edit).strip()
+        if not new_precis:
+            log.warning(
+                "Editor produced empty précis: [%s, %s], keeping previous value", session_id, alias
+            )
+            return
+
         state.precis = str(new_precis).strip()
 
         log_result = state.precis.replace("\n", " ")

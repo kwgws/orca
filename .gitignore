@@ -11,5 +11,6 @@ wheels/
 .venv
 uv.lock
 
-# VSCode
+# Local files
 .vscode
+scripts/

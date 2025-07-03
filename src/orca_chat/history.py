@@ -1,9 +1,9 @@
+"""Deprecated module kept for backward compatibility."""
+
+from __future__ import annotations
+
 from langchain_core.chat_history import InMemoryChatMessageHistory
 
+from .state import SessionState
 
-class SessionState:
-    """Lightweight container for per-session state."""
-
-    def __init__(self) -> None:
-        self.history = InMemoryChatMessageHistory()
-        self.precis = ""
+__all__ = ["InMemoryChatMessageHistory", "SessionState"]

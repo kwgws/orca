@@ -61,6 +61,7 @@ class ChatController:
 
         self._states: dict[str, SessionState] = {}
         self._chains: dict[tuple[str, str], RunnableWithMessageHistory] = {}
+        self._chain_precis: dict[tuple[str, str], str] = {}
         self._editors: dict[str, Runnable] = {}
         self._retriever_factory = retriever_factory
         self._stage_tracker = stage_tracker or StageTracker()
@@ -138,13 +139,15 @@ class ChatController:
     def _get_chain(self, session_id: str, alias: str):
         """Return the chat chain for ``session_id`` and ``alias``."""
         key = (session_id, alias)
-        if key in self._chains:
+        state = self._state(session_id)
+        precis = state.precis
+
+        if key in self._chains and self._chain_precis.get(key) == precis:
             return self._chains[key]
 
-        state = self._state(session_id)
         cfg: LLMConfig = self._registry[alias]
         retriever = self._retriever_factory(alias) if self._retriever_factory else None
-        core = build_llm(cfg, state.precis, retriever)
+        core = build_llm(cfg, precis, retriever)
 
         chain = RunnableWithMessageHistory(
             core,
@@ -152,7 +155,10 @@ class ChatController:
             input_messages_key="input",
             history_messages_key="history",
         )
+        # The chain must be rebuilt when the précis changes so prompts include the
+        # latest summary.
         self._chains[key] = chain
+        self._chain_precis[key] = precis
         return chain
 
     async def _run(

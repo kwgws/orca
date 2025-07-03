@@ -1,4 +1,4 @@
-"""Simple command line demo for :mod:`orca_chat`."""
+"""Simple interactive CLI for :mod:`orca_chat`."""
 
 import asyncio
 import logging
@@ -15,9 +15,6 @@ handler.setFormatter(formatter)
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 log.addHandler(handler)
-
-
-PROMPT = "Tell me about yourself."
 
 
 def _build_registry() -> LLMRegistry:
@@ -41,23 +38,36 @@ def _build_registry() -> LLMRegistry:
     return registry
 
 
-async def demo() -> None:
-    log = logging.getLogger(__name__)
+async def chat() -> None:
+    """Run a simple REPL for interactive chatting."""
 
     registry = _build_registry()
-    controller = ChatController(
-        registry,
-        editor_alias="editor",
-    )
+    controller = ChatController(registry, editor_alias="editor")
 
-    log.info("Sending prompt: %s", PROMPT)
-    async for token in controller.astream_reply("demo", PROMPT):
-        print(token, end="", flush=True)
+    log.info("Starting CLI session")
+    print("Type 'quit' or press Ctrl-D to exit.")
+
+    session_id = "cli"
+
+    while True:
+        try:
+            prompt = input("\u003e ").strip()
+        except EOFError:
+            print()
+            break
+
+        if not prompt or prompt.lower() in {"quit", "exit"}:
+            break
+
+        log.info("Sending prompt: %s", prompt)
+        async for token in controller.astream_reply(session_id, prompt):
+            print(token, end="", flush=True)
+        print()
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(demo())
+        asyncio.run(chat())
     except KeyboardInterrupt:
         log.info("Aborted by user")
         exit(1)

@@ -93,7 +93,7 @@ class ChatController:
         str
             The model's reply.
         """
-        return await self._run(session_id, message, alias=alias)
+        return await self._get_reply(session_id, message, alias=alias)
 
     async def astream_reply(
         self,
@@ -123,7 +123,10 @@ class ChatController:
         async def _push(token: str) -> None:
             await queue.put(token)
 
-        task = asyncio.create_task(self._run(session_id, message, alias=alias, on_token=_push))
+        task = asyncio.create_task(
+            self._get_reply(session_id, message, alias=alias, on_token=_push)
+        )
+
         try:
             while True:
                 token = await queue.get()
@@ -138,30 +141,27 @@ class ChatController:
 
     def _get_chain(self, session_id: str, alias: str):
         """Return the chat chain for ``session_id`` and ``alias``."""
-        key = (session_id, alias)
         state = self._state(session_id)
-        precis = state.precis
 
+        precis = state.precis
+        key = (session_id, alias)
         if key in self._chains and self._chain_precis.get(key) == precis:
             return self._chains[key]
 
         cfg: LLMConfig = self._registry[alias]
         retriever = self._retriever_factory(alias) if self._retriever_factory else None
-        core = build_llm(cfg, precis, retriever)
-
         chain = RunnableWithMessageHistory(
-            core,
+            build_llm(cfg, precis, retriever),
             lambda _: state.history,
             input_messages_key="input",
             history_messages_key="history",
         )
-        # The chain must be rebuilt when the précis changes so prompts include the
-        # latest summary.
+
         self._chains[key] = chain
         self._chain_precis[key] = precis
         return chain
 
-    async def _run(
+    async def _get_reply(
         self,
         session_id: str,
         message: str,
@@ -170,7 +170,7 @@ class ChatController:
         editor_alias: str | None = None,
         on_token: Callable[[str], Awaitable[None]] | None = None,
     ):
-        """Send message to the model, stream or return response, and update precis."""
+        """Send message to the model, get response, and update précis."""
         self._stage_tracker.set(session_id, ChatStage.STARTED_STREAM)
         alias = alias or self._alias
         chain = self._get_chain(session_id, alias)
@@ -215,20 +215,23 @@ class ChatController:
         self._stage_tracker.set(session_id, ChatStage.AWAITING_INPUT)
         return reply.strip()
 
-    def _get_editor(self, editor_alias: str) -> None:
+    def _get_editor(self, editor_alias: str) -> Runnable:
         """Instantiate the editor chain for ``editor_alias`` if needed."""
         if editor_alias not in self._editors:
             cfg: LLMConfig = self._registry[editor_alias]
             self._editors[editor_alias] = build_editor_llm(cfg)
+        return self._editors[editor_alias]
 
     async def _edit(self, session_id: str, alias: str) -> None:
         """Regenerate the running precis for ``session_id``."""
-        self._get_editor(alias)
-        editor = self._editors[alias]
         state = self._state(session_id)
-        new_precis = await editor.ainvoke({"history": state.history.messages})
+        editor = self._get_editor(alias)
 
+        # TODO: Occasionally this returns a blank précis--we need to make sure
+        #       that doesn't happen before we replace the old one!
+        new_precis = await editor.ainvoke({"history": state.history.messages})
         state.precis = str(new_precis).strip()
+
         log_result = state.precis.replace("\n", " ")
         log.info(
             "Summarized [%s, %s]: %s (%d chars)",

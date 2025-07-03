@@ -14,11 +14,11 @@ EDITOR_LLM=<alias>
 EDITOR_LLM_URL=<http(s)://host:port>
 ```
 
-Run the built-in demo:
+Run the interactive CLI:
 
 ```bash
 python -m orca_chat
 ```
 
-It will stream a response for a sample prompt and log stage transitions and
-précis to the console.
+Start chatting with the model. Responses stream token by token while stage
+transitions and précis updates are logged to the console.

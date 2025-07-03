@@ -8,13 +8,7 @@ from pathlib import Path
 from orca_chat.config import LLMConfig, LLMRegistry
 from orca_chat.controller import ChatController
 
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
-handler.setFormatter(formatter)
-
 log = logging.getLogger()
-log.setLevel(logging.INFO)
-log.addHandler(handler)
 
 
 def _build_registry() -> LLMRegistry:
@@ -45,18 +39,18 @@ async def chat() -> None:
     controller = ChatController(registry, editor_alias="editor")
 
     log.info("Starting CLI session")
+    print("Connected!")
     print("Type 'quit' or press Ctrl-D to exit.")
 
     session_id = "cli"
 
     while True:
         try:
-            prompt = input("\u003e ").strip()
+            prompt = input("\u003e ")
         except EOFError:
-            print()
             break
 
-        if not prompt or prompt.lower() in {"quit", "exit"}:
+        if not prompt or prompt.lower() in {"quit"}:
             break
 
         log.info("Sending prompt: %s", prompt)

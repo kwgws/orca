@@ -16,7 +16,7 @@ Repository = "https://github.com/kwgws/orca.git"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4<9",
+    "pytest>=8.4,<9",
     "ruff>=0.12,<1",
 ]
 

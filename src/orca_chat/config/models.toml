@@ -1,0 +1,2 @@
+[llama3]
+base_url="${LLAMA3_URL}"

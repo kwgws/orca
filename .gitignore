@@ -16,9 +16,11 @@ uv.lock
 .vscode
 bin
 bin/
-config
-config/
 data
 data/
+logs
+logs/
+output
+output/
 scripts
 scripts/

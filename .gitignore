@@ -12,7 +12,15 @@ wheels/
 uv.lock
 
 # Local files
+.env
 .vscode
-data/
+bin
+bin/
 data
+data/
+logs
+logs/
+output
+output/
+scripts
 scripts/

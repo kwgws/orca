@@ -1,53 +1,51 @@
 from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 
-from ..config import load_config
-from ..models import ChatState, LLMRegistry
-from ..skills import (
+from ..models import LLMRegistry
+from ..session.chat_state import ChatState
+from ..skills.generators import (
     chat_factory,
     reranker_factory,
-    retriever_factory,
-    rewriter_factory,
     router_factory,
+    searchifier_factory,
 )
-from ..skills.retrievers import wiki_factory
-
-__all__ = ["build_chat_graph"]
+from ..skills.retrievers import wikipedia_factory
 
 
 def build_chat_graph() -> Runnable:
-    model_cfg = load_config("models")
-    registry = LLMRegistry.from_dict(model_cfg)
-
-    llm = registry.get("llama3")
-    wiki_retriever = wiki_factory()
-
-    router_node = router_factory(llm)
-    rewriter_node = rewriter_factory(llm)
-    retriever_node = retriever_factory(wiki_retriever)
-    reranker_node = reranker_factory(llm)
-    chat_node = chat_factory(llm)
-
+    registry = LLMRegistry()
     g: StateGraph = StateGraph(ChatState)
 
-    g.add_node("route", router_node)
-    g.add_node("rewrite", rewriter_node)
-    g.add_node("retrieve", retriever_node)
-    g.add_node("rerank", reranker_node)
-    g.add_node("chat", chat_node)
+    # -- Generators --
+    g.add_node("router", router_factory(registry.get("router")))
+    g.add_node("searchifier", searchifier_factory(registry.get("searchifier")))
+    g.add_node("reranker", reranker_factory(registry.get("reranker")))
+    g.add_node("chat", chat_factory(registry.get("chat")))
 
-    g.add_edge(START, "route")
+    # -- Retrievers --
+    g.add_node("wikipedia", wikipedia_factory())
+
+    # -- Graph Edges --
+    g.add_edge(START, "router")
     g.add_conditional_edges(
-        "route",
+        "router",
         lambda state: state.router_flags,
         {
-            "wiki": "rewrite",
-            "direct": "chat",
+            "wiki": "searchifier",
+            "none": "chat",
         },
     )
-    g.add_edge("rewrite", "retrieve")
-    g.add_edge("retrieve", "rerank")
-    g.add_edge("rerank", "chat")
+    g.add_edge("searchifier", "wikipedia")
+    g.add_conditional_edges(
+        "wikipedia",
+        lambda state: "has_docs" if getattr(state, "documents", None) else "no_docs",
+        {
+            "has_docs": "reranker",
+            "no_docs": "chat",
+        },
+    )
+    g.add_edge("wikipedia", "reranker")
+    g.add_edge("reranker", "chat")
     g.add_edge("chat", END)
 
     return g.compile()

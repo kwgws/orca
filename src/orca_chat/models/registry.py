@@ -1,59 +1,68 @@
-from collections.abc import Mapping
-
 from langchain_ollama import ChatOllama
 
-__all__ = ["LLMRegistry"]
+from .load import load_models
 
-MODEL_CLASSES: dict[str, type] = {
-    "ollama": ChatOllama,
-    # "openai": ChatOpenAI,
-}
+_DEFAULT_ALIAS = "default"
 
 
 class LLMRegistry:
-    def __init__(self, cfg: Mapping[str, Mapping[str, object]]):
-        self._cfg: dict[str, Mapping[str, object]] = dict(cfg)
-        self._models: dict[str, object] = {}
+    """Registry for language model instances.
 
-    @classmethod
-    def from_dict(cls, cfg: Mapping[str, Mapping[str, object]]):
-        return cls(cfg)
+    Parameters
+    ----------
+    cfg :
+        Mapping of model-alias -> kwargs passed to underlying model.
+    model_cls :
+        Concrete model class returned by :meth:`get`.
+    """
 
-    def get(self, name: str):
-        if name not in self._models:
-            self._models[name] = self._instantiate(name)
-        return self._models[name]
+    def __init__(self) -> None:
+        """Return new :class:`LLMRegistry`."""
+        self._cfg = load_models()
+        self._models: dict[str, ChatOllama] = {}
 
-    def get_active(self):
+    def get(self, name="default") -> ChatOllama:
+        """Return cached model for _name_, or instantiate from its config."""
+        alias = name if name in self._cfg else _DEFAULT_ALIAS
+        if alias not in self._cfg:
+            raise KeyError(f"Unknown model alias {name!r}; [default] not provided.")
+        if alias not in self._models:
+            self._models[alias] = self._instantiate(alias)
+        return self._models[alias]
+
+    def get_active(self) -> list[str]:
+        """Return all registered model aliases."""
         return list(self._cfg.keys())
 
-    def register(self, name: str, instance: object):
+    def register(self, name: str, instance: ChatOllama) -> None:
+        """Register pre-instantiated model at alias _name_."""
         self._models[name] = instance
 
-    def refresh(self, name: str):
+    def refresh(self, name: str) -> ChatOllama:
+        """Re-instantiate _name_ from its config, replacing cached copy."""
         if name in self._models:
             del self._models[name]
         return self.get(name)
 
-    def _instantiate(self, name: str):
-        if name not in self._cfg:
-            raise KeyError(f"Unknown model alias: {name!r}")
+    def _instantiate(self, alias: str) -> ChatOllama:
+        """Register new model instance for _alias_.
 
-        params = dict(self._cfg[name])
-        provider = str(params.pop("provider", "ollama"))
-
+        If a _model_ key is provided in `_self.cfg` we treat that as the actual
+        model name, otherwise we use _alias_.
+        """
         try:
-            model_cls = MODEL_CLASSES[provider]
+            params = dict(self._cfg[alias])
         except KeyError as e:
-            raise NotImplementedError(f"Unsupported provider: {provider!r}") from e
+            raise KeyError(f"Unknown model alias: {alias!r}") from e
 
-        return model_cls(model=name, **params)
+        name = params.pop("model", alias)
+        return ChatOllama(model=name, **params)  # type: ignore[arg-type]
 
-    def __contains__(self, item: str):
+    def __contains__(self, item: str) -> bool:
         return item in self._cfg
 
     def __iter__(self):
         return iter(self._cfg)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._cfg)

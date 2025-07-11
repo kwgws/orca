@@ -1,3 +1,5 @@
-from .wikipedia import wiki_factory
+from .wikipedia import wikipedia_factory
 
-__all__ = ["wiki_factory"]
+__all__ = [
+    "wikipedia_factory",
+]

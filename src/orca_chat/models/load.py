@@ -5,7 +5,7 @@ from typing import Any
 
 import dotenv
 
-__all__ = ["load_config", "load_prompt"]
+_MODEL_CONFIG_PATH = Path(__file__).parent.parent / "config" / "models.toml"
 
 
 def _expand(obj: Any) -> Any:
@@ -18,9 +18,8 @@ def _expand(obj: Any) -> Any:
     return obj
 
 
-def load_config(name: str, extra_path: str | None = None) -> dict[str, Any]:
-    base = Path(__file__).parent / f"{name}.toml"
-    with base.open("rb") as f:
+def load_models(extra_path: str | None = None) -> dict[str, Any]:
+    with _MODEL_CONFIG_PATH.open("rb") as f:
         cfg = tomllib.load(f)
 
     if extra_path and Path(extra_path).exists():
@@ -29,10 +28,3 @@ def load_config(name: str, extra_path: str | None = None) -> dict[str, Any]:
 
     dotenv.load_dotenv()
     return _expand(cfg)
-
-
-def load_prompt(name: str) -> str:
-    base = Path(__file__).parent / "prompts" / f"{name}.md"
-    with base.open("r") as f:
-        prompt = f.read().strip()
-    return prompt

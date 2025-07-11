@@ -3,10 +3,9 @@ from pathlib import Path
 
 from langchain_community.chat_message_histories import ChatMessageHistory
 
-from orca_chat.orchestration.graph import build_chat_graph
-
-from ..models import ChatState
-from ..orchestration.callbacks import JSONWriterCallbackHandler, LogWriterCallbackHandler
+from ..orchestration import build_chat_graph
+from ..session import ChatState
+from .callbacks import JSONWriterCallbackHandler, LogWriterCallbackHandler
 
 _LOG_FILE = Path("./logs/orca_chat.log")
 
@@ -15,6 +14,7 @@ def _setup_logging() -> None:
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
+    _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.FileHandler(_LOG_FILE)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     handler.setFormatter(formatter)

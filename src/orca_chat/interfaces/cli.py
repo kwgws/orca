@@ -34,6 +34,7 @@ async def repl() -> None:
         else:
             try:
                 question = input("> ").strip()
+                print()
             except (EOFError, KeyboardInterrupt):
                 print("Goodbye!")
                 break
@@ -50,5 +51,6 @@ async def repl() -> None:
                 ]
             },
         )
-        response = result["chat_history"][-1].content
-        print(response)
+
+        chat_state = chat_state.merge(result)
+        print()

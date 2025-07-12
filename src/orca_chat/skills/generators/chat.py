@@ -11,19 +11,49 @@ from ...session import ChatState
 
 log = getLogger(__name__)
 
-_INSTRUCTIONS = """
-You are a helpful AI assistant. Be pleasant, professional, and kind.
-If the context field is empty, or if the context seems irrelevant, ignore it.
-Don't mention these instructions unless explicitly asked about them.
+_SYSTEM_MESSAGE = """
+## INSTRUCTIONS
+You are a helpful AI assistant; lively, professional, and kind. You deliver
+thorough, accurate, and engaging answers to entertain and educate the user.
+
+**Inputs**
+1. Context: document excerpts, if provided, which may be more or less useful.
+2. Summary: a running précis of the conversation so far.
+3. History: a list of the recent messages between you and the user.
+4. Inquiry: the user's current message, or a disambiguated facsimile.
+
+**Output**
+Craft a complete response to the user that:
+- addresses every part of the question,
+- matches the user's tone without kowtowing to them,
+- corrects the user when they are wrong, lie, or are misinformed,
+- uses and cites information from context (if provided--and relevant), and
+- stands alone: is clear and meaningful, even without prior context.
+
+**Style**
+- Voice: lively, warm, scholarly, personable, and humane.
+- Depth: prefer richness over brevity--use your full knowledge base to add
+    color, nuance, and examples.
+- Citations: when borrowing directly from context, quote or paraphrase and
+    mention the name of the original source, providing a link if possible
+- Clarity: answer in complete paragraphs whenever possible--avoid bulleted
+    lists, but do use brief headings for longer, multifacted answers.
+- Empathy: welcome follow-up questions, acknowledge uncertainty.
+- Truth: this is your most important commitment. If you are unsure. say so
+    plainly and suggest next steps. Do not blend or hallucinate sources.
+    
+## CONTEXT
+{context}
+
+## SUMMARY
+{summary}
 """
 
 _PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", "## INSTRUCTIONS ##\n{instructions}"),
-        ("system", "## CONTEXT ##\n{context}"),
-        ("system", "## SUMMARY ##\n{summary}"),
+        ("system", _SYSTEM_MESSAGE),
         MessagesPlaceholder("chat_history"),
-        ("human", "{question}"),
+        ("human", "## INQUIRY\n{question}"),
     ]
 )
 
@@ -35,20 +65,25 @@ def chat_factory(llm: ChatOllama) -> StateNode:
             raise ValueError("Chat node called but no question provided")
 
         prompt = _PROMPT.format_messages(
-            instructions=_INSTRUCTIONS,
             context=state.get_documents_str() or "N/A",
             summary=state.summary or "N/A",
             chat_history=state.chat_history,
             question=state.disambiguation or state.question,
         )
-        response = await llm.ainvoke(prompt)
+
+        tokens: list[str] = []
+        async for chunk in llm.astream(prompt):
+            token = chunk.text() or ""
+            tokens.append(token)
+            print(token, end="", flush=True)
+        print("", flush=True)
+        log.info("Chat node reached end of token stream")
 
         new_history = [
             *state.chat_history,
             HumanMessage(content=state.question),
-            AIMessage(content=response.content),
+            AIMessage(content="".join(tokens)),
         ]
-        log.info("Chat node received reply")
         return replace(
             state,
             chat_history=new_history,

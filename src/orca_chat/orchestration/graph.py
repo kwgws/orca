@@ -20,7 +20,6 @@ def build_chat_graph() -> Runnable:
     registry = LLMRegistry()
     g: StateGraph = StateGraph(ChatState)
 
-    # -- Generators --
     g.add_node("router", router_factory(registry.get("route")))
     g.add_node("searchifier", searchifier_factory(registry.get("searchify")))
     g.add_node("reranker", reranker_factory(registry.get("rerank")))
@@ -28,10 +27,8 @@ def build_chat_graph() -> Runnable:
     g.add_node("chat", chat_factory(registry.get("chat")))
     g.add_node("summarizer", summarizer_factory(registry.get("summarize")))
 
-    # -- Retrievers --
     g.add_node("wikipedia", wikipedia_factory())
 
-    # ====== GRAPH - Disambiguation =======
     g.add_conditional_edges(
         START,
         lambda state: (
@@ -44,7 +41,6 @@ def build_chat_graph() -> Runnable:
     )
     g.add_edge("disambiguator", "router")
 
-    # ====== GRAPH - Router =======
     g.add_conditional_edges(
         "router",
         lambda state: state.router_flags,
@@ -54,7 +50,6 @@ def build_chat_graph() -> Runnable:
         },
     )
 
-    # ====== GRAPH - Wikipedia search =======
     g.add_edge("searchifier", "wikipedia")
     g.add_conditional_edges(
         "wikipedia",
@@ -66,17 +61,7 @@ def build_chat_graph() -> Runnable:
     )
     g.add_edge("reranker", "chat")
 
-    # ====== GRAPH - Chat =======
-    g.add_conditional_edges(
-        "chat",
-        lambda state: (
-            "summarize" if len(getattr(state, "chat_history", [])) > _HISTORY_THRESHOLD else "skip"
-        ),
-        {
-            "summarize": "summarizer",
-            "skip": END,
-        },
-    )
+    g.add_edge("chat", "summarizer")
     g.add_edge("summarizer", END)
 
     return g.compile()

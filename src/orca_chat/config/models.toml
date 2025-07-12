@@ -1,23 +1,29 @@
 [disambiguate]
 model = "${DISAMBIGUATOR}"
 base_url = "${DISAMBIGUATOR_URL}"
+temperature = 0.2
 
 [route]
 model = "${ROUTER}"
 base_url = "${ROUTER_URL}"
+temperature = 0.2
 
 [searchify]
 model = "${SEARCHIFIER}"
 base_url = "${SEARCHIFIER_URL}"
+temperature = 0.4
 
 [rerank]
 model = "${RERANKER}"
 base_url = "${RERANKER_URL}"
+temperature = 0.2
 
 [summarize]
 model = "${SUMMARIZER}"
 base_url = "${SUMMARIZER_URL}"
+temperature = 0.2
 
 [default]
 model = "${MODEL}"
 base_url = "${MODEL_URL}"
+temperature = 0.6

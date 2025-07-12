@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from typing import Any, Self
 
 from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
@@ -59,3 +60,6 @@ class ChatState:
                 for i, doc in enumerate(docs[:max_documents])
             ]
         )
+
+    def merge(self, params: dict[str, Any]) -> Self:
+        return replace(self, **params)

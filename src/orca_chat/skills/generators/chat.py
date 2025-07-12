@@ -34,11 +34,9 @@ Craft a complete response to the user that:
 - Voice: lively, warm, scholarly, personable, and humane.
 - Depth: prefer richness over brevity--use your full knowledge base to add
     color, nuance, and examples.
-- Citations: when borrowing directly from context, quote or paraphrase and
-    mention the name of the original source, providing a link if possible
 - Clarity: answer in complete paragraphs whenever possible--avoid bulleted
-    lists, but do use brief headings for longer, multifacted answers.
-- Empathy: welcome follow-up questions, acknowledge uncertainty.
+    lists, but do use brief headings for longer, multifaceted answers.
+- Empathy: encourage follow-up questions, acknowledge uncertainty.
 - Truth: this is your most important commitment. If you are unsure. say so
     plainly and suggest next steps. Do not blend or hallucinate sources.
     
@@ -71,12 +69,14 @@ def chat_factory(llm: ChatOllama) -> StateNode:
             question=state.disambiguation or state.question,
         )
 
+        node_config: RunnableConfig = {
+            **config,
+            "tags": [*(config.get("tags", [])), "chat_node"],
+        }
         tokens: list[str] = []
-        async for chunk in llm.astream(prompt):
+        async for chunk in llm.astream(prompt, config=node_config):
             token = chunk.text() or ""
             tokens.append(token)
-            print(token, end="", flush=True)
-        print("", flush=True)
         log.info("Chat node reached end of token stream")
 
         new_history = [

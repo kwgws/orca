@@ -57,7 +57,6 @@ _PROMPT = ChatPromptTemplate.from_messages(
 def disambiguator_factory(llm: ChatOllama) -> StateNode:
     async def disambiguate(state: ChatState, config: RunnableConfig) -> ChatState:
         log.info("Entering disambiguator node")
-        print("Thinking...")
 
         if llm is None:
             raise RuntimeError
@@ -68,7 +67,7 @@ def disambiguator_factory(llm: ChatOllama) -> StateNode:
             summary=state.summary or "N/A",
             question=state.question,
         )
-        response = await llm.ainvoke(prompt)
+        response = await llm.ainvoke(prompt, config=config)
 
         disambiguation = response.text().strip()
         log.info("Disambiguator received reply")

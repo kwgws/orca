@@ -72,7 +72,12 @@ def summarizer_factory(llm: ChatOllama) -> StateNode:
             summary=state.summary or "N/A",
             history=history,
         )
-        response = await llm.ainvoke(prompt)
+
+        node_config: RunnableConfig = {
+            **config,
+            "tags": [*(config.get("tags", [])), "summarize_node"],
+        }
+        response = await llm.ainvoke(prompt, config=node_config)
 
         summary = str(response.content).strip()
         log.info("Summarizer node received reply")

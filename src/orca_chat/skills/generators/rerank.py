@@ -58,7 +58,6 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 def reranker_factory(llm: ChatOllama) -> StateNode:
     async def rerank(state: ChatState, config: RunnableConfig) -> ChatState:
-        print("Thinking...")
         log.info("Entering reranker node")
         if not state.documents:
             raise ValueError("Reranker called but no documents provided")
@@ -74,7 +73,7 @@ def reranker_factory(llm: ChatOllama) -> StateNode:
             query=state.search_query,
             question=state.disambiguation or state.question,
         )
-        response = await llm.ainvoke(prompt)
+        response = await llm.ainvoke(prompt, config=config)
         json_str = response.text().strip()
 
         try:

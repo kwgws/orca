@@ -54,7 +54,6 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 def searchifier_factory(llm: ChatOllama) -> StateNode:
     async def searchify(state: ChatState, config: RunnableConfig) -> ChatState:
-        print("Thinking...")
         log.info("Entering searchifier node")
         if not (state.disambiguation or state.question):
             raise ValueError("Searchifier node called but no question provided")
@@ -63,7 +62,7 @@ def searchifier_factory(llm: ChatOllama) -> StateNode:
             summary=state.summary or "N/A",
             question=state.disambiguation or state.question,
         )
-        response = await llm.ainvoke(prompt)
+        response = await llm.ainvoke(prompt, config=config)
 
         search_query = response.text().strip()
         log.info("Searchifier wrote query: %s", search_query)

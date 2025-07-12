@@ -45,7 +45,7 @@ def wikipedia_factory():
             doc_content_chars_max=_RETRIEVER_MAX_CHARS,
             top_k_results=_RETRIEVER_TOP_K,
         )
-        response = retriever.invoke(state.search_query)
+        response = await retriever.ainvoke(state.search_query)
 
         bad_docs = [doc for doc in response if not _is_relevant(state.search_query, doc)]
         for doc in bad_docs:

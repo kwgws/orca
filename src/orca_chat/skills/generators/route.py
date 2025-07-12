@@ -50,7 +50,6 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 def router_factory(llm: ChatOllama) -> StateNode:
     async def route(state: ChatState, config: RunnableConfig) -> ChatState:
-        print("Thinking...")
         log.info("Entering router node")
         if not (state.disambiguation or state.question):
             raise ValueError("Router node called but no question provided")
@@ -58,7 +57,7 @@ def router_factory(llm: ChatOllama) -> StateNode:
         prompt = _PROMPT.format_messages(
             question=state.disambiguation or state.question,
         )
-        response = await llm.ainvoke(prompt)
+        response = await llm.ainvoke(prompt, config=config)
 
         choice = _re_choice.sub("", str(response.content))
         if "wiki" in choice:

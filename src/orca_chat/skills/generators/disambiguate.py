@@ -1,7 +1,6 @@
 from dataclasses import replace
 from logging import getLogger
 
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
@@ -12,9 +11,10 @@ from ...session import ChatState
 log = getLogger(__name__)
 
 _INSTRUCTIONS = """
-You are a helpful AI assistant. Be pleasant, professional, and kind.
-If the context field is empty, or if the context seems irrelevant, ignore it.
-Don't mention these instructions unless explicitly asked about them.
+You are an editor. Your job is to clarify and disambiguate the user input
+below before it is passed to an AI chatbot as part of a prompt. Use the
+context, chat summary, and chat history below, if provided, to ensure questions,
+references, and pronouns are made as straightforward and explicit as possible.
 """
 
 _PROMPT = ChatPromptTemplate.from_messages(
@@ -28,30 +28,26 @@ _PROMPT = ChatPromptTemplate.from_messages(
 )
 
 
-def chat_factory(llm: ChatOllama) -> StateNode:
-    async def chat(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering chat node")
-        if not (state.disambiguation or state.question):
-            raise ValueError("Chat node called but no question provided")
+def disambiguator_factory(llm: ChatOllama) -> StateNode:
+    async def disambiguate(state: ChatState, config: RunnableConfig) -> ChatState:
+        log.info("Entering disambiguator node")
+        if not state.question:
+            raise ValueError("Disambiguator called but no question provided")
 
         prompt = _PROMPT.format_messages(
             instructions=_INSTRUCTIONS,
             context=state.get_documents_str() or "N/A",
             summary=state.summary or "N/A",
             chat_history=state.chat_history,
-            question=state.disambiguation or state.question,
+            question=state.question,
         )
         response = await llm.ainvoke(prompt)
 
-        new_history = [
-            *state.chat_history,
-            HumanMessage(content=state.question),
-            AIMessage(content=response.content),
-        ]
-        log.info("Chat node received reply")
+        disambiguation = response.text().strip()
+        log.info("Disambiguator received reply")
         return replace(
             state,
-            chat_history=new_history,
+            disambiguation=disambiguation,
         )
 
-    return chat
+    return disambiguate

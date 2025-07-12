@@ -1,9 +1,13 @@
 from dataclasses import dataclass, field
-from typing import Annotated
 
 from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
+
+_DOCUMENT_MAX_CHARS = 4_000
+_DOCUMENT_MAX_PRINT = 3
+_DOCUMENT_PRINT_TEMPLATE = """
+- [{index}]({source}): {text}
+"""
 
 
 @dataclass(slots=True)
@@ -12,6 +16,10 @@ class ChatState:
 
     Attributes
     ----------
+    question : str
+        The most recent human message.
+    disambiguation : str
+        Last user question, rewritten for clarity.
     chat_history : list of BaseMessage
         List of messages exchanged in the conversation.
     summary : str, optional
@@ -22,22 +30,32 @@ class ChatState:
         Optional search query derived from the conversation.
     documents : list of Document, optional
         Related documents retrieved or referenced during the conversation.
-    chat_history: Annotated[list[BaseMessage], add_messages] = field(
-        default_factory=list, metadata={"reducer": add_messages}
     """
 
-    chat_history: Annotated[list[BaseMessage], add_messages] = field(
-        default_factory=list, metadata={"reducer": add_messages}
-    )
+    question: str = ""
+    disambiguation: str | None = None
+    chat_history: list[BaseMessage] = field(default_factory=list)
     summary: str | None = None
     router_flags: str | None = None
     search_query: str | None = None
     documents: list[Document] | None = None
 
-    @property
-    def question(self) -> str:
-        """The most recent human message."""
-        for message in reversed(self.chat_history):
-            if message.type == "human":
-                return str(message.content)
-        return ""
+    def get_documents_str(
+        self,
+        *,
+        max_chars=_DOCUMENT_MAX_CHARS,
+        max_documents=_DOCUMENT_MAX_PRINT,
+        template=_DOCUMENT_PRINT_TEMPLATE,
+        doc_list: list[Document] | None = None,
+    ) -> str:
+        docs = doc_list or self.documents or []
+        return "\n".join(
+            [
+                template.format(
+                    index=i,
+                    source=doc.metadata.get("source") or "unknown",
+                    text=(doc.metadata.get("summary") or doc.page_content.strip())[:max_chars],
+                )
+                for i, doc in enumerate(docs[:max_documents])
+            ]
+        )

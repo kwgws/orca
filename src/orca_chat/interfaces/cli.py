@@ -53,19 +53,23 @@ async def _async_repl() -> None:
     ]
 
     chat_state = ChatState()
+    is_running = True
     first_turn = True
 
-    while True:
+    while is_running:
         try:
             if not first_turn:
                 user_msg = input("> ").strip()
                 if not user_msg:
                     continue
+                elif user_msg.lower() in {"exit", "quit"}:
+                    is_running = False
+                    break
             else:
                 user_msg = "Introduce yourself very briefly and get the ball rolling."
                 first_turn = False
         except (EOFError, KeyboardInterrupt):
-            print("Goodbye!\n")
+            is_running = False
             break
         print()
 
@@ -73,6 +77,8 @@ async def _async_repl() -> None:
         result = await graph.ainvoke(chat_state, config={"callbacks": callbacks})
         chat_state = chat_state.merge(result)
         print()
+
+    print("Goodbye!\n")
 
 
 def repl() -> None:

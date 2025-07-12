@@ -1,9 +1,11 @@
+aiofiles >=24.1
 grandalf >=0.8, <1
 langchain-chroma >=0.2, <0.3
 langchain-community >=0.3, <0.4
 langchain-ollama >=0.3, <0.4
 langgraph >=0.5, <1
 wikipedia >=1.4, <2
-pytest >=8.4, <9
+pytest >=8.4
 pytest-asyncio >=1, <2
+regex >= 2024
 ruff >=0.12, <1

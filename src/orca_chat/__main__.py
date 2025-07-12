@@ -1,6 +1,4 @@
-import asyncio
-
-from .interfaces.cli import repl
+from .interfaces import cli
 
 if __name__ == "__main__":
-    asyncio.run(repl())
+    cli.repl()

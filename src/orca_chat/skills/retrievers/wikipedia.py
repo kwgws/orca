@@ -33,7 +33,6 @@ def _is_relevant(query: str, doc: Document, threshold=_RETRIEVER_THRESHOLD) -> b
 
 def wikipedia_factory():
     async def search_wikipedia(state: ChatState, config: RunnableConfig) -> ChatState:
-        print("Looking something up...")
         log.debug("Entering Wikipedia retriever node")
 
         if not state.search_query:

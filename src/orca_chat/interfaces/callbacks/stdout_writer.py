@@ -1,4 +1,5 @@
 import random
+from collections.abc import Callable
 
 from langchain.callbacks.base import AsyncCallbackHandler
 
@@ -6,40 +7,37 @@ from langchain.callbacks.base import AsyncCallbackHandler
 def _thunk() -> str:
     return random.choice(
         [
-            "Analyzing",
             "Brooding",
-            "Considering",
             "Cogitating",
             "Deliberating",
             "Ideating",
             "Meditating",
             "Musing",
-            "Mulling",
             "Pondering",
             "Reasoning",
-            "Reckoning",
-            "Reflecting",
             "Ruminating",
             "Thinking",
         ]
     )
 
 
-class StdoutWriterCallbackHandler(AsyncCallbackHandler):
-    """Callback handler that streams LLM tokens to stdout."""
+class StreamingWriterCallbackHandler(AsyncCallbackHandler):
+    """Callback handler that streams LLM tokens to a writer callable."""
 
     def __init__(
         self,
         *args,
+        writer: Callable[..., None] | None = None,
         silent_on_tags: set[str] | None = None,
         stream_on_tags: set[str] | None = None,
     ):
+        self._writer = writer or print
         self._silent_on_tags = silent_on_tags or set()
         self._stream_on_tags = stream_on_tags or set()
 
     async def on_llm_start(self, *args, tags: list[str] | None = None, **kwargs) -> None:
         if not set(tags or []) & self._silent_on_tags:
-            print(f"{_thunk()}...")
+            self._writer(f"{_thunk()}...\n")
 
     async def on_llm_new_token(
         self, token: str, *args, tags: list[str] | None = None, **kwargs
@@ -47,10 +45,10 @@ class StdoutWriterCallbackHandler(AsyncCallbackHandler):
         if (not set(tags or []) & self._silent_on_tags) and (
             set(tags or []) & self._stream_on_tags
         ):
-            print(token, end="", flush=True)
+            self._writer(token, end="", flush=True)
 
     async def on_llm_end(self, *args, tags: list[str] | None = None, **kwargs) -> None:
         if (not set(tags or []) & self._silent_on_tags) and (
             set(tags or []) & self._stream_on_tags
         ):
-            print()
+            self._writer("\n")

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,9 +9,11 @@ from ..session import ChatState
 from .callbacks import (
     JSONWriterCallbackHandler,
     LogWriterCallbackHandler,
-    StdoutWriterCallbackHandler,
+    StreamingWriterCallbackHandler,
 )
 
+_AI_COLOR = "\x1b[38;5;006m"
+_RESET_COLOR = "\x1b[0m"
 _LOG_FILE = Path("./logs/orca_chat.log")
 
 
@@ -26,40 +29,51 @@ def _setup_logging() -> None:
     log.info("Logging started: %s", _LOG_FILE)
 
 
-async def repl() -> None:
+def _clear_screen() -> None:
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def _ai_writer(text: str, *, end="", flush=False) -> None:
+    print(f"{_AI_COLOR}{text}{_RESET_COLOR}", end=end, flush=flush)
+
+
+async def _async_repl() -> None:
+    _clear_screen()
     _setup_logging()
 
     graph = build_chat_graph()
     callbacks = [
         LogWriterCallbackHandler(),
         JSONWriterCallbackHandler(),
-        StdoutWriterCallbackHandler(
-            silent_on_tags={"summarize_node"}, stream_on_tags={"chat_node"}
+        StreamingWriterCallbackHandler(
+            writer=_ai_writer,
+            silent_on_tags={"summarize_node"},
+            stream_on_tags={"chat_node"},
         ),
     ]
 
     chat_state = ChatState()
-    is_first_msg = True
+    first_turn = True
 
     while True:
         try:
-            if not is_first_msg:
-                user_msg = (await asyncio.to_thread(input, "> ")).strip()
+            if not first_turn:
+                user_msg = input("> ").strip()
+                if not user_msg:
+                    continue
             else:
-                user_msg = "Hello!"
-                is_first_msg = False
-            print()
+                user_msg = "Introduce yourself very briefly and get the ball rolling."
+                first_turn = False
         except (EOFError, KeyboardInterrupt):
-            print("Goodbye!")
+            print("Goodbye!\n")
             break
-        if not user_msg:
-            continue
+        print()
 
         chat_state = replace(chat_state, question=user_msg)
-        result = await graph.ainvoke(
-            chat_state,
-            config={"callbacks": callbacks},
-        )
-
+        result = await graph.ainvoke(chat_state, config={"callbacks": callbacks})
         chat_state = chat_state.merge(result)
         print()
+
+
+def repl() -> None:
+    asyncio.run(_async_repl())

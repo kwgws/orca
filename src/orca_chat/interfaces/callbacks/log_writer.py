@@ -9,6 +9,8 @@ log = logging.getLogger("orca_chat.llm")
 
 
 class LogWriterCallbackHandler(AsyncCallbackHandler):
+    """Callback that logs prompts and responses using :mod:`logging`."""
+
     async def on_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs) -> None:
         for i, prompt in enumerate(prompts):
             log_prompt = re.sub(r"\s+", " ", prompt).strip()

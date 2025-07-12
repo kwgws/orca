@@ -13,6 +13,8 @@ log = getLogger(__name__)
 
 
 class JSONWriterCallbackHandler(AsyncCallbackHandler):
+    """Asynchronously write LLM prompts and responses to a JSON file."""
+
     def __init__(self, path="./logs/conversations.json"):
         self.path = Path(path)
         self.lock = asyncio.Lock()
@@ -40,6 +42,7 @@ class JSONWriterCallbackHandler(AsyncCallbackHandler):
             )
 
     async def _append_to_file(self, record: dict[str, Any]) -> None:
+        """Serialize ``record`` to JSON, appending it to ``self.path``."""
         async with self.lock:
             if not self.path.exists():
                 self.path.parent.mkdir(parents=True, exist_ok=True)

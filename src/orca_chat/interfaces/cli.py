@@ -1,3 +1,5 @@
+"""Console chat interface for :mod:`orca_chat`."""
+
 import asyncio
 import logging
 import os
@@ -82,4 +84,5 @@ async def _async_repl() -> None:
 
 
 def repl() -> None:
+    """Run the asynchronous REPL event loop."""
     asyncio.run(_async_repl())

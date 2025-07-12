@@ -1,3 +1,5 @@
+"""Construction of the LangGraph workflow used by the REPL."""
+
 from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 
@@ -13,10 +15,9 @@ from ..skills.generators import (
 )
 from ..skills.retrievers import wikipedia_factory
 
-_HISTORY_THRESHOLD = 4
-
 
 def build_chat_graph() -> Runnable:
+    """Assemble and return the chat workflow graph."""
     registry = LLMRegistry()
     g: StateGraph = StateGraph(ChatState)
 

@@ -1,3 +1,5 @@
+"""Graph node that rewrites user questions for clarity."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -55,11 +57,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def disambiguator_factory(llm: ChatOllama) -> StateNode:
-    async def disambiguate(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering disambiguator node")
+    """Return a node that disambiguates the current question."""
 
-        if llm is None:
-            raise RuntimeError
+    async def disambiguate(state: ChatState, config: RunnableConfig) -> ChatState:
+        """Rewrite ``state.question`` into a fully explicit request."""
+        log.debug("Entering disambiguator node")
         if not state.question:
             raise ValueError("Disambiguator called but no question provided")
 
@@ -70,7 +72,7 @@ def disambiguator_factory(llm: ChatOllama) -> StateNode:
         response = await llm.ainvoke(prompt, config=config)
 
         disambiguation = response.text().strip()
-        log.info("Disambiguator received reply")
+        log.debug("Disambiguator received reply")
         return replace(
             state,
             disambiguation=disambiguation,

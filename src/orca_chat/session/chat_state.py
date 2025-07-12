@@ -6,9 +6,7 @@ from langchain_core.messages import BaseMessage
 
 _DOCUMENT_MAX_CHARS = 4_000
 _DOCUMENT_MAX_PRINT = 3
-_DOCUMENT_PRINT_TEMPLATE = """
-- [{index}]({source}): {text}
-"""
+_DOCUMENT_PRINT_TEMPLATE = "- [{index}]({source}): {text}"
 
 
 @dataclass(slots=True)
@@ -49,8 +47,9 @@ class ChatState:
         template=_DOCUMENT_PRINT_TEMPLATE,
         doc_list: list[Document] | None = None,
     ) -> str:
+        """Return ``doc_list`` or ``self.documents`` as a formatted string."""
         docs = doc_list or self.documents or []
-        return "\n".join(
+        return "\n\n".join(
             [
                 template.format(
                     index=i,
@@ -62,4 +61,5 @@ class ChatState:
         )
 
     def merge(self, params: dict[str, Any]) -> Self:
+        """Return a new ``ChatState`` with ``params`` applied."""
         return replace(self, **params)

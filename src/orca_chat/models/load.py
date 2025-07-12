@@ -9,6 +9,7 @@ _MODEL_CONFIG_PATH = Path(__file__).parent.parent / "config" / "models.toml"
 
 
 def _expand(obj: Any) -> Any:
+    """Recursively expand environment variables in ``obj``."""
     if isinstance(obj, dict):
         return {k: _expand(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -19,6 +20,7 @@ def _expand(obj: Any) -> Any:
 
 
 def load_models(extra_path: str | None = None) -> dict[str, Any]:
+    """Load model config from ``models.toml`` and optionally ``extra_path``."""
     with _MODEL_CONFIG_PATH.open("rb") as f:
         cfg = tomllib.load(f)
 

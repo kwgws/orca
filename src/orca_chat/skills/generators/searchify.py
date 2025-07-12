@@ -1,3 +1,5 @@
+"""Graph node that produces concise search queries."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -53,8 +55,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def searchifier_factory(llm: ChatOllama) -> StateNode:
+    """Return a node that distills a question into a short search query."""
+
     async def searchify(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering searchifier node")
+        """Generate ``state.search_query`` using ``llm``."""
+        log.debug("Entering searchifier node")
         if not (state.disambiguation or state.question):
             raise ValueError("Searchifier node called but no question provided")
 

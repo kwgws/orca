@@ -1,3 +1,5 @@
+"""Graph node that ranks retrieved documents by relevance."""
+
 import json
 from dataclasses import replace
 from logging import getLogger
@@ -57,8 +59,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def reranker_factory(llm: ChatOllama) -> StateNode:
+    """Return a node that selects the most relevant documents."""
+
     async def rerank(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering reranker node")
+        """Score and filter ``state.documents`` using ``llm``."""
+        log.debug("Entering reranker node")
         if not state.documents:
             raise ValueError("Reranker called but no documents provided")
         if not state.search_query:
@@ -86,7 +91,7 @@ def reranker_factory(llm: ChatOllama) -> StateNode:
             docs = state.documents
 
         for i, doc in enumerate(docs):
-            log.info("Result %d: %s", i, doc.metadata.get("source") or "unknown")
+            log.info("Re-ranked document %d: %s", i, doc.metadata.get("source") or "unknown")
         return replace(
             state,
             documents=docs,

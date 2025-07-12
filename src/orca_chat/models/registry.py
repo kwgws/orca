@@ -6,15 +6,7 @@ _DEFAULT_ALIAS = "default"
 
 
 class LLMRegistry:
-    """Registry for language model instances.
-
-    Parameters
-    ----------
-    cfg :
-        Mapping of model-alias -> kwargs passed to underlying model.
-    model_cls :
-        Concrete model class returned by :meth:`get`.
-    """
+    """Cache and instantiate ``ChatOllama`` models by alias."""
 
     def __init__(self) -> None:
         """Return new :class:`LLMRegistry`."""
@@ -31,25 +23,22 @@ class LLMRegistry:
         return self._models[alias]
 
     def get_active(self) -> list[str]:
-        """Return all registered model aliases."""
+        """Return all known model aliases."""
         return list(self._cfg.keys())
 
     def register(self, name: str, instance: ChatOllama) -> None:
-        """Register pre-instantiated model at alias _name_."""
+        """Register an initialized model instance."""
         self._models[name] = instance
 
     def refresh(self, name: str) -> ChatOllama:
-        """Re-instantiate _name_ from its config, replacing cached copy."""
+        """Re-instantiate ``name`` from config and cache it."""
         if name in self._models:
             del self._models[name]
         return self.get(name)
 
     def _instantiate(self, alias: str) -> ChatOllama:
-        """Register new model instance for _alias_.
-
-        If a _model_ key is provided in `_self.cfg` we treat that as the actual
-        model name, otherwise we use _alias_.
-        """
+        """Instantiate the model configured for ``alias``."""
+        # Allow ``model`` key to override alias.
         try:
             params = dict(self._cfg[alias])
         except KeyError as e:

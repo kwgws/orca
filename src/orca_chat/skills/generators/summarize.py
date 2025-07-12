@@ -1,3 +1,5 @@
+"""Graph node that summarizes recent conversation turns."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -57,8 +59,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def summarizer_factory(llm: ChatOllama) -> StateNode:
+    """Return a node that keeps a running conversation summary."""
+
     async def summarize(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering summarizer node")
+        """Update ``state.summary`` based on recent ``chat_history``."""
+        log.debug("Entering summarizer node")
         if not state.chat_history:
             raise ValueError("Summarizer node called but no chat history provided")
 
@@ -80,7 +85,7 @@ def summarizer_factory(llm: ChatOllama) -> StateNode:
         response = await llm.ainvoke(prompt, config=node_config)
 
         summary = str(response.content).strip()
-        log.info("Summarizer node received reply")
+        log.debug("Summarizer node received reply")
         return replace(
             state,
             summary=summary,

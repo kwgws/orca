@@ -1,3 +1,5 @@
+"""Graph node that routes user questions to other nodes."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -49,8 +51,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def router_factory(llm: ChatOllama) -> StateNode:
+    """Return a node that chooses between search or chat paths."""
+
     async def route(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering router node")
+        """Examine ``state`` and set ``router_flags`` accordingly."""
+        log.debug("Entering router node")
         if not (state.disambiguation or state.question):
             raise ValueError("Router node called but no question provided")
 

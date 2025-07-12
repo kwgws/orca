@@ -1,3 +1,5 @@
+"""Graph node that retrieves and filters Wikipedia documents."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -6,6 +8,7 @@ import wikipedia
 from langchain_community.retrievers import WikipediaRetriever
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
+from langgraph.graph.state import StateNode
 
 from ...session import ChatState
 
@@ -18,7 +21,8 @@ _RETRIEVER_TOP_K = 20
 _RETRIEVER_THRESHOLD = 0.5
 
 
-def _is_relevant(query: str, doc: Document, threshold=_RETRIEVER_THRESHOLD) -> bool:
+def _is_relevant(query: str, doc: Document, threshold: float = _RETRIEVER_THRESHOLD) -> bool:
+    """Return ``True`` if ``doc`` contains enough tokens from ``query``."""
     tokens = {t.lower() for t in _re_words.findall(query) if len(t) > 2}
     if not tokens:
         log.warning("Empty document checked for relevance: %s", doc.metadata.get("source"))
@@ -31,10 +35,12 @@ def _is_relevant(query: str, doc: Document, threshold=_RETRIEVER_THRESHOLD) -> b
     return hits / len(tokens) >= threshold
 
 
-def wikipedia_factory():
-    async def search_wikipedia(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.debug("Entering Wikipedia retriever node")
+def wikipedia_factory() -> StateNode:
+    """Return a node that searches Wikipedia for ``state.search_query``."""
 
+    async def search_wikipedia(state: ChatState, config: RunnableConfig) -> ChatState:
+        """Retrieve relevant documents and attach them to ``state``."""
+        log.debug("Entering Wikipedia retriever node")
         if not state.search_query:
             raise ValueError("No search query provided for retriever")
 

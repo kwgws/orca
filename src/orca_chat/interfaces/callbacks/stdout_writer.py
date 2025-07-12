@@ -22,7 +22,17 @@ def _thunk() -> str:
 
 
 class StreamingWriterCallbackHandler(AsyncCallbackHandler):
-    """Callback handler that streams LLM tokens to a writer callable."""
+    """Streaming callback that writes tokens to stdout or a custom writer.
+
+    Attributes
+    ----------
+    writer : callable, optional
+        Function used to display tokens; defaults to :func:`print`.
+    silent_on_tags : set of str, optional
+        Tags that disable all output for a given invocation.
+    stream_on_tags : set of str, optional
+        Tags that enable token streaming output.
+    """
 
     def __init__(
         self,

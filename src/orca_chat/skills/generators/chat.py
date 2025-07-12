@@ -1,3 +1,5 @@
+"""Graph node that handles open-ended conversation."""
+
 from dataclasses import replace
 from logging import getLogger
 
@@ -62,8 +64,11 @@ _PROMPT = ChatPromptTemplate.from_messages(
 
 
 def chat_factory(llm: ChatOllama) -> StateNode:
+    """Return a node that generates a chat reply using ``llm``."""
+
     async def chat(state: ChatState, config: RunnableConfig) -> ChatState:
-        log.info("Entering chat node")
+        """Stream a response from the model and update ``chat_history``."""
+        log.debug("Entering chat node")
         if not (state.disambiguation or state.question):
             raise ValueError("Chat node called but no question provided")
 
@@ -82,7 +87,7 @@ def chat_factory(llm: ChatOllama) -> StateNode:
         async for chunk in llm.astream(prompt, config=node_config):
             token = chunk.text() or ""
             tokens.append(token)
-        log.info("Chat node reached end of token stream")
+        log.debug("Chat node reached end of token stream")
 
         new_history = [
             *state.chat_history,

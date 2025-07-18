@@ -49,6 +49,9 @@ class LLMRegistry:
 
     async def get_config(self, name: str) -> SkillConfig:
         """Return parsed and validated :class:`SkillConfig`."""
+        if name in self._config_cache:
+            return self._config_cache[name]
+
         async with self._locks[name]:
             if name in self._config_cache:
                 return self._config_cache[name]
@@ -61,6 +64,8 @@ class LLMRegistry:
         """Return cached :class:`ChatOllama` client for given ``alias``."""
         cfg = await self.get_config(alias)
         key: LLMKey = (cfg.model, cfg.base_url, frozenset(cfg.params.items()))
+        if key in self._llm_cache:
+            return self._llm_cache[key]
 
         async with self._locks[alias]:
             if key in self._llm_cache:
@@ -74,45 +79,43 @@ class LLMRegistry:
 
     async def get_factory(self, name: str) -> NodeFactory:
         """Return a cached ``RunnableFactory`` for the given skill name."""
-        async with self._locks[name]:
-            if name in self._factory_cache:
-                return self._factory_cache[name]
+        if name in self._factory_cache:
+            return self._factory_cache[name]
 
-            cfg = await self.get_config(name)
-            llm = await self.get_llm(name)
+        cfg = await self.get_config(name)
+        llm = await self.get_llm(name)
 
-            mod_path = f"orca_chat.skills.{name}"
-            try:
-                mod = importlib.import_module(mod_path)
-            except ModuleNotFoundError as e:
-                raise ValueError(f"Module '{mod_path}' missing for skill '{name}'") from e
+        mod_path = f"orca_chat.skills.{name}"
+        try:
+            mod = importlib.import_module(mod_path)
+        except ModuleNotFoundError as e:
+            raise ValueError(f"Module '{mod_path}' missing for skill '{name}'") from e
 
-            builder = getattr(mod, "build", None)
-            if builder is None:
-                raise AttributeError(f"Module '{mod_path}' must expose a 'build()' function.")
+        builder = getattr(mod, "build", None)
+        if builder is None:
+            raise AttributeError(f"Module '{mod_path}' must expose a 'build()' function.")
 
-            def factory(**kwargs: Any) -> Runnable:
-                return builder(llm, cfg, **kwargs)
+        def factory(**kwargs: Any) -> Runnable:
+            return builder(llm, cfg, **kwargs)
 
-            self._factory_cache[name] = factory
-            return factory
+        self._factory_cache[name] = factory
+        return factory
 
     async def get_graph(self, name: str) -> CompiledStateGraph:
         """Import graph and compile once."""
-        async with self._locks[name]:
-            if name in self._graph_cache:
-                return self._graph_cache[name]
+        if name in self._graph_cache:
+            return self._graph_cache[name]
 
-            mod_path = f"orca_chat.graphs.{name}"
-            try:
-                mod = importlib.import_module(mod_path)
-            except ModuleNotFoundError as e:
-                raise ValueError(f"Module '{mod_path}' missing for graph '{name}'") from e
+        mod_path = f"orca_chat.graphs.{name}"
+        try:
+            mod = importlib.import_module(mod_path)
+        except ModuleNotFoundError as e:
+            raise ValueError(f"Module '{mod_path}' missing for graph '{name}'") from e
 
-            compiler = getattr(mod, "compile", None)
-            if compiler is None:
-                raise AttributeError(f"Module '{mod_path}' must expose a 'compile()' function.")
+        compiler = getattr(mod, "compile", None)
+        if compiler is None:
+            raise AttributeError(f"Module '{mod_path}' must expose a 'compile()' function.")
 
-            graph: CompiledStateGraph = await compiler(self)
-            self._graph_cache[name] = graph
-            return graph
+        graph: CompiledStateGraph = await compiler(self)
+        self._graph_cache[name] = graph
+        return graph

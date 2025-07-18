@@ -1,6 +1,6 @@
 # orca_chat/skills/chat.toml
-model = "llama3:8b-instruct-q5_K_M"
-base_url = "${LLAMA3_5K_URL}"
+model = "llama3:8b-instruct-q4_K_M"
+base_url = "${LLAMA3_4K_URL}"
 
 [params]
 temperature = 0.8

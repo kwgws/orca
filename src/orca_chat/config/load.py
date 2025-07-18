@@ -22,7 +22,6 @@ SKILLS_DIR = CFG_DIR / "skills"
 
 @dataclass(slots=True, frozen=True)
 class SkillConfig:
-    node: str
     model: str
     base_url: str
     params: dict[str, Any]
@@ -40,7 +39,6 @@ def load_skill(name: str, path: str | Path = SKILLS_DIR) -> SkillConfig:
         _validate(cfg, keys=("model", "base_url", "messages"))
 
         return SkillConfig(
-            node=cfg["node"].strip(),
             model=cfg["model"].strip(),
             base_url=cfg["base_url"].strip(),
             params=cfg.get("params", {}),

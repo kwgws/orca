@@ -1,0 +1,28 @@
+version = 1
+disable_existing_loggers = false
+
+[formatters.file_formatter]
+format = "%(asctime)s - %(levelname)s - %(message)s"
+datefmt = "%Y-%m-%d %H:%M:%S"
+
+[formatters.cli_formatter]
+format = "%(levelname)s - %(message)s"
+
+[handlers.file_handler]
+class = "logging.FileHandler"
+level = "INFO"
+formatter = "file_formatter"
+filename = "${LOG_FILE}"
+mode = "a"
+encoding = "utf-8"
+
+[handlers.cli_handler]
+class = "logging.StreamHandler"
+level = "WARNING"
+formatter = "cli_formatter"
+stream = "ext://sys.stderr"
+
+[loggers.""]
+level = "INFO"
+handlers = ["file_handler", "cli_handler"]
+propagate = true

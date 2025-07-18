@@ -1,88 +1,50 @@
-"""Console chat interface for :mod:`orca_chat`."""
-
 import asyncio
-import logging
-import os
-from dataclasses import replace
-from pathlib import Path
+import textwrap
+from collections.abc import AsyncIterator
 
-from ..orchestration import build_chat_graph
-from ..session import ChatState
-from .callbacks import (
-    JSONWriterCallbackHandler,
-    LogWriterCallbackHandler,
-    StreamingWriterCallbackHandler,
-)
-
-_AI_COLOR = "\x1b[38;5;006m"
-_RESET_COLOR = "\x1b[0m"
-_LOG_FILE = Path("./logs/orca_chat.log")
+from ..config.load import load_logger
+from ..core.registry import LLMRegistry
+from ..core.session import LLMSession
 
 
-def _setup_logging() -> None:
-    log = logging.getLogger()
-    log.setLevel(logging.INFO)
-
-    _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    handler = logging.FileHandler(_LOG_FILE)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-    log.info("Logging started: %s", _LOG_FILE)
+def _wrap_text(text: str, width=80) -> list[str]:
+    return textwrap.wrap(text, width=width, replace_whitespace=False)
 
 
-def _clear_screen() -> None:
-    os.system("cls" if os.name == "nt" else "clear")
-
-
-def _ai_writer(text: str, *, end="", flush=False) -> None:
-    print(f"{_AI_COLOR}{text}{_RESET_COLOR}", end=end, flush=flush)
-
-
-async def _async_repl() -> None:
-    _clear_screen()
-    _setup_logging()
-
-    graph = build_chat_graph()
-    callbacks = [
-        LogWriterCallbackHandler(),
-        JSONWriterCallbackHandler(),
-        StreamingWriterCallbackHandler(
-            writer=_ai_writer,
-            silent_on_tags={"summarize_node"},
-            stream_on_tags={"chat_node"},
-        ),
-    ]
-
-    chat_state = ChatState()
-    is_running = True
-    first_turn = True
-
-    while is_running:
+async def _yield_user_input() -> AsyncIterator[str]:
+    loop = asyncio.get_running_loop()
+    while True:
         try:
-            if not first_turn:
-                user_msg = input("> ").strip()
-                if not user_msg:
-                    continue
-                elif user_msg.lower() in {"exit", "quit"}:
-                    is_running = False
-                    break
-            else:
-                user_msg = "Introduce yourself very briefly and get the ball rolling."
-                first_turn = False
-        except (EOFError, KeyboardInterrupt):
-            is_running = False
+            line = await loop.run_in_executor(None, lambda: input("> "))
+        except EOFError:
             break
+        if line.strip().lower() in {"/exit", "/quit", "/bye"}:
+            break
+        yield line
+
+
+async def chat_loop(session: LLMSession) -> None:
+    registry = LLMRegistry()
+    graph = await registry.get_graph("default")
+
+    async for user_msg in _yield_user_input():
+        session = session.with_message(("human", user_msg))
+        result = await graph.ainvoke(session)
+        session = LLMSession.from_state(result)
+
+        reply = session.get_last_message(roles=("ai", "assistant"))
+        print("\n".join(_wrap_text(reply)))
         print()
 
-        chat_state = replace(chat_state, question=user_msg)
-        result = await graph.ainvoke(chat_state, config={"callbacks": callbacks})
-        chat_state = chat_state.merge(result)
+
+async def _main_async() -> None:
+    load_logger()
+    session = LLMSession()
+    await chat_loop(session)
+
+
+def run() -> None:
+    try:
+        asyncio.run(_main_async())
+    except KeyboardInterrupt:
         print()
-
-    print("Goodbye!\n")
-
-
-def repl() -> None:
-    """Run the asynchronous REPL event loop."""
-    asyncio.run(_async_repl())

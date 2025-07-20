@@ -37,3 +37,6 @@ lint.select = [
     "UP", # pyupgrade
     "RUF" # Ruff-specific goodies
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

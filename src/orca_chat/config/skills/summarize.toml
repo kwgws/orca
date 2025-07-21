@@ -1,0 +1,23 @@
+# orca_chat/skills/chat.toml
+model = "llama3:8b-instruct-q4_K_M"
+base_url = "${LLAMA3_4K_URL}"
+
+[params]
+temperature = 0.2
+
+[[messages]]
+role = "system"
+template = """
+You are a summarizer.
+"""
+
+[[messages]]
+role = "placeholder"
+template = "chat_history"
+
+[[messages]]
+role = "human"
+template = """
+Summarize the conversation so far as a concise précis of no more than a
+paragraph. Make sure to preserve key details and open items, if any.
+"""

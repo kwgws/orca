@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Callable, Mapping, Sequence
 
+from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
 from .registry import LLMRegistry, NodeFactory
@@ -38,7 +39,12 @@ async def build_graph(
     factories = await _load_factories(registry, pipeline)
     sg: StateGraph[LLMSession] = StateGraph(LLMSession)
 
-    _add_linear_edges(sg, pipeline, factories)
+    _add_linear_edges(
+        sg,
+        pipeline,
+        factories,
+        skip_sources={src for src, *_ in conditionals or ()},
+    )
     if conditionals:
         _add_conditional_edges(sg, pipeline, conditionals)
 
@@ -60,10 +66,13 @@ def _add_linear_edges(
     sg: StateGraph[LLMSession],
     pipeline: Sequence[SkillName],
     factories: Mapping[SkillName, NodeFactory],
+    *,
+    skip_sources: set[SkillName] | None = None,
 ) -> None:
+    skip_sources = skip_sources or set()
     for i, name in enumerate(pipeline):
         sg.add_node(name, factories[name]())
-        if i > 0:
+        if i > 0 and pipeline[i - 1] not in skip_sources:
             sg.add_edge(pipeline[i - 1], name)
 
 
@@ -75,8 +84,7 @@ def _add_conditional_edges(
     routing_table = _group_conditionals(pipeline, conditionals)
 
     for src, cases in routing_table.items():
-        i = pipeline.index(src)
-        default_dst = pipeline[i + 1] if i + 1 < len(pipeline) else None
+        default_dst = END
 
         def _router(state: LLMSession, *, _cases=cases, _default=default_dst, _src=src):
             for dst, pred in _cases:

@@ -1,0 +1,1 @@
+HISTORY_MAX_LEN = 5

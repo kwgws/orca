@@ -1,33 +1,40 @@
 """orca_chat/skills/chat.py"""
 
-from langchain_core.messages import AIMessage, BaseMessage
+from typing import Any
+
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import StateNode
 
+from ..config.constants import HISTORY_MAX_LEN
 from ..config.load import SkillConfig
-from ..core.session import LLMSession
+from ..core.session import LLMSession, message_to_tuple
 
 
 def build(llm: ChatOllama, cfg: SkillConfig) -> StateNode:
-    async def _chat(state: LLMSession, config: RunnableConfig) -> BaseMessage | str:
+    async def _chat(state: LLMSession, config: RunnableConfig) -> dict[str, Any]:
         node_config: RunnableConfig = {
             **config,
             "tags": [*(config.get("tags", [])), "chat_node"],
         }
 
+        history = state.get_chat_history()
+        history = history[-HISTORY_MAX_LEN * 2 :]
+        if summary := state.payload.get("summary"):
+            history = [AIMessage(summary), *history]
+
         prompt = cfg.prompt.format_messages(
             input=state.get_last_message(),
-            chat_history=state.get_chat_history(),
+            chat_history=history,
             context=state.get_context(),
         )
 
         tokens: list[str] = []
         async for chunk in llm.astream(prompt, config=node_config):
-            token = str(chunk.content) or ""
-            tokens.append(token)
+            tokens.append(str(chunk.content) or "")
 
         ai_message = AIMessage("".join(tokens))
-        return ai_message
+        return {"history": [*state.history, message_to_tuple(ai_message)]}
 
     return _chat

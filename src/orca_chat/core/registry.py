@@ -24,13 +24,13 @@ NodeFactory = Callable[[], Runnable]
 
 @dataclass(slots=True)
 class LLMRegistry:
-    """Lazily manages ChatOllama clients across the app.
+    """Manage ChatOllama clients and compiled graphs.
 
     Parameters
     ----------
-    config_dir : str or Path, optional
-        Directory containing ``<skill>.toml``.
-        Defaults to the config directory's ``skills`` folder.
+    config_dir
+        Directory containing ``<skill>.toml`` files. Defaults to the ``skills``
+        folder in the ``config`` directory.
     """
 
     config_dir: str | Path = SKILLS_DIR
@@ -48,7 +48,7 @@ class LLMRegistry:
         object.__setattr__(self, "_dir", Path(self.config_dir).resolve())
 
     async def get_config(self, name: str) -> SkillConfig:
-        """Return parsed and validated :class:`SkillConfig`."""
+        """Return parsed and validated :class:`SkillConfig` for ``name``."""
         if name in self._config_cache:
             return self._config_cache[name]
 
@@ -61,7 +61,7 @@ class LLMRegistry:
             return cfg
 
     async def get_llm(self, alias: str) -> ChatOllama:
-        """Return cached :class:`ChatOllama` client for given ``alias``."""
+        """Return cached :class:`ChatOllama` client for ``alias``."""
         cfg = await self.get_config(alias)
         key: LLMKey = (cfg.model, cfg.base_url, frozenset(cfg.params.items()))
         if key in self._llm_cache:
@@ -78,7 +78,7 @@ class LLMRegistry:
             return llm
 
     async def get_factory(self, name: str) -> NodeFactory:
-        """Return a cached ``RunnableFactory`` for the given skill name."""
+        """Return a cached :class:`NodeFactory` for ``name``."""
         if name in self._factory_cache:
             return self._factory_cache[name]
 
@@ -102,7 +102,7 @@ class LLMRegistry:
         return factory
 
     async def get_graph(self, name: str) -> CompiledStateGraph:
-        """Import graph and compile once."""
+        """Import and compile a graph definition"""
         if name in self._graph_cache:
             return self._graph_cache[name]
 

@@ -29,9 +29,18 @@ class SkillConfig:
 
 
 @cache
-def load_skill(name: str, path: str | Path = SKILLS_DIR) -> SkillConfig:
-    """Load one skill TOML, validate, compile, and cache."""
-    dir_path = Path(path).resolve()
+def load_skill(name: str, config_dir: str | Path = SKILLS_DIR) -> SkillConfig:
+    """Load one skill configuration.
+
+    Parameters
+    ----------
+    name
+        Skill name matching ``<name>.toml``.
+    config_dir
+        Directory containing ``<skill>.toml`` files. Defaults to the ``skills``
+        folder in the ``config`` directory.
+    """
+    dir_path = Path(config_dir).resolve()
     file_path = dir_path / f"{name}.toml"
 
     try:
@@ -82,7 +91,7 @@ def _validate(raw: Mapping[str, Any], *, keys: Sequence[str]) -> None:
 
 
 def load_toml(path: str | Path) -> dict[str, Any]:
-    """Read a TOML file and expand any ${ENV_VAR} tokens."""
+    """Read a TOML file, expanding ``${ENV_VAR}`` tokens."""
     with Path(path).open("rb") as f:
         cfg = toml.load(f)
 
@@ -91,7 +100,7 @@ def load_toml(path: str | Path) -> dict[str, Any]:
 
 @lru_cache(maxsize=1)
 def load_logger(path: str | Path = LOGGING_FILE) -> logging.Logger:
-    """Initialize the root logger from specified .TOML file."""
+    """Initialize the root logger from a TOML file."""
     log_config = load_toml(path)
     logging.config.dictConfig(log_config)
     return logging.getLogger()

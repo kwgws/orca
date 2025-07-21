@@ -20,7 +20,17 @@ async def build_graph(
     *,
     conditionals: Sequence[ConditionalEdge] | None = None,
 ) -> CompiledStateGraph:
-    """Return a compiled graph representing the pipeline."""
+    """Compile a state graph from a skill pipeline.
+
+    Parameters
+    ----------
+    registry
+        Registry providing node factories.
+    pipeline
+        Ordered skill names.
+    conditionals
+        ``(src, dst, predicate)`` routes evaluated after each node.
+    """
 
     if not pipeline:
         raise ValueError("Pipeline must contain at least one node")

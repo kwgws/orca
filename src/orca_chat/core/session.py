@@ -7,7 +7,13 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Self, overload
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
     "system": SystemMessage,
@@ -21,8 +27,8 @@ _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
 History = list[tuple[str, str]]
 
 
-def tuple_to_lcmessage(role: str, content: str) -> BaseMessage:
-    """Return :class:`BaseMessage` from ``role`` and ``content`` strings."""
+def tuple_to_message(role: str, content: str) -> BaseMessage:
+    """Return :class:`BaseMessage` from ``role`` and ``content``."""
     try:
         cls = _MSG_TYPE_MAP[role.lower()]
         return cls(content=content)
@@ -31,52 +37,54 @@ def tuple_to_lcmessage(role: str, content: str) -> BaseMessage:
         raise ValueError(f"Role '{role}' does not match any of {role_list}") from e
 
 
-def lcmessage_to_tuple(msg: BaseMessage) -> tuple[str, str]:
-    """Return string tuple from :class:`BaseMessage`"""
+def message_to_tuple(msg: BaseMessage) -> tuple[str, str]:
+    """Return ``(role, content)`` from :class:`BaseMessage`."""
     return msg.type.lower(), str(msg.content)
 
 
 @dataclass(slots=True)
 class LLMSession:
-    """Immutable-by-default session state.
+    """Container for chat history and arbitrary payload data.
 
-    Attributes
+    Parameters
     ----------
-    history : History
-        Chronological list of ``(role, content)`` tuples. Roles follow
-        LangChain's lowercase convention (``"system"``, ``"human"``,
-        ``"ai"``/``"assistant"``, ``"tool"``).
-    payload : dict
-        Miscellaneous per-conversation data (embedding cache, context, etc.).
-        Values must be JSON-serializable.
+    history
+        Chronological ``(role, content)`` pairs. Role names follow the
+        LangChain convention.
+    payload
+        Additional JSON-serializable data.
     """
 
     history: History = field(default_factory=list)
     payload: dict[str, Any] = field(default_factory=dict)
 
-    def as_lcmessages(self) -> list[BaseMessage]:
-        """Return ``history`` as :class:`BaseMessage` objects."""
-        return [tuple_to_lcmessage(r, c) for r, c in self.history]
+    def as_messages(self) -> list[BaseMessage]:
+        """Return ``history`` as :class:`BaseMessage` instances."""
+        return [tuple_to_message(r, c) for r, c in self.history]
 
     @classmethod
-    def from_lcmessages(cls, messages: Sequence[BaseMessage], **payload: Mapping[str, Any]) -> Self:
-        """Instantiate :class:`LLMSession` from :class:`BaseMessage` objects."""
-        return cls(history=[lcmessage_to_tuple(msg) for msg in messages], payload=dict(payload))
+    def from_messages(cls, messages: Sequence[BaseMessage], **payload: Mapping[str, Any]) -> Self:
+        """Create session from sequence of :class:`BaseMessage`."""
+        return cls(history=[message_to_tuple(msg) for msg in messages], payload=dict(payload))
 
     @classmethod
     def from_state(cls, state: Mapping[str, Any]) -> Self:
+        """Create session from raw state mapping."""
         return cls(**state)
 
     def get_last_message(self, *, roles: tuple[str, ...] = ("human",)):
+        """Return most recent message as tuple matching ``roles``."""
         for role, content in reversed(self.history):
             if role in roles:
                 return content
         return ""
 
     def get_chat_history(self) -> list[BaseMessage]:
-        return self.as_lcmessages()[:-1]
+        """Return conversation history excluding last message."""
+        return self.as_messages()[:-1]
 
     def get_context(self) -> str:
+        """Return context string from payload."""
         return self.payload.get("context", "")
 
     @overload
@@ -86,24 +94,24 @@ class LLMSession:
     def with_message(self, msg: BaseMessage) -> Self: ...
 
     def with_message(self, msg) -> Self:
-        """Return new :class:`LLMSession` with ``msg`` appended to history."""
-        role, content = msg if isinstance(msg, tuple) else lcmessage_to_tuple(msg)
+        """Copy session with ``msg`` appended to history."""
+        role, content = msg if isinstance(msg, tuple) else message_to_tuple(msg)
         new_history = [*self.history, (role, content)]
         return replace(self, history=new_history)
 
     def with_payload(self, **kwargs: Any) -> Self:
-        """Return new :class:`LLMSession` with ``kwargs`` shallow-merged with ``payload``."""
+        """Copy session with updated payload values."""
         new_payload: MutableMapping[str, Any] = {**self.payload, **kwargs}
         return replace(self, payload=new_payload)
 
     async def save(self, path: str | Path) -> None:
-        """Serialize to ``path`` as JSON."""
+        """Write session to ``path`` as JSON."""
         path = Path(path)
         await asyncio.to_thread(path.write_text, json.dumps(asdict(self), indent=2))
 
     @classmethod
     async def load(cls, path: str | Path) -> Self:
-        """Deserialize from JSON string stored as ``path``."""
+        """Load session from ``path`` written by :meth:`save`."""
         path = Path(path)
         if not path.is_file():
             raise FileNotFoundError(path)

@@ -3,21 +3,23 @@
 import asyncio
 from collections.abc import Callable, Mapping, Sequence
 
+from langchain_core.runnables import Runnable
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
-from .registry import LLMRegistry, NodeFactory
-from .session import LLMSession
+from .registry import LLMRegistry
+from .session import LLMSession, Predicate
 
-SkillName = str
-Predicate = Callable[[LLMSession], bool]
-ConditionalEdge = tuple[SkillName, SkillName, Predicate]
-RoutingTable = dict[SkillName, list[tuple[SkillName, Predicate]]]
+# ...
+ConditionalEdge = tuple[str, str, Predicate]
+
+# ...
+RoutingTable = dict[str, list[tuple[str, Predicate]]]
 
 
 async def build_graph(
     registry: LLMRegistry,
-    pipeline: Sequence[SkillName],
+    pipeline: Sequence[str],
     *,
     conditionals: Sequence[ConditionalEdge] | None = None,
 ) -> CompiledStateGraph:
@@ -55,8 +57,8 @@ async def build_graph(
 
 
 async def _load_factories(
-    registry: LLMRegistry, pipeline: Sequence[SkillName]
-) -> Mapping[SkillName, NodeFactory]:
+    registry: LLMRegistry, pipeline: Sequence[str]
+) -> Mapping[str, Callable[[], Runnable]]:
     tasks = [registry.get_factory(node) for node in pipeline]
     results = await asyncio.gather(*tasks)
     return dict(zip(pipeline, results, strict=False))
@@ -64,10 +66,10 @@ async def _load_factories(
 
 def _add_linear_edges(
     sg: StateGraph[LLMSession],
-    pipeline: Sequence[SkillName],
-    factories: Mapping[SkillName, NodeFactory],
+    pipeline: Sequence[str],
+    factories: Mapping[str, Callable[[], Runnable]],
     *,
-    skip_sources: set[SkillName] | None = None,
+    skip_sources: set[str] | None = None,
 ) -> None:
     skip_sources = skip_sources or set()
     for i, name in enumerate(pipeline):
@@ -78,7 +80,7 @@ def _add_linear_edges(
 
 def _add_conditional_edges(
     sg: StateGraph[LLMSession],
-    pipeline: Sequence[SkillName],
+    pipeline: Sequence[str],
     conditionals: Sequence[ConditionalEdge],
 ) -> None:
     routing_table = _group_conditionals(pipeline, conditionals)
@@ -98,7 +100,7 @@ def _add_conditional_edges(
 
 
 def _group_conditionals(
-    pipeline: Sequence[SkillName], conditionals: Sequence[ConditionalEdge]
+    pipeline: Sequence[str], conditionals: Sequence[ConditionalEdge]
 ) -> RoutingTable:
     routing_table: RoutingTable = {}
     for src, dst, pred in conditionals:

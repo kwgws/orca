@@ -1,9 +1,10 @@
 """orca_chat/graphs/default.py"""
 
-from ..config.constants import HISTORY_MAX_LEN
-from ..core.graph import build_graph
-from ..core.registry import LLMRegistry
-from ..core.session import LLMSession
+from ..core import LLMRegistry, LLMSession, build_graph
+from ..loaders import load_config
+
+# ...
+_MAX_ROUNDS: int = load_config().max_chat_rounds_to_llm
 
 
 async def compile(registry: LLMRegistry):
@@ -11,7 +12,7 @@ async def compile(registry: LLMRegistry):
     pipeline = ["chat", "summarize"]
 
     def _needs_summary(state: LLMSession) -> bool:
-        return len(state.history) // 2 >= HISTORY_MAX_LEN
+        return len(state.history) // 2 >= _MAX_ROUNDS
 
     return await build_graph(
         registry,

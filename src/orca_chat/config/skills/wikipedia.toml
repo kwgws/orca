@@ -1,0 +1,7 @@
+# orca_chat/skills/wikipedia.toml
+
+node_type = "retriever"
+
+[params]
+top_k_results = 10
+max_chars = 4_000

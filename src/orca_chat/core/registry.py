@@ -5,50 +5,33 @@ import importlib
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import CompiledStateGraph
 
-from ..config.load import SKILLS_DIR, SkillConfig, load_skill
+from ..loaders import GeneratorConfig, LLMConfig, load_skill
 
 # Hashable dict key; model, base_url, params.
 # If any of these change we need a new ChatOllama client.
 LLMKey = tuple[str, str, frozenset[tuple[str, Any]]]
 
-# Callable that, when invoked, yields a Runnable node.
-NodeFactory = Callable[[], Runnable]
-
 
 @dataclass(slots=True)
 class LLMRegistry:
-    """Manage ChatOllama clients and compiled graphs.
+    """Manage ChatOllama clients and compiled graphs."""
 
-    Parameters
-    ----------
-    config_dir
-        Directory containing ``<skill>.toml`` files. Defaults to the ``skills``
-        folder in the ``config`` directory.
-    """
-
-    config_dir: str | Path = SKILLS_DIR
-
-    _config_cache: dict[str, SkillConfig] = field(init=False, default_factory=dict)
+    _config_cache: dict[str, GeneratorConfig | LLMConfig] = field(init=False, default_factory=dict)
     _llm_cache: dict[LLMKey, ChatOllama] = field(init=False, default_factory=dict)
-    _factory_cache: dict[str, NodeFactory] = field(init=False, default_factory=dict)
+    _factory_cache: dict[str, Callable[[], Runnable]] = field(init=False, default_factory=dict)
     _graph_cache: dict[str, CompiledStateGraph] = field(init=False, default_factory=dict)
     _locks: defaultdict[str, asyncio.Lock] = field(
         init=False, default_factory=lambda: defaultdict(lambda: asyncio.Lock())
     )
-    _dir: Path = field(init=False)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "_dir", Path(self.config_dir).resolve())
-
-    async def get_config(self, name: str) -> SkillConfig:
-        """Return parsed and validated :class:`SkillConfig` for ``name``."""
+    async def get_config(self, name: str) -> GeneratorConfig | LLMConfig:
+        """Return configuration for skill ``name``."""
         if name in self._config_cache:
             return self._config_cache[name]
 
@@ -56,13 +39,16 @@ class LLMRegistry:
             if name in self._config_cache:
                 return self._config_cache[name]
 
-            cfg: SkillConfig = await asyncio.to_thread(load_skill, name, self._dir)
+            cfg = await asyncio.to_thread(load_skill, name)
             self._config_cache[name] = cfg
             return cfg
 
     async def get_llm(self, alias: str) -> ChatOllama:
         """Return cached :class:`ChatOllama` client for ``alias``."""
         cfg = await self.get_config(alias)
+        if not isinstance(cfg, LLMConfig):
+            raise ValueError(f"Skill '{alias}' is not a LLM")
+
         key: LLMKey = (cfg.model, cfg.base_url, frozenset(cfg.params.items()))
         if key in self._llm_cache:
             return self._llm_cache[key]
@@ -77,7 +63,7 @@ class LLMRegistry:
             self._llm_cache[key] = llm
             return llm
 
-    async def get_factory(self, name: str) -> NodeFactory:
+    async def get_factory(self, name: str) -> Callable[[], Runnable]:
         """Return a cached :class:`NodeFactory` for ``name``."""
         if name in self._factory_cache:
             return self._factory_cache[name]

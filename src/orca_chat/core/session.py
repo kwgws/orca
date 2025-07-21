@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Self, overload
@@ -15,8 +15,15 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
-from ..config.constants import HISTORY_MAX_LEN
+from ..loaders import load_config
 
+# ...
+Predicate = Callable[["LLMSession"], bool]
+
+# ...
+_MAX_ROUNDS: int = load_config().max_chat_rounds_to_llm
+
+# ...
 _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
     "system": SystemMessage,
     "ai": AIMessage,
@@ -25,8 +32,6 @@ _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
     "human": HumanMessage,
     "user": HumanMessage,
 }
-
-History = list[tuple[str, str]]
 
 
 def tuple_to_message(role: str, content: str) -> BaseMessage:
@@ -57,7 +62,7 @@ class LLMSession:
         Additional JSON-serializable data.
     """
 
-    history: History = field(default_factory=list)
+    history: list[tuple[str, str]] = field(default_factory=list)
     payload: dict[str, Any] = field(default_factory=dict)
 
     def as_messages(self) -> list[BaseMessage]:
@@ -83,7 +88,7 @@ class LLMSession:
 
     def get_abridged_history(self) -> list[BaseMessage]:
         """Return conversation history excluding last message."""
-        history = self.as_messages()[-HISTORY_MAX_LEN * 2 : -1]
+        history = self.as_messages()[-_MAX_ROUNDS * 2 : -1]
         if summary := self.payload.get("summary"):
             history = [AIMessage(summary), *history]
         return history

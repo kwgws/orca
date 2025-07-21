@@ -1,1 +1,0 @@
-HISTORY_MAX_LEN = 2

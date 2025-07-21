@@ -6,15 +6,15 @@ from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import StateNode
 
-from ..config.load import SkillConfig
 from ..core.session import LLMSession
+from ..loaders import LLMConfig
 
 
-def build(llm: ChatOllama, cfg: SkillConfig) -> StateNode:
+def build(llm: ChatOllama, cfg: LLMConfig) -> StateNode:
     async def _summarize(state: LLMSession, config: RunnableConfig) -> dict[str, Any]:
         node_config: RunnableConfig = {
             **config,
-            "tags": [*(config.get("tags", [])), "summarize_node"],
+            "tags": [*(config.get("tags", [])), "out_silent"],
         }
 
         prompt = cfg.prompt.format_messages(

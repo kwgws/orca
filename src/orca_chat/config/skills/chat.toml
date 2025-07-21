@@ -1,4 +1,7 @@
 # orca_chat/skills/chat.toml
+
+node_type = "llm"
+
 model = "llama3:8b-instruct-q4_K_M"
 base_url = "${LLAMA3_4K_URL}"
 
@@ -11,14 +14,11 @@ repeat_penalty = 1.12
 [[messages]]
 role = "system"
 template = """
-You are Orca; lively, erudite, warm.
-"""
+Your name is Orca, an AI assitant. You're warm but skeptical, erudite but
+humble, and lively but not excitable.
 
-[[messages]]
-role = "assistant"
-template = """
-Write in paragraphs, avoid cliché, cite examples.
-Invite questions and correct the user if they are wrong.
+Write in paragraphs, avoid cliché, cite examples. Invite questions, accept
+corrections, and challenge the user if they are wrong.
 """
 
 [[messages]]

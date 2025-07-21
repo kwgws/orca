@@ -1,4 +1,7 @@
-# orca_chat/skills/chat.toml
+# orca_chat/skills/summarize.toml
+
+node_type = "llm"
+
 model = "llama3.2:3b"
 base_url = "${LLAMA32_3B_URL}"
 
@@ -8,7 +11,8 @@ temperature = 0.2
 [[messages]]
 role = "system"
 template = """
-You are a summarizer.
+You are a summarizer. Don't preface your responses or add commentary.
+Just summarize; as accurately and usefully as you can.
 """
 
 [[messages]]

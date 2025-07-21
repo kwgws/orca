@@ -7,21 +7,21 @@ from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import StateNode
 
-from ..config.load import SkillConfig
 from ..core.session import LLMSession, message_to_tuple
+from ..loaders import LLMConfig
 
 
-def build(llm: ChatOllama, cfg: SkillConfig) -> StateNode:
+def build(llm: ChatOllama, cfg: LLMConfig) -> StateNode:
     async def _chat(state: LLMSession, config: RunnableConfig) -> dict[str, Any]:
         node_config: RunnableConfig = {
             **config,
-            "tags": [*(config.get("tags", [])), "chat_node"],
+            "tags": [*(config.get("tags", [])), "out_stream"],
         }
 
         prompt = cfg.prompt.format_messages(
-            input=state.get_last_message(),
-            chat_history=state.get_abridged_history(),
             context=state.get_context(),
+            chat_history=state.get_abridged_history(),
+            input=state.get_last_message(),
         )
 
         tokens: list[str] = []

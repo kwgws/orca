@@ -15,6 +15,8 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
+from ..config.constants import HISTORY_MAX_LEN
+
 _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
     "system": SystemMessage,
     "ai": AIMessage,
@@ -79,9 +81,12 @@ class LLMSession:
                 return content
         return ""
 
-    def get_chat_history(self) -> list[BaseMessage]:
+    def get_abridged_history(self) -> list[BaseMessage]:
         """Return conversation history excluding last message."""
-        return self.as_messages()[:-1]
+        history = self.as_messages()[-HISTORY_MAX_LEN * 2 : -1]
+        if summary := self.payload.get("summary"):
+            history = [AIMessage(summary), *history]
+        return history
 
     def get_context(self) -> str:
         """Return context string from payload."""

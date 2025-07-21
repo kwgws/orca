@@ -7,7 +7,6 @@ from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import StateNode
 
-from ..config.constants import HISTORY_MAX_LEN
 from ..config.load import SkillConfig
 from ..core.session import LLMSession, message_to_tuple
 
@@ -19,14 +18,9 @@ def build(llm: ChatOllama, cfg: SkillConfig) -> StateNode:
             "tags": [*(config.get("tags", [])), "chat_node"],
         }
 
-        history = state.get_chat_history()
-        history = history[-HISTORY_MAX_LEN * 2 :]
-        if summary := state.payload.get("summary"):
-            history = [AIMessage(summary), *history]
-
         prompt = cfg.prompt.format_messages(
             input=state.get_last_message(),
-            chat_history=history,
+            chat_history=state.get_abridged_history(),
             context=state.get_context(),
         )
 

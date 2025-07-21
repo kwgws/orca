@@ -26,7 +26,6 @@ def build(llm: ChatOllama, cfg: SkillConfig) -> StateNode:
         async for chunk in llm.astream(prompt, config=node_config):
             tokens.append(str(chunk.content) or "")
 
-        summary = AIMessage("".join(tokens))
-        return {"payload": {**state.payload, "summary": summary}}
+        return {"payload": {**state.payload, "summary": "".join(tokens)}}
 
     return _summarize

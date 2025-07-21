@@ -12,7 +12,7 @@ temperature = 0.2
 role = "system"
 template = """
 You are a summarizer. Don't preface your responses or add commentary.
-Just summarize; as accurately and usefully as you can.
+Just summarize; accurately and usefully.
 """
 
 [[messages]]

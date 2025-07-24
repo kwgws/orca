@@ -22,7 +22,7 @@ _RELEVANCE_THRESHOLD: float = _CONFIG.rag.relevance_threshold
 
 
 def build(cfg: RAGConfig, **kwargs) -> StateNode:
-    async def _wikipedia(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
+    async def _wiki(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
         log.info("Entering node 'wikipedia'")
 
         query = state.payload.get("search_query", state.get_last_message())
@@ -37,7 +37,7 @@ def build(cfg: RAGConfig, **kwargs) -> StateNode:
 
         return {"payload": {**state.payload, "documents": docs}}
 
-    return _wikipedia
+    return _wiki
 
 
 @lru_cache(maxsize=1)

@@ -1,4 +1,4 @@
-# orca_chat/skills/wikipedia.toml
+# orca_chat/skills/wiki.toml
 
 node_type = "rag"
 

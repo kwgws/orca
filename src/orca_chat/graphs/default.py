@@ -1,13 +1,13 @@
 """orca_chat/graphs/default.py"""
 
-from ..core import ChatSession, SkillRegistry, build_graph
+from ..core import ChatSession, SkillStore, build_graph
 from ..loaders import load_config
 
 # ...
 _MAX_ROUNDS: int = load_config().llm.max_chat_rounds_to_llm
 
 
-async def compile(registry: SkillRegistry):
+async def compile(skill_store: SkillStore):
     """Return default conversation graph."""
     pipeline = [
         "route",
@@ -33,4 +33,4 @@ async def compile(registry: SkillRegistry):
         ("chat", "summarize", _goto_summary),
     ]
 
-    return await build_graph(registry, pipeline, conditionals=conditionals)
+    return await build_graph(skill_store, pipeline, conditionals=conditionals)

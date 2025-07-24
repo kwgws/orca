@@ -1,4 +1,4 @@
-"""orca_chat/core/registry.py"""
+"""orca_chat/core/skill_store.py"""
 
 import asyncio
 import importlib
@@ -19,7 +19,7 @@ LLMKey = tuple[str, str, frozenset[tuple[str, Any]]]
 
 
 @dataclass(slots=True)
-class SkillRegistry:
+class SkillStore:
     """Manage ChatOllama clients and compiled graphs."""
 
     _config_cache: dict[str, RAGConfig | LLMConfig] = field(init=False, default_factory=dict)

@@ -6,7 +6,7 @@ from orca_chat.core.graph import build_graph
 from orca_chat.core.session import ChatSession
 
 
-class DummyRegistry:
+class DummyStore:
     async def get_node_factory(self, name: str):
         def factory():
             async def node(state: ChatSession, **_: object):
@@ -21,13 +21,13 @@ class DummyRegistry:
 @pytest.mark.asyncio
 async def test_empty_pipeline():
     with pytest.raises(ValueError):
-        await build_graph(DummyRegistry(), [])  # type: ignore
+        await build_graph(DummyStore(), [])  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_conditional_branch():
     graph = await build_graph(
-        DummyRegistry(),  # type: ignore
+        DummyStore(),  # type: ignore
         ["a", "b"],
         conditionals=[("a", "b", lambda _s: True)],
     )
@@ -38,7 +38,7 @@ async def test_conditional_branch():
 @pytest.mark.asyncio
 async def test_conditional_mid_pipeline_branch():
     graph = await build_graph(
-        DummyRegistry(),  # type: ignore
+        DummyStore(),  # type: ignore
         ["a", "b", "c"],
         conditionals=[("b", "c", lambda _s: True)],
     )
@@ -50,7 +50,7 @@ async def test_conditional_mid_pipeline_branch():
 @pytest.mark.asyncio
 async def test_conditional_early_exit():
     graph = await build_graph(
-        DummyRegistry(),  # type: ignore
+        DummyStore(),  # type: ignore
         ["a", "b"],
         conditionals=[("a", "b", lambda _s: False)],
     )
@@ -61,7 +61,7 @@ async def test_conditional_early_exit():
 @pytest.mark.asyncio
 async def test_conditional_mid_pipeline_early_exit():
     graph = await build_graph(
-        DummyRegistry(),  # type: ignore
+        DummyStore(),  # type: ignore
         ["a", "b", "c"],
         conditionals=[("b", "c", lambda _s: False)],
     )
@@ -74,7 +74,7 @@ async def test_conditional_mid_pipeline_early_exit():
 async def test_bad_conditional():
     with pytest.raises(ValueError):
         await build_graph(
-            DummyRegistry(),  # type: ignore
+            DummyStore(),  # type: ignore
             ["a", "b"],
             conditionals=[("a", "d", lambda _s: True)],
         )
@@ -83,7 +83,7 @@ async def test_bad_conditional():
 @pytest.mark.asyncio
 async def test_linear_pipeline():
     graph = await build_graph(
-        DummyRegistry(),  # type: ignore
+        DummyStore(),  # type: ignore
         ["a", "b", "c"],
     )
     result = await graph.ainvoke(ChatSession())

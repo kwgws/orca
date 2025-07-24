@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 
 from langchain_core.runnables import RunnableConfig
 
-from ..core import ChatSession, SkillRegistry
+from ..core import ChatSession, SkillStore
 from ..loaders import load_logger
 from .callbacks import JSONWriter, LogWriter, StdoutWriter
 
@@ -23,8 +23,8 @@ async def _yield_user_input() -> AsyncIterator[str]:
 
 
 async def _chat_loop(session: ChatSession) -> None:
-    registry = SkillRegistry()
-    graph = await registry.get_graph("default")
+    skill_store = SkillStore()
+    graph = await skill_store.get_graph("default")
     config: RunnableConfig = {"callbacks": [LogWriter(), JSONWriter(), StdoutWriter()]}
 
     async for user_msg in _yield_user_input():

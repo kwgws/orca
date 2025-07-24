@@ -7,8 +7,8 @@ from langchain_core.runnables import Runnable
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
-from .registry import SkillRegistry
 from .session import ChatSession, Predicate
+from .skill_store import SkillStore
 
 # ...
 ConditionalEdge = tuple[str, str, Predicate]
@@ -18,7 +18,7 @@ RoutingTable = dict[str, list[tuple[str, Predicate]]]
 
 
 async def build_graph(
-    registry: SkillRegistry,
+    skill_store: SkillStore,
     pipeline: Sequence[str],
     *,
     conditionals: Sequence[ConditionalEdge] | None = None,
@@ -27,8 +27,8 @@ async def build_graph(
 
     Parameters
     ----------
-    registry
-        Registry providing node factories.
+    skill_store
+        Store providing node factories.
     pipeline
         Ordered skill names.
     conditionals
@@ -38,7 +38,7 @@ async def build_graph(
     if not pipeline:
         raise ValueError("Pipeline must contain at least one node")
 
-    factories = await _load_factories(registry, pipeline)
+    factories = await _load_factories(skill_store, pipeline)
     sg: StateGraph[ChatSession] = StateGraph(ChatSession)
 
     _add_linear_edges(
@@ -57,9 +57,9 @@ async def build_graph(
 
 
 async def _load_factories(
-    registry: SkillRegistry, pipeline: Sequence[str]
+    skill_store: SkillStore, pipeline: Sequence[str]
 ) -> Mapping[str, Callable[[], Runnable]]:
-    tasks = [registry.get_node_factory(node) for node in pipeline]
+    tasks = [skill_store.get_node_factory(node) for node in pipeline]
     results = await asyncio.gather(*tasks)
     return dict(zip(pipeline, results, strict=False))
 

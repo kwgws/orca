@@ -20,6 +20,7 @@ class LogWriter(AsyncCallbackHandler):
         prompts: list[str],
         **kwargs,
     ) -> None:
+        """Log each outgoing prompt."""
         for prompt in prompts:
             log_prompt = _re_whitespace.sub(" ", prompt).strip()
             if len(log_prompt) > 60:
@@ -31,6 +32,7 @@ class LogWriter(AsyncCallbackHandler):
         response: LLMResult,
         **kwargs,
     ) -> None:
+        """Log each incoming response."""
         for gen in response.generations:
             reply = gen[0].text
             log_reply = _re_whitespace.sub(" ", reply).strip()
@@ -43,4 +45,5 @@ class LogWriter(AsyncCallbackHandler):
         error: BaseException,
         **kwargs,
     ) -> None:
+        """Log errors raised by the LLM itself."""
         log.error("LLM error: %s", error)

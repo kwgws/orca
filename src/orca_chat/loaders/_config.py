@@ -8,13 +8,12 @@ from .load_toml import load_toml, to_namespace
 
 CONFIG_FILE = Path(__file__).parent.parent / "config" / "config.toml"
 
-# ...
 Config = SimpleNamespace
 
 
 @lru_cache(maxsize=1)
 def load_config(path: str | Path = CONFIG_FILE) -> Config:
-    """..."""
+    """Load and cache main config file as :class:`SimpleNamespace`"""
     file_path = Path(path)
     if not file_path.is_file():
         raise FileNotFoundError(file_path)

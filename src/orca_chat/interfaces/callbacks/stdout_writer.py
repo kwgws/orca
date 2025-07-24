@@ -7,6 +7,8 @@ from langchain_core.outputs import LLMResult
 
 
 class StdoutWriter(AsyncCallbackHandler):
+    """Stream model output to the console."""
+
     async def on_llm_start(
         self,
         serialized: dict[str, Any],
@@ -15,6 +17,7 @@ class StdoutWriter(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Print a thinking message unless ``out_silent`` is present."""
         if tags and "out_silent" not in tags:
             print("Thinking...", flush=True)
 
@@ -25,6 +28,7 @@ class StdoutWriter(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Stream tokens when ``out_stream`` is enabled."""
         if tags and "out_stream" in tags:
             print(token, end="", flush=True)
 
@@ -35,5 +39,6 @@ class StdoutWriter(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Finalize streaming output."""
         if tags and "out_stream" in tags:
             print()

@@ -30,6 +30,7 @@ def load_toml(path: str | Path, *, expand_env=True) -> dict[str, Any]:
 
 
 def to_namespace(d: dict) -> SimpleNamespace:
+    """Convert mapping to nested :class:`SimpleNamespace`."""
     ns = SimpleNamespace()
     for key, val in d.items():
         if isinstance(val, dict):
@@ -40,6 +41,7 @@ def to_namespace(d: dict) -> SimpleNamespace:
 
 
 def validate(raw: Mapping[str, Any], *, keys: Sequence[str]) -> None:
+    """Raise ``ValueError`` if any of ``keys`` are absent from ``raw``."""
     missing = [k for k in keys if k not in raw]
     if missing:
         raise ValueError(f"Missing required field(s): {', '.join(missing)}")

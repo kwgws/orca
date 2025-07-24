@@ -13,13 +13,12 @@ from .load_toml import load_toml, validate
 
 SKILLS_DIR = Path(__file__).parent.parent / "config" / "skills"
 
-# ...
 RAGConfig = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
 class LLMConfig:
-    """..."""
+    """Configuration for LLM-backed skills."""
 
     model: str
     base_url: str

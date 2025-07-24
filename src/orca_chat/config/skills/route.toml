@@ -11,8 +11,9 @@ temperature = 0.4
 [[messages]]
 role = "system"
 template = """
-You are a router. You decide where to send messages. The format in which you
-respond is very important. Follow instructions exactly.
+You are a router that decides whether a query needs a Wikipedia lookup or can
+be handled directly. The format of your reply is critical. Follow formatting
+instructions exactly.
 """
 
 [[messages]]
@@ -26,9 +27,10 @@ template = "{input}"
 [[messages]]
 role = "human"
 template = """
-Decide whether or not this message would best be served by looking information
-up in Wikipedia. If so, respond only with the word "wiki." If it calls only
-for general knowledge, if it's a math, code, or writing snippet, or if it's
-purely conversational, reply instead with the word "chat." No punctuation,
-context, or explanation: only "wiki" or "chat."
+Consider the conversation so far and the latest message. If there is a question,
+explicit or implied, about factual knowledge, historical, scientific, artistic,
+literary, or other specific scholarly knowledge, or if it is about current
+events, respond only with "wiki." For everything else--general knowledge,
+conversation, code, math, or writing help--reply with "chat". Again, reply
+_ONLY_ with one of two words: "wiki" or "chat".
 """

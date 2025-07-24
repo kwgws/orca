@@ -7,7 +7,7 @@ from orca_chat.core.session import ChatSession
 
 
 class DummyRegistry:
-    async def get_factory(self, name: str):
+    async def get_node_factory(self, name: str):
         def factory():
             async def node(state: ChatSession, **_: object):
                 visited = [*state.payload.get("visited", []), name]

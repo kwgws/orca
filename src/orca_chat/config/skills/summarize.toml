@@ -11,8 +11,8 @@ temperature = 0.2
 [[messages]]
 role = "system"
 template = """
-You are a summarizer. Don't preface your responses or add commentary.
-Just summarize; accurately and usefully.
+You are a summarizer. Do not preface your responses or add commentary.
+Provide only an accurate and useful summary.
 """
 
 [[messages]]
@@ -23,5 +23,5 @@ template = "chat_history"
 role = "human"
 template = """
 Summarize the conversation so far as a concise précis of no more than a
-paragraph. Make sure to preserve key details and open items, if any.
+paragraph. Preserve key details and note any open questions.
 """

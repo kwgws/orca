@@ -21,6 +21,11 @@ class JSONWriter(AsyncCallbackHandler):
     """Asynchronously write LLM prompts and responses to a JSON file."""
 
     def __init__(self, *, path: str | Path | None = None) -> None:
+        """Initialize the writer.
+
+        If ``path`` is not provided, ``LOG_FILE`` is checked for a location.
+        Otherwise write to a file in the cwd.
+        """
         if not path:
             log_path = os.getenv("LOG_FILE")
             if log_path:
@@ -45,6 +50,7 @@ class JSONWriter(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Record each prompt sent to the model."""
         for prompt in prompts:
             await self._append_to_file(
                 run_id=str(run_id),
@@ -64,6 +70,7 @@ class JSONWriter(AsyncCallbackHandler):
         tags: list[str] | None = None,
         **kwargs,
     ) -> None:
+        """Record the model's response."""
         for gen in response.generations:
             reply = gen[0].text
             await self._append_to_file(

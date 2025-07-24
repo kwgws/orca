@@ -40,6 +40,7 @@ async def _main_async() -> None:
 
 
 def run() -> None:
+    """Start interactive REPL client."""
     try:
         asyncio.run(_main_async())
     except KeyboardInterrupt:

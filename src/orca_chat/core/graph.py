@@ -7,8 +7,8 @@ from langchain_core.runnables import Runnable
 from langgraph.graph import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
-from .registry import LLMRegistry
-from .session import LLMSession, Predicate
+from .registry import SkillRegistry
+from .session import ChatSession, Predicate
 
 # ...
 ConditionalEdge = tuple[str, str, Predicate]
@@ -18,7 +18,7 @@ RoutingTable = dict[str, list[tuple[str, Predicate]]]
 
 
 async def build_graph(
-    registry: LLMRegistry,
+    registry: SkillRegistry,
     pipeline: Sequence[str],
     *,
     conditionals: Sequence[ConditionalEdge] | None = None,
@@ -39,7 +39,7 @@ async def build_graph(
         raise ValueError("Pipeline must contain at least one node")
 
     factories = await _load_factories(registry, pipeline)
-    sg: StateGraph[LLMSession] = StateGraph(LLMSession)
+    sg: StateGraph[ChatSession] = StateGraph(ChatSession)
 
     _add_linear_edges(
         sg,
@@ -57,15 +57,15 @@ async def build_graph(
 
 
 async def _load_factories(
-    registry: LLMRegistry, pipeline: Sequence[str]
+    registry: SkillRegistry, pipeline: Sequence[str]
 ) -> Mapping[str, Callable[[], Runnable]]:
-    tasks = [registry.get_factory(node) for node in pipeline]
+    tasks = [registry.get_node_factory(node) for node in pipeline]
     results = await asyncio.gather(*tasks)
     return dict(zip(pipeline, results, strict=False))
 
 
 def _add_linear_edges(
-    sg: StateGraph[LLMSession],
+    sg: StateGraph[ChatSession],
     pipeline: Sequence[str],
     factories: Mapping[str, Callable[[], Runnable]],
     *,
@@ -79,7 +79,7 @@ def _add_linear_edges(
 
 
 def _add_conditional_edges(
-    sg: StateGraph[LLMSession],
+    sg: StateGraph[ChatSession],
     pipeline: Sequence[str],
     conditionals: Sequence[ConditionalEdge],
 ) -> None:
@@ -88,7 +88,7 @@ def _add_conditional_edges(
     for src, cases in routing_table.items():
         default_dst = END
 
-        def _router(state: LLMSession, *, _cases=cases, _default=default_dst, _src=src):
+        def _router(state: ChatSession, *, _cases=cases, _default=default_dst, _src=src):
             for dst, pred in _cases:
                 if pred(state):
                     return dst

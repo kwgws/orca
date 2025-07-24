@@ -1,13 +1,15 @@
+"""tests/test_graph.py"""
+
 import pytest
 
 from orca_chat.core.graph import build_graph
-from orca_chat.core.session import LLMSession
+from orca_chat.core.session import ChatSession
 
 
 class DummyRegistry:
     async def get_factory(self, name: str):
         def factory():
-            async def node(state: LLMSession, **_: object):
+            async def node(state: ChatSession, **_: object):
                 visited = [*state.payload.get("visited", []), name]
                 return {"payload": {"visited": visited}}
 
@@ -23,7 +25,7 @@ async def test_conditional_branch():
         ["a", "b"],
         conditionals=[("a", "b", lambda _s: True)],
     )
-    result = await graph.ainvoke(LLMSession())
+    result = await graph.ainvoke(ChatSession())
     assert result["payload"]["visited"] == ["a", "b"]
 
 
@@ -34,7 +36,7 @@ async def test_conditional_mid_pipeline_branch():
         ["a", "b", "c"],
         conditionals=[("b", "c", lambda _s: True)],
     )
-    result = await graph.ainvoke(LLMSession(payload={}))
+    result = await graph.ainvoke(ChatSession(payload={}))
     visited = result["payload"]["visited"]
     assert visited == ["a", "b", "c"]
 
@@ -46,7 +48,7 @@ async def test_conditional_early_exit():
         ["a", "b"],
         conditionals=[("a", "b", lambda _s: False)],
     )
-    result = await graph.ainvoke(LLMSession())
+    result = await graph.ainvoke(ChatSession())
     assert result["payload"]["visited"] == ["a"]
 
 
@@ -57,7 +59,7 @@ async def test_conditional_mid_pipeline_early_exit():
         ["a", "b", "c"],
         conditionals=[("b", "c", lambda _s: False)],
     )
-    result = await graph.ainvoke(LLMSession(payload={}))
+    result = await graph.ainvoke(ChatSession(payload={}))
     visited = result["payload"]["visited"]
     assert visited == ["a", "b"]
 
@@ -68,5 +70,5 @@ async def test_linear_pipeline():
         DummyRegistry(),  # type: ignore
         ["a", "b", "c"],
     )
-    result = await graph.ainvoke(LLMSession())
+    result = await graph.ainvoke(ChatSession())
     assert result["payload"]["visited"] == ["a", "b", "c"]

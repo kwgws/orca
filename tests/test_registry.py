@@ -1,3 +1,5 @@
+"""tests/test_graph.py"""
+
 import asyncio
 from collections import defaultdict
 from types import SimpleNamespace
@@ -6,7 +8,7 @@ from typing import ClassVar
 import pytest
 from langchain_core.prompts import ChatPromptTemplate
 
-from orca_chat.core.registry import LLMRegistry, SkillConfig
+from orca_chat.core.registry import LLMConfig, SkillRegistry
 
 
 class DummyLLM:
@@ -25,7 +27,7 @@ async def test_get_llm_concurrent(monkeypatch):
 
     def fake_load_skill(name: str, path):
         load_calls[name] += 1
-        return SkillConfig(
+        return LLMConfig(
             model=name,
             base_url="",
             params={},
@@ -35,7 +37,7 @@ async def test_get_llm_concurrent(monkeypatch):
     monkeypatch.setattr("orca_chat.core.registry.load_skill", fake_load_skill)
     monkeypatch.setattr("orca_chat.core.registry.ChatOllama", DummyLLM)
 
-    registry = LLMRegistry()
+    registry = SkillRegistry()
 
     async def worker() -> object:
         return await registry.get_llm("chat")
@@ -51,7 +53,7 @@ async def test_get_llm_concurrent(monkeypatch):
 async def test_get_graph_concurrent(monkeypatch):
     compiled = 0
 
-    async def fake_compile(reg: LLMRegistry):
+    async def fake_compile(reg: SkillRegistry):
         nonlocal compiled
         compiled += 1
         return "graph"
@@ -60,7 +62,7 @@ async def test_get_graph_concurrent(monkeypatch):
 
     monkeypatch.setattr(default_module, "compile", fake_compile)
 
-    registry = LLMRegistry()
+    registry = SkillRegistry()
     results = await asyncio.gather(*(registry.get_graph("default") for _ in range(5)))
 
     assert results == ["graph"] * 5

@@ -1,0 +1,33 @@
+# orca_chat/skills/make_query.toml
+
+node_type = "llm"
+
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
+
+[params]
+temperature = 0.4
+
+[[messages]]
+role = "system"
+template = """
+You are a query writer. Don't preface your responses or add commentary.
+Just write a query; accurately and usefully.
+"""
+
+[[messages]]
+role = "placeholder"
+template = "chat_history"
+
+[[messages]]
+role = "assistant"
+template = "{input}"
+
+[[messages]]
+role = "human"
+template = """
+Write a search query we you use to find documents relevant to that message
+in the context of our conversation so far. Keep it simple, concise, specific.
+Don't use boolean operators, flags, or switches. Avoid articles, prepositions,
+unnecessary words of any kind.
+"""

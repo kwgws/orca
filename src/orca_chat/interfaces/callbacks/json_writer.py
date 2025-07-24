@@ -1,4 +1,4 @@
-"""orca_chat/callbacks/json_writer.py"""
+"""orca_chat/interfaces/callbacks/json_writer.py"""
 
 import asyncio
 import json

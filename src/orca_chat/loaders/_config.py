@@ -1,4 +1,4 @@
-"""orca_chat/interfaces/loaders/_config.py"""
+"""orca_chat/loaders/_config.py"""
 
 from functools import lru_cache
 from pathlib import Path

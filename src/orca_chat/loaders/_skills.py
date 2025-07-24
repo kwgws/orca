@@ -1,21 +1,20 @@
-"""orca_chat/interfaces/loaders/skills/_skills.py"""
+"""orca_chat/loaders/_skills.py"""
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.prompts import MessagesPlaceholder
 
-from .load_toml import load_toml, to_namespace, validate
+from .load_toml import load_toml, validate
 
 SKILLS_DIR = Path(__file__).parent.parent / "config" / "skills"
 
 # ...
-GeneratorConfig = SimpleNamespace
+RAGConfig = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +28,7 @@ class LLMConfig:
 
 
 @cache
-def load_skill(name: str, skills_dir: str | Path = SKILLS_DIR) -> LLMConfig | GeneratorConfig:
+def load_skill(name: str, skills_dir: str | Path = SKILLS_DIR) -> LLMConfig | RAGConfig:
     """Load one skill configuration.
 
     Parameters
@@ -60,8 +59,8 @@ def load_skill(name: str, skills_dir: str | Path = SKILLS_DIR) -> LLMConfig | Ge
             )
             return llm_cfg
 
-        if node_type == "generator":
-            gen_cfg: GeneratorConfig = to_namespace(cfg.get("params", {}))
+        if node_type == "rag":
+            gen_cfg: RAGConfig = cfg.get("params", {})
             return gen_cfg
 
         raise KeyError(f"Bad node_type or not specified '{node_type}'")

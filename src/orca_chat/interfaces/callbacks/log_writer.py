@@ -1,3 +1,5 @@
+"""orca_chat/interfaces/callbacks/log_writer.py"""
+
 import logging
 from typing import Any
 

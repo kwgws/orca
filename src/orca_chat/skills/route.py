@@ -1,4 +1,4 @@
-"""orca_chat/skills/summarize.py"""
+"""orca_chat/skills/route.py"""
 
 from logging import getLogger
 from typing import Any
@@ -14,23 +14,21 @@ log = getLogger(__name__)
 
 
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
-    async def _summarize(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
-        log.info("Entering node 'summarize'")
-
-        node_config: RunnableConfig = {
-            **config,
-            "tags": [*(config.get("tags", [])), "out_silent"],
-        }
+    async def route(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
+        log.info("Entering node 'route'")
 
         prompt = cfg.prompt.format_messages(
             chat_history=state.get_abridged_history(),
+            input=state.get_last_message(),
         )
 
         tokens: list[str] = []
-        async for chunk in llm.astream(prompt, config=node_config):
+        async for chunk in llm.astream(prompt, config=config):
             tokens.append(str(chunk.content) or "")
-        summary = "".join(tokens)
 
-        return {"payload": {**state.payload, "summary": summary}}
+        tags = "".join(tokens)
+        log.info("Routing to: %s", tags)
 
-    return _summarize
+        return {"payload": {**state.payload, "router_tags": tags}}
+
+    return route

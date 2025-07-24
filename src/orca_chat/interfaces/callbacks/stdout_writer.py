@@ -1,3 +1,5 @@
+"""orca_chat/interfaces/callbacks/stdout_writer.py"""
+
 from typing import Any
 
 from langchain_core.callbacks.base import AsyncCallbackHandler

@@ -18,10 +18,10 @@ from langchain_core.messages import (
 from ..loaders import load_config
 
 # ...
-Predicate = Callable[["LLMSession"], bool]
+Predicate = Callable[["ChatSession"], bool]
 
 # ...
-_MAX_ROUNDS: int = load_config().max_chat_rounds_to_llm
+_MAX_ROUNDS: int = load_config().llm.max_chat_rounds_to_llm
 
 # ...
 _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
@@ -50,7 +50,7 @@ def message_to_tuple(msg: BaseMessage) -> tuple[str, str]:
 
 
 @dataclass(slots=True)
-class LLMSession:
+class ChatSession:
     """Container for chat history and arbitrary payload data.
 
     Parameters

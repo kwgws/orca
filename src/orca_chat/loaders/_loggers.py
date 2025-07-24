@@ -1,4 +1,4 @@
-"""orca_chat/interfaces/loaders/_loggers.py"""
+"""orca_chat/loaders/_loggers.py"""
 
 import logging
 import logging.config

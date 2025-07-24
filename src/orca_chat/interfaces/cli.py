@@ -1,9 +1,11 @@
+"""orca_chat/interfaces/cli.py"""
+
 import asyncio
 from collections.abc import AsyncIterator
 
 from langchain_core.runnables import RunnableConfig
 
-from ..core import LLMRegistry, LLMSession
+from ..core import ChatSession, SkillRegistry
 from ..loaders import load_logger
 from .callbacks import JSONWriter, LogWriter, StdoutWriter
 
@@ -20,20 +22,20 @@ async def _yield_user_input() -> AsyncIterator[str]:
         yield line
 
 
-async def _chat_loop(session: LLMSession) -> None:
-    registry = LLMRegistry()
+async def _chat_loop(session: ChatSession) -> None:
+    registry = SkillRegistry()
     graph = await registry.get_graph("default")
     config: RunnableConfig = {"callbacks": [LogWriter(), JSONWriter(), StdoutWriter()]}
 
     async for user_msg in _yield_user_input():
         session = session.with_message(("human", user_msg))
         result = await graph.ainvoke(session, config)
-        session = LLMSession.from_state(result)
+        session = ChatSession.from_state(result)
 
 
 async def _main_async() -> None:
     load_logger()
-    session = LLMSession()
+    session = ChatSession()
     await _chat_loop(session)
 
 

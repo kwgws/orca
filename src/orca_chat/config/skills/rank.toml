@@ -1,0 +1,38 @@
+# orca_chat/skills/summarize.toml
+
+node_type = "llm"
+
+model = "llama3:8b-instruct-q4_K_M"
+base_url = "${LLAMA3_4K_URL}"
+
+[params]
+temperature = 0.2
+
+[[messages]]
+role = "system"
+template = """
+You are a relevance scorer. Don't preface your responses or add commentary.
+Follow user formatting instructions precisely.
+"""
+
+[[messages]]
+role = "placeholder"
+template = "chat_history"
+
+[[messages]]
+role = "assistant"
+template = "{context}"
+
+[[messages]]
+role = "human"
+template = """
+Score each of those documents between 0 and 5 based on how relevant they
+are to our conversation. Reply _ONLY_ with a JSON array [[index, score], ...]
+containing your scores.
+
+Ex, for a discussion about human colonization of Titan, where the docs are
+1. Titan (Mythology), 2. Titan (Moon), 3. History of NASA, you'd reply:
+[[1, 0], [2, 4], [3, 2]]
+
+Remember, only JSON, no other text!
+"""

@@ -1,7 +1,8 @@
 # orca_chat/skills/wikipedia.toml
 
-node_type = "retriever"
+node_type = "rag"
 
 [params]
-top_k_results = 10
-max_chars = 4_000
+lang = "en"
+top_k_results = 20
+doc_content_chars_max = 4_000

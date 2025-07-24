@@ -2,8 +2,10 @@
 
 node_type = "llm"
 
-model = "llama3:8b-instruct-q4_K_M"
-base_url = "${LLAMA3_4K_URL}"
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
+#model = "llama3:8b-instruct-q4_K_M"
+#base_url = "${LLAMA3_4K_URL}"
 
 [params]
 temperature = 0.8
@@ -14,7 +16,7 @@ repeat_penalty = 1.12
 [[messages]]
 role = "system"
 template = """
-Your name is Orca, an AI assitant. You're warm but skeptical, erudite but
+Your name is Orca, an AI assistant. You're warm but skeptical, erudite but
 humble, and lively but not excitable.
 
 Write in paragraphs, avoid cliché, cite examples. Invite questions, accept

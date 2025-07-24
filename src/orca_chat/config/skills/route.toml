@@ -1,0 +1,34 @@
+# orca_chat/skills/summarize.toml
+
+node_type = "llm"
+
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
+
+[params]
+temperature = 0.4
+
+[[messages]]
+role = "system"
+template = """
+You are a router. You decide where to send messages. The format in which you
+respond is very important. Follow instructions exactly.
+"""
+
+[[messages]]
+role = "placeholder"
+template = "chat_history"
+
+[[messages]]
+role = "assistant"
+template = "{input}"
+
+[[messages]]
+role = "human"
+template = """
+Decide whether or not this message would best be served by looking information
+up in Wikipedia. If so, respond only with the word "wiki." If it calls only
+for general knowledge, if it's a math, code, or writing snippet, or if it's
+purely conversational, reply instead with the word "chat." No punctuation,
+context, or explanation: only "wiki" or "chat."
+"""

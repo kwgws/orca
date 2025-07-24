@@ -2,10 +2,8 @@
 
 node_type = "llm"
 
-model = "llama3.2:3b"
-base_url = "${LLAMA32_3B_URL}"
-#model = "llama3:8b-instruct-q4_K_M"
-#base_url = "${LLAMA3_4K_URL}"
+model = "llama3:8b-instruct-q4_K_M"
+base_url = "${LLAMA3_4K_URL}"
 
 [params]
 temperature = 0.8

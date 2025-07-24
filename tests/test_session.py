@@ -2,7 +2,7 @@
 
 import pytest
 
-from orca_chat.core.session import ChatSession
+from orca_chat.core.session import ChatSession, tuple_to_message
 
 
 @pytest.mark.asyncio
@@ -19,3 +19,15 @@ def test_session_immutable():
     new = session.with_message(("human", "hello"))
     assert session.history == []
     assert new.history == [("human", "hello")]
+
+
+def test_invalid_role():
+    with pytest.raises(ValueError):
+        tuple_to_message("bad", "msg")
+
+
+def test_get_last_msg():
+    session = ChatSession().with_message(("human", "hi")).with_message(("assistant", "yo"))
+    assert session.get_last_message(roles=("assistant",)) == "yo"
+    assert session.get_last_message(roles=("human",)) == "hi"
+    assert ChatSession().get_last_message() == ""

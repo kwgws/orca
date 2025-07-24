@@ -19,6 +19,12 @@ class DummyRegistry:
 
 
 @pytest.mark.asyncio
+async def test_empty_pipeline():
+    with pytest.raises(ValueError):
+        await build_graph(DummyRegistry(), [])  # type: ignore
+
+
+@pytest.mark.asyncio
 async def test_conditional_branch():
     graph = await build_graph(
         DummyRegistry(),  # type: ignore
@@ -62,6 +68,16 @@ async def test_conditional_mid_pipeline_early_exit():
     result = await graph.ainvoke(ChatSession(payload={}))
     visited = result["payload"]["visited"]
     assert visited == ["a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_bad_conditional():
+    with pytest.raises(ValueError):
+        await build_graph(
+            DummyRegistry(),  # type: ignore
+            ["a", "b"],
+            conditionals=[("a", "d", lambda _s: True)],
+        )
 
 
 @pytest.mark.asyncio

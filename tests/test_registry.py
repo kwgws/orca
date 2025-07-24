@@ -25,7 +25,7 @@ class DummyLLM:
 async def test_get_llm_concurrent(monkeypatch):
     load_calls: defaultdict[str, int] = defaultdict(int)
 
-    def fake_load_skill(name: str, path):
+    def fake_load_skill(name: str, skills_dir=None):
         load_calls[name] += 1
         return LLMConfig(
             model=name,

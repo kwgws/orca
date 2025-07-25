@@ -2,7 +2,7 @@
 
 import logging
 import logging.config
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ from .load_toml import load_toml
 LOGGERS_FILE = Path(__file__).parent.parent / "config" / "loggers.toml"
 
 
-@lru_cache(maxsize=1)
+@cache
 def load_logger(path: str | Path = LOGGERS_FILE) -> logging.Logger:
     """Initialize the root logger from a TOML file."""
     log_cfg = load_toml(path)

@@ -43,7 +43,7 @@ def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
         try:
             data = json.loads(ai_message)
             norm = [[int(x) for x in pair] for pair in data]
-            rank = sorted(norm, key=lambda doc: doc[1])
+            rank = sorted(norm, key=lambda doc: doc[1], reverse=True)
             docs = [documents[i] for i, score in rank if score > 2]
         except Exception as e:
             log.warning("Error during JSON handling: %s", e)

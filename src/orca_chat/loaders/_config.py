@@ -1,6 +1,6 @@
 """orca_chat/loaders/_config.py"""
 
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,7 +11,7 @@ CONFIG_FILE = Path(__file__).parent.parent / "config" / "config.toml"
 Config = SimpleNamespace
 
 
-@lru_cache(maxsize=1)
+@cache
 def load_config(path: str | Path = CONFIG_FILE) -> Config:
     """Load and cache main config file as :class:`SimpleNamespace`"""
     file_path = Path(path)

@@ -5,7 +5,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import uuid4
 
+import regex as re
+
 from .session import ChatSession
+
+_re_uuid = re.compile(r"^[0-9a-f]{32}$")
+
+
+def _validate_id(session_id: str) -> None:
+    if not _re_uuid.match(session_id):
+        raise ValueError(f"Invalid session id: {session_id}")
 
 
 @dataclass(slots=True)
@@ -44,7 +53,11 @@ class SessionStore:
 
     def path_for(self, session_id: str) -> Path:
         """Return filesystem path for ``session_id``."""
-        return self.directory / f"{session_id}.json"
+        _validate_id(session_id)
+        path = self.directory / f"{session_id}.json"
+        if not str(path.resolve()).startswith(str(self.directory.resolve())):
+            raise ValueError(f"Invalid session id: {session_id}")
+        return path
 
     async def create(self) -> tuple[str, ChatSession]:
         """Create a new session and return its id and object."""
@@ -77,6 +90,7 @@ class SessionStore:
 
     async def update(self, session_id: str, session: ChatSession) -> ChatSession:
         """Persist and return ``session``."""
+        _validate_id(session_id)
         await self.save(session_id, session)
         return session
 
@@ -87,4 +101,5 @@ class SessionStore:
         yield from self.list_ids()
 
     def __contains__(self, session_id: str):
+        _validate_id(session_id)
         return self.path_for(session_id).exists()

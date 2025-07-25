@@ -1,6 +1,6 @@
 """orca_chat/skills/wikipedia.py"""
 
-from functools import lru_cache
+from functools import cache
 from logging import getLogger
 from typing import Any
 
@@ -40,7 +40,7 @@ def build(cfg: RAGConfig, **kwargs) -> StateNode:
     return _wiki
 
 
-@lru_cache(maxsize=1)
+@cache
 def _get_retriever(**kwargs: Any) -> WikipediaRetriever:
     return WikipediaRetriever(
         wiki_client=wikipedia,

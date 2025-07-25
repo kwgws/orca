@@ -1,9 +1,9 @@
 """orca_chat/skills/extract_topic.py"""
 
+import re
 from logging import getLogger
 from typing import Any
 
-import regex as re
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
 from langgraph.graph.state import StateNode

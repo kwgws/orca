@@ -1,11 +1,10 @@
 """orca_chat/core/session_store.py"""
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import uuid4
-
-import regex as re
 
 from .session import ChatSession
 

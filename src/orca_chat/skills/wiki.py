@@ -1,10 +1,10 @@
 """orca_chat/skills/wikipedia.py"""
 
+import re
 from functools import cache
 from logging import getLogger
 from typing import Any
 
-import regex as re
 import wikipedia
 from langchain_community.retrievers import WikipediaRetriever
 from langchain_core.documents import Document

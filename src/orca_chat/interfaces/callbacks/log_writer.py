@@ -1,9 +1,9 @@
 """orca_chat/interfaces/callbacks/log_writer.py"""
 
 import logging
+import re
 from typing import Any
 
-import regex as re
 from langchain.callbacks.base import AsyncCallbackHandler
 from langchain.schema import LLMResult
 

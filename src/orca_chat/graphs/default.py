@@ -14,7 +14,7 @@ async def compile(skill_store: SkillStore):
         "route",
         "extract_topic",
         "make_query",
-        "wikipedia",
+        "wiki",
         "rank",
         "chat",
         "summarize",

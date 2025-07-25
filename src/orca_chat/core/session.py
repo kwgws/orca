@@ -79,10 +79,12 @@ class ChatSession:
         """Create session from raw state mapping."""
         return cls(**state)
 
-    def get_last_message(self, *, roles: tuple[str, ...] = ("human",)):
+    def get_last_message(self, *, roles: tuple[str, ...] = ("human",), use_disambiguation=True):
         """Return most recent message as tuple matching ``roles``."""
         for role, content in reversed(self.history):
             if role in roles:
+                if role == "human" or (role == "user" and use_disambiguation):
+                    return self.payload.get("disambiguation", "") or content
                 return content
         return ""
 

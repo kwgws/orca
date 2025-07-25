@@ -1,12 +1,11 @@
 # orca_chat/skills/chat.toml
-
 node_type = "llm"
 
 model = "llama3:8b-instruct-q4_K_M"
 base_url = "${LLAMA3_4K_URL}"
 
 [params]
-temperature = 0.8
+temperature = 0.65
 top_p = 0.9
 top_k = 40
 repeat_penalty = 1.12
@@ -26,9 +25,11 @@ role = "placeholder"
 template = "chat_history"
 
 [[messages]]
-role = "assistant"
-template = "{context}"
-
-[[messages]]
 role = "human"
-template = "{input}"
+template = """
+**CONTEXT**:
+{context}
+
+**INPUT**:
+{input}
+"""

@@ -1,36 +1,76 @@
-# orca_chat/skills/summarize.toml
-
+# orca_chat/skills/route.toml
 node_type = "llm"
 
 model = "llama3.2:3b"
 base_url = "${LLAMA32_3B_URL}"
 
 [params]
-temperature = 0.4
+temperature = 0.025
+top_p = 0.95
 
 [[messages]]
 role = "system"
 template = """
-You are a router that decides whether a query needs a Wikipedia lookup or can
-be handled directly. The format of your reply is critical. Follow formatting
-instructions exactly.
+You are a router that decides whether a user message requires a Wikipedia
+lookup or can be handled directly via chat. You must respond with _only_
+the word "wiki" or "chat". Use "wiki" if the message asks about factual,
+historical, scientific, or current events. Use "chat" for all other
+types: conversation, math, writing, or general knowledge.
 """
 
 [[messages]]
-role = "placeholder"
-template = "chat_history"
+role = "human"
+template = "Help me plan my day."
 
 [[messages]]
 role = "assistant"
-template = "{input}"
+template = "chat"
+
+[[messages]]
+role = "human"
+template = "Why was the Berlin Wall built?"
+
+[[messages]]
+role = "assistant"
+template = "wiki"
 
 [[messages]]
 role = "human"
 template = """
-Consider the conversation so far and the latest message. If there is a question,
-explicit or implied, about factual knowledge, historical, scientific, artistic,
-literary, or other specific scholarly knowledge, or if it is about current
-events, respond only with "wiki." For everything else--general knowledge,
-conversation, code, math, or writing help--reply with "chat". Again, reply
-_ONLY_ with one of two words: "wiki" or "chat".
+Can you help me debug this?
+    def foo(x):
+        return x[0]
+    foo(5)
 """
+
+[[messages]]
+role = "assistant"
+template = "chat"
+
+[[messages]]
+role = "human"
+template = "Hello! What can you tell me about yourself?"
+
+[[messages]]
+role = "assistant"
+template = "chat"
+
+[[messages]]
+role = "human"
+template = "Let's talk about revenge as a theme in 'Moby Dick'."
+
+[[messages]]
+role = "assistant"
+template = "wiki"
+
+[[messages]]
+role = "human"
+template = "What's a good limerick about a goat?"
+
+[[messages]]
+role = "assistant"
+template = "chat"
+
+[[messages]]
+role = "human"
+template = "{input}"

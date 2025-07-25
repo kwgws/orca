@@ -14,21 +14,22 @@ log = getLogger(__name__)
 
 
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
-    async def route(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
+    async def _route(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
         log.info("Entering node 'route'")
-
+        node_config: RunnableConfig = {
+            **config,
+            "tags": [*(config.get("tags", [])), "node_route"],
+        }
         prompt = cfg.prompt.format_messages(
-            chat_history=state.get_abridged_history(),
             input=state.get_last_message(),
         )
 
         tokens: list[str] = []
-        async for chunk in llm.astream(prompt, config=config):
+        async for chunk in llm.astream(prompt, config=node_config):
             tokens.append(str(chunk.content) or "")
 
         tags = "".join(tokens)
         log.info("Routing to: %s", tags)
-
         return {"payload": {**state.payload, "router_tags": tags}}
 
-    return route
+    return _route

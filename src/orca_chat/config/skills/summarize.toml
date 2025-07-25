@@ -1,5 +1,4 @@
 # orca_chat/skills/summarize.toml
-
 node_type = "llm"
 
 model = "llama3.2:3b"

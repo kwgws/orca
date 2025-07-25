@@ -9,6 +9,25 @@ from .session import ChatSession
 
 
 @dataclass(slots=True)
+class SessionHandle:
+    """Reference to a stored :class:`ChatSession`."""
+
+    store: "SessionStore"
+    session_id: str
+    session: ChatSession
+
+    async def update(self, session: ChatSession) -> ChatSession:
+        """Persist ``session`` and return it."""
+        self.session = await self.store.update(self.session_id, session)
+        return self.session
+
+    async def with_message(self, msg: tuple[str, str]) -> ChatSession:
+        """Append ``msg`` and persist session."""
+        new_session = self.session.with_message(msg)
+        return await self.update(new_session)
+
+
+@dataclass(slots=True)
 class SessionStore:
     """Manage serialized :class:`ChatSession` objects in a directory."""
 
@@ -33,6 +52,17 @@ class SessionStore:
         session = ChatSession()
         await self.save(session_id, session)
         return session_id, session
+
+    async def open(self, session_id: str | None = None) -> SessionHandle:
+        """Return a managed session, creating it if missing."""
+        if session_id is None:
+            session_id, session = await self.create()
+        elif session_id in self:
+            session = await self.load(session_id)
+        else:
+            session = ChatSession()
+            await self.save(session_id, session)
+        return SessionHandle(self, session_id, session)
 
     async def save(self, session_id: str, session: ChatSession) -> Path:
         """Write ``session`` to disk."""

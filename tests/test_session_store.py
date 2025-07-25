@@ -14,3 +14,12 @@ async def test_session_store_roundtrip(tmp_path: Path) -> None:
     loaded = await store.load(session_id)
     assert loaded == session
     assert session_id in store.list_ids()
+
+
+@pytest.mark.asyncio
+async def test_session_handle(tmp_path: Path) -> None:
+    store = SessionStore(directory=tmp_path)
+    handle = await store.open()
+    await handle.with_message(("human", "yo"))
+    loaded = await store.load(handle.session_id)
+    assert loaded.history == [("human", "yo")]

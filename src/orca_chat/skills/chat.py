@@ -19,13 +19,12 @@ _DOC_FORMAT_STR: str = _CONFIG.llm.doc_format_str
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
     async def _chat(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
         log.info("Entering node 'chat'")
-
         node_config: RunnableConfig = {
             **config,
-            "tags": [*(config.get("tags", [])), "out_stream"],
+            "tags": [*(config.get("tags", [])), "node_chat", "out_stream"],
         }
 
-        context = state.payload.get("context", "")
+        context = state.payload.get("context", "N/A")
         docs = state.payload.get("documents", [])
         if docs and isinstance(docs, list):
             context = "\n\n\n---\n\n\n".join(
@@ -39,8 +38,8 @@ def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
             )
 
         prompt = cfg.prompt.format_messages(
-            context=context,
             chat_history=state.get_abridged_history(),
+            context=context,
             input=state.get_last_message(),
         )
 

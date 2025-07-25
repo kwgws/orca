@@ -1,4 +1,4 @@
-"""orca_chat/skills/make_query.py"""
+"""orca_chat/skills/disambiguate.py"""
 
 from logging import getLogger
 from typing import Any
@@ -14,23 +14,23 @@ log = getLogger(__name__)
 
 
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
-    async def _make_query(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
-        log.info("Entering node 'make_query'")
+    async def _disambiguate(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
+        log.info("Entering node 'disambiguate'")
         node_config: RunnableConfig = {
             **config,
-            "tags": [*(config.get("tags", [])), "node_make_query"],
+            "tags": [*(config.get("tags", [])), "node_disambiguate"],
         }
 
         prompt = cfg.prompt.format_messages(
-            input=state.get_last_message(),
+            chat_history=state.get_abridged_history(),
+            input=state.get_last_message(use_disambiguation=False),
         )
 
         tokens: list[str] = []
         async for chunk in llm.astream(prompt, config=node_config):
             tokens.append(str(chunk.content) or "")
-        search_query = "".join(tokens)
 
-        log.info("Wrote query: %s", search_query)
-        return {"payload": {**state.payload, "search_query": search_query}}
+        disambiguation = "".join(tokens)
+        return {"payload": {**state.payload, "disambiguation": disambiguation}}
 
-    return _make_query
+    return _disambiguate

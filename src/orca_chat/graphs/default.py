@@ -10,9 +10,11 @@ _MAX_ROUNDS: int = load_config().llm.max_chat_rounds_to_llm
 async def compile(skill_store: SkillStore):
     """Return default conversation graph."""
     pipeline = [
+        "disambiguate",
         "route",
+        "extract_topic",
         "make_query",
-        "wiki",
+        "wikipedia",
         "rank",
         "chat",
         "summarize",
@@ -29,7 +31,7 @@ async def compile(skill_store: SkillStore):
 
     conditionals = [
         ("route", "chat", _goto_chat),
-        ("route", "wiki", _goto_wiki),
+        ("route", "extract_topic", _goto_wiki),
         ("chat", "summarize", _goto_summary),
     ]
 

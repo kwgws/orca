@@ -1,0 +1,95 @@
+# orca_chat/skills/extract_topic.toml
+node_type = "llm"
+
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
+
+[params]
+temperature = 0.05
+top_p = 0.95
+
+[[messages]]
+role = "system"
+template = """
+You are a topic extractor. Read the conversation provided, then return one
+short phrase of no more than 12 words that captures the conversation's topic.
+Do **NOT** add commentary, labels, punctuation, etc.
+"""
+
+[[messages]]
+role = "user"
+template = """
+Hello! Hello, how can I help? I've been rereading Plath's 'Mirror' and I'm
+fascinated by how the glass both flatters and condemns the speaker. That's a
+wonderful insight! It's nothing like modern vanity mirrors with LED lights.
+I agree, but how does that duality play into Plath's self-image?
+"""
+
+[[messages]]
+role = "assistant"
+template = "mirror imagery and self-identity in Sylvia Plath's poetry"
+
+[[messages]]
+role = "user"
+template = """
+When people compare Michelangelo's 'David' to Bernini's, they often talk about
+the shift from idealized stillness to explosive motion, but I wonder which
+sculpture better captures the Renaissance concept of virtù.
+"""
+
+[[messages]]
+role = "assistant"
+template = "Michelangelo vs Bernini, contrasting Renaissance Davids"
+
+[[messages]]
+role = "user"
+template = """
+Okay, but the Panic of 1893 wasn't caused by sudden fear alone; bimetallism
+debates and railroad overbuilding set the stage. That's true! Thank you for
+pointing that out. In fact, silver purchases under the Sherman Act played a
+bigger role than most textbooks admit.
+"""
+
+[[messages]]
+role = "assistant"
+template = "economic roots of the U.S. Panic of 1893"
+
+[[messages]]
+role = "user"
+template = """
+DuBois coined 'double consciousness' to describe the fractured self of Black
+Americans, but early reviewers read it through a European existential lens.
+How did that misreading shape later reception?
+"""
+
+[[messages]]
+role = "assistant"
+template = "early reception of DuBois' double consciousness concept"
+
+[[messages]]
+role = "user"
+template = """
+In Anaïs Mitchell's 'Hadestown,' Orpheus isn't just the mythic lyre player—
+he's a Depression-era troubadour. How does that setting change our reading
+of the Underworld journey?
+"""
+
+[[messages]]
+role = "assistant"
+template = "Orpheus re-imagined in Anaïs Mitchell's Hadestown"
+
+[[messages]]
+role = "user"
+template = """
+Louis XIV weaponized ballet and garden design to project absolutism. I'm less
+interested in the politics and more in how Versailles architecture itself
+became propaganda.
+"""
+
+[[messages]]
+role = "assistant"
+template = "Versailles architecture as royal propaganda under Louis XIV"
+
+[[messages]]
+role = "user"
+template = "{input}"

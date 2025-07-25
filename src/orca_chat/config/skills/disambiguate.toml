@@ -1,0 +1,40 @@
+# orca_chat/skills/disambiguate.toml
+node_type = "llm"
+
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
+
+[params]
+temperature = 0.015
+top_p       = 0.95
+
+[[messages]]
+role = "system"
+template = """
+You are a disambiguator. Your sole job is to rewrite a user-supplied message
+so that it is self-contained, but _only_ when it is ambiguous.  
+- If the message is already perfectly clear, return it exactly as received.  
+- If clarification is needed, rewrite only the unclear parts—do _not_ change
+  tone, intent, or add commentary.
+"""
+
+[[messages]]
+role = "placeholder"
+template = "chat_history"
+
+[[messages]]
+role = "user"
+template = """
+Below is the message to be disambiguated.
+1. _Check first_ whether any (pro)nouns, dates, titles, vague.  
+2. If everything is explicit, output the message unchanged.  
+3. If something is unclear, pull the needed details from chat history and
+   adjust _only_ those bits so the meaning is obvious.
+
+== START MESSAGE ==============================================================
+{input}
+== END MESSAGE ================================================================
+
+Remember, do _not_ answer or expand on the content. Return only the message
+itself or your revision of it.
+"""

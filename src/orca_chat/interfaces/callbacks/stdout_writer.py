@@ -19,7 +19,8 @@ class StdoutWriter(AsyncCallbackHandler):
     ) -> None:
         """Print a thinking message unless ``out_silent`` is present."""
         if tags and "out_silent" not in tags:
-            print("Thinking...", flush=True)
+            tag = next((t for t in tags if t.startswith("node_")), "node_unknown")
+            print(f"Entering node '{tag[5:]}' ...")
 
     async def on_llm_new_token(
         self,

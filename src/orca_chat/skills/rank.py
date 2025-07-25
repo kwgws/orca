@@ -20,6 +20,10 @@ _MAX_DOCS: int = _CONFIG.llm.max_docs_to_llm
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
     async def _rank(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
         log.info("Entering node 'rank'")
+        node_config: RunnableConfig = {
+            **config,
+            "tags": [*(config.get("tags", [])), "node_rank"],
+        }
 
         documents = state.payload.get("documents", [])
         if not documents or not isinstance(documents, list):
@@ -28,15 +32,14 @@ def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
 
         prompt = cfg.prompt.format_messages(
             context=state.get_context(),
-            chat_history=state.get_abridged_history(),
-            input=state.get_last_message(),
+            input=state.payload.get("topic") or state.get_last_message(),
         )
 
         tokens: list[str] = []
-        async for chunk in llm.astream(prompt, config=config):
+        async for chunk in llm.astream(prompt, config=node_config):
             tokens.append(str(chunk.content) or "")
-
         ai_message = "".join(tokens)
+
         try:
             data = json.loads(ai_message)
             norm = [[int(x) for x in pair] for pair in data]
@@ -45,13 +48,11 @@ def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
         except Exception as e:
             log.warning("Error during JSON handling: %s", e)
             docs = documents
-
         docs = docs[:_MAX_DOCS]
 
         for i, doc in enumerate(docs):
             title = doc.metadata.get("title", "") or doc.metadata.get("source", "<no title>")
             log.info("Rank #%d: %s", i, title)
-
         return {"payload": {**state.payload, "documents": docs}}
 
     return _rank

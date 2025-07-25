@@ -1,37 +1,112 @@
-# orca_chat/skills/summarize.toml
-
+# orca_chat/skills/rank.toml
 node_type = "llm"
 
-model = "llama3:8b-instruct-q4_K_M"
-base_url = "${LLAMA3_4K_URL}"
+model = "llama3.2:3b"
+base_url = "${LLAMA32_3B_URL}"
 
 [params]
-temperature = 0.2
+temperature = 0.05
+top_p = 0.95
 
 [[messages]]
 role = "system"
 template = """
-You are a relevance scorer. Do not preface your responses or add commentary.
-Follow the user's formatting instructions precisely.
+You are a relevance scorer. Write only a single-line JSON array, like so:
+[[index, score], ...]
+Do **NOT** preface your responses or add commentary.
 """
 
 [[messages]]
-role = "placeholder"
-template = "chat_history"
+role = "user"
+template = """
+**DOCUMENTS**:
+[1] "Monetary policy and the Panic of 1893: The role of silver"
+[3] "Railroad overbuilding and 19th-century financial crises"
+[4] "Panic attacks: causes, symptoms, and treatment"
+[8] "Long-run market cycles: 1900-2000 overview"
+[11] "Political satire and the Panic of 1893 in cartoons"
+[14] "Sherman Silver Purchase Act: text and analysis"
+
+**TOPIC**:
+economic origins of the Panic of 1893 in the United States
+"""
 
 [[messages]]
 role = "assistant"
-template = "{context}"
+template = "[[1, 5], [3, 4], [4, 0], [8, 1], [11, 3], [14, 5]]"
 
 [[messages]]
-role = "human"
+role = "user"
 template = """
-Score each document from 0 to 5 based on its relevance to our conversation.
-Reply only with a JSON array [[index, score], ...] containing your scores.
+**DOCUMENTS**:
+[7] "Photovoltaic pump efficiency in arid regions"
+[9] "Impact of drip irrigation on maize yields, Kenya"
 
-Example: for a discussion about human colonization of Titan with the docs
-1. Titan (Mythology), 2. Titan (Moon), 3. History of NASA, you'd reply:
-[[1, 0], [2, 4], [3, 2]]
+**TOPIC**:
+solar-powered irrigation in sub-Saharan Africa
+"""
 
-Return nothing but the JSON array.
+[[messages]]
+role = "assistant"
+template = "[[7, 5], [9, 4]]"
+
+[[messages]]
+role = "user"
+template = """
+**DOCUMENTS**:
+[1] "AES-GCM performance on ARM Cortex-M"
+[3] "Time-synchronized key rotation for LPWAN"
+[5] "TLS 1.3 handshake overview"
+[8] "Physical unclonable functions for device ID"
+
+**TOPIC**:
+preventing replay attacks in IoT sensor networks
+"""
+
+[[messages]]
+role = "assistant"
+template = "[[1, 3], [3, 5], [5, 2], [8, 4]]"
+
+[[messages]]
+role = "user"
+template = """
+**DOCUMENTS**:
+[2] "'I am silver and exact': Mirrors in Sylvia Plath's writings"
+[5] "Optical glass coatings for high-reflectivity mirrors"
+[9] "Reflections of the self: Mirror symbolism in confessional poetry"
+
+**TOPIC**:
+use of mirror imagery to explore self-identity in Sylvia Plath's poem 'Mirror'
+"""
+
+[[messages]]
+role = "assistant"
+template = "[[2, 5], [5, 0], [9, 4]]"
+
+[[messages]]
+role = "user"
+template = """
+**DOCUMENTS**:
+[1] "Linguistic relativity and focal color naming"
+[2] "Cross-cultural study of blue/green boundaries"
+[3] "Neuroscience of color constancy"
+[4] "Anthropology of dye symbolism in textiles"
+[5] "Market research on product color preference"
+
+**TOPIC**:
+cultural influences on color perception
+"""
+
+[[messages]]
+role = "assistant"
+template = "[[1, 5], [2, 4], [3, 2], [4, 3], [5, 1]]"
+
+[[messages]]
+role = "user"
+template = """
+**DOCUMENTS**:
+{context}
+
+**TOPIC**:
+{input}
 """

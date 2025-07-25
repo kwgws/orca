@@ -16,10 +16,9 @@ log = getLogger(__name__)
 def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
     async def _summarize(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
         log.info("Entering node 'summarize'")
-
         node_config: RunnableConfig = {
             **config,
-            "tags": [*(config.get("tags", [])), "out_silent"],
+            "tags": [*(config.get("tags", [])), "node_summarize"],
         }
 
         prompt = cfg.prompt.format_messages(

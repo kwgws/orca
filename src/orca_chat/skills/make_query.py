@@ -22,6 +22,7 @@ def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
         }
 
         prompt = cfg.prompt.format_messages(
+            chat_history=state.get_abridged_history(),
             input=state.get_last_message(),
         )
 

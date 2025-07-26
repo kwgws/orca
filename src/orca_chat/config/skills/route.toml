@@ -1,75 +1,51 @@
 # orca_chat/skills/route.toml
 node_type = "llm"
 
-model = "llama3.2:3b"
-base_url = "${LLAMA32_3B_URL}"
+model = "llama3:8b-instruct-q4_K_M"
+base_url = "${LLAMA3_4K_URL}"
 
 [params]
-temperature = 0.025
-top_p = 0.95
+temperature = 0.1
 
 [[messages]]
 role = "system"
 template = """
 You are a router that decides whether a user message requires a Wikipedia
-lookup or can be handled directly via chat. You must respond with _only_
-the word "wiki" or "chat". Use "wiki" if the message asks about factual,
-historical, scientific, or current events. Use "chat" for all other
-types: conversation, math, writing, or general knowledge.
-"""
+lookup or can be handled directly via the chat model.
 
-[[messages]]
-role = "human"
-template = "Help me plan my day."
+Reply "wiki" when the user's request hinges on external, verifiable facts:
+- Objective knowledge: specific dates, statistics, people, places, etc.
+- Current or very recent events; news.
+- Any query where > 30% of the answer would require fact-checking or citations
+  you can't reliably provide from memory.
+Heuristic: If you'd normally open Wikipedia to be sure, reply "wiki."
 
-[[messages]]
-role = "assistant"
-template = "chat"
+Reply "chat" for everything else:
+- Subjective or advisory: opinion, brainstorming, coaching, emotional support.
+- Creative work: stories, poems, jokes, role-play, code snippets.
+- Math & logic: calculations, proofs, puzzles.
+- General knowledge you can explain without sourcing.
+- User-supplied text transformations: summaries, edits, translations.
+- Casual conversation & small talk.
 
-[[messages]]
-role = "human"
-template = "Why was the Berlin Wall built?"
+Again, respond _ONLY_ with one of these two words: wiki or chat
 
-[[messages]]
-role = "assistant"
-template = "wiki"
+Examples:
+Help me plan my day.
+ > chat
 
-[[messages]]
-role = "human"
-template = """
+Why was the Berlin wall built?
+ > wiki
+
 Can you help me debug this?
-    def foo(x):
-        return x[0]
-    foo(5)
+ > chat
+
+Hello! What can you tell me about yourself?
+ > chat
+
+Let's talk about revenge as a metaphor in 'Moby Dick.'
+ > wiki
 """
-
-[[messages]]
-role = "assistant"
-template = "chat"
-
-[[messages]]
-role = "human"
-template = "Hello! What can you tell me about yourself?"
-
-[[messages]]
-role = "assistant"
-template = "chat"
-
-[[messages]]
-role = "human"
-template = "Let's talk about revenge as a theme in 'Moby Dick'."
-
-[[messages]]
-role = "assistant"
-template = "wiki"
-
-[[messages]]
-role = "human"
-template = "What's a good limerick about a goat?"
-
-[[messages]]
-role = "assistant"
-template = "chat"
 
 [[messages]]
 role = "human"

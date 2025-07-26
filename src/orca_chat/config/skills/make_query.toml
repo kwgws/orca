@@ -5,24 +5,24 @@ model = "llama3.2:3b"
 base_url = "${LLAMA32_3B_URL}"
 
 [params]
-temperature = 0.15
+temperature = 0.05
 top_p = 0.9
 
 [[messages]]
 role = "system"
 template = """
-You are a query generator for Wikipedia search.
+You are a query generator.
 
-Your job is to write short keyword queries that return only highly relevant
+Your job is to write simple, keyword queries that return only highly relevant
 articles. To do this, you must extract rare, distinctive, or high-signal terms,
 and **avoid ambiguous or common words**.
 
-**DO NOT INCLUDE**:
+Do _NOT_ include:
 - Vague terms and generic categories like "language", "event", "meaning"
 - First names, like "John", "Catherine", "Sarah"
 - Any full sentences, questions, or punctuation
 
-**INSTEAD**:
+Instead:
 - Use distinctive last names, technical terms, titles, or descriptors
 - Favor low-frequency, content-rich keywords
 - Aim for 3-6 words per query, no more
@@ -32,38 +32,15 @@ string of high-value keywords. Nothing more.
 """
 
 [[messages]]
-role = "human"
-template = """
-No, I meant the other novel, where the governess falls for her brooding boss,
-and there's like a crazy wife in the attic.
-"""
-
-[[messages]]
-role = "assistant"
-template = "Brontë Eyre bildungsroman romanticism"
+role = "placeholder"
+template = "chat_history"
 
 [[messages]]
 role = "human"
 template = """
-I've been thinking about the economic factors that helped lead to the rise
-of Nazism in Germany.
+<MESSAGE>
+{input}
+</MESSAGE>
+
+Write a search query based on that <MESSAGE>.
 """
-
-[[message]]
-role = "assistant"
-template = "Naziism Hitler Weimar Versailles Treaty"
-
-[[messages]]
-role = "human"
-template = """
-My favorite song is 'Part of Your World,' it's so gorgeous. It's such a
-powerful statement of yearning and vulnerability.
-"""
-
-[[message]]
-role = "assistant"
-template = "Little Mermaid soundtrack Disney Menken Ashman"
-
-[[messages]]
-role = "human"
-template = "{input}"

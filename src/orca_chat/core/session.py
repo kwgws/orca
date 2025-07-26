@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Self, overload
 
+from langchain_core.documents import Document
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -21,7 +22,11 @@ from ..loaders import load_config
 Predicate = Callable[["ChatSession"], bool]
 
 # ...
-_MAX_ROUNDS: int = load_config().llm.max_chat_rounds_to_llm
+_CONFIG = load_config()
+_DOC_FORMAT_STR: str = _CONFIG.llm.doc_format_str
+_MAX_DOC_LENGTH: int = _CONFIG.llm.max_doc_length
+_MAX_DOCS: int = _CONFIG.llm.max_docs
+_MAX_ROUNDS: int = _CONFIG.llm.max_chat_rounds_to_llm
 
 # ...
 _MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
@@ -96,9 +101,37 @@ class ChatSession:
             history = [AIMessage(summary), *history]
         return history
 
-    def get_context(self) -> str:
-        """Return context string from payload."""
-        return self.payload.get("context", "")
+    def get_documents(
+        self,
+        *,
+        max_docs: int | None = _MAX_DOCS,
+        max_doc_length: int | None = _MAX_DOC_LENGTH,
+        prefer_summary=False,
+    ) -> str:
+        """Return document list as string from payload."""
+        docs: list[Document] = self.payload.get("documents", [])
+        if not docs:
+            return ""
+        if max_docs and max_docs > 0:
+            docs = docs[:max_docs]
+
+        documents: list[str] = []
+        for i, doc in enumerate(docs):
+            content = (
+                doc.metadata.get("summary") or doc.page_content
+                if prefer_summary
+                else doc.page_content
+            )
+            if max_doc_length and max_doc_length > 0:
+                content = content[:max_doc_length]
+            documents.append(
+                _DOC_FORMAT_STR.format(
+                    index=i,
+                    source=doc.metadata.get("source", "<unknown>"),
+                    content=doc.page_content,
+                )
+            )
+        return "\n\n\n---\n\n\n".join(documents)
 
     @overload
     def with_message(self, msg: tuple[str, str]) -> Self: ...

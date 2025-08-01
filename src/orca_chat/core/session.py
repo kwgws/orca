@@ -12,6 +12,9 @@ from .message import Message
 __all__: Final = ["Session", "SessionStore"]
 
 
+ABRIDGED_ROUNDS: Final[int] = 2
+
+
 # ===============================
 # Session class
 # ===============================
@@ -104,7 +107,7 @@ class Session:
     def get_history_abridged(
         self,
         *,
-        max_rounds: int | None = None,
+        max_rounds=ABRIDGED_ROUNDS,
         drop_input=True,
     ) -> list[Message]:
         """Abridged chat log, optionally hiding the last human turn.
@@ -115,12 +118,12 @@ class Session:
         Parameters
         ----------
         max_rounds
-            If given, returns at most that many (human+AI) pairs.
+            Returns at most this many (human+AI) pairs.
         drop_input
             Use when you do *not* see the user's current question again (e.g.
             because it is being provided to the LLM as ``input``).
         """
-        if max_rounds and len(self) > max_rounds * 2:
+        if len(self) > max_rounds * 2:
             history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
             if (summary := self.payload.get("summary")) is not None:
                 history = [Message("ai", summary), *history]

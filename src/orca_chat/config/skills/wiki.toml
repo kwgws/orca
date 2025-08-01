@@ -1,8 +1,0 @@
-# orca_chat/skills/wiki.toml
-
-node_type = "rag"
-
-[params]
-lang = "en"
-top_k_results = 20
-doc_content_chars_max = 4_000

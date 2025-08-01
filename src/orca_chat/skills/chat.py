@@ -1,37 +1,49 @@
 """orca_chat/skills/chat.py"""
 
-from logging import getLogger
-from typing import Any
+from typing import Any, cast
 
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.language_models import BaseChatModel
+from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
-from langchain_ollama import ChatOllama
-from langgraph.graph.state import StateNode
 
-from ..core.session import ChatSession
-from ..loaders import LLMConfig
+from ..core import Message, Node, Session
 
-log = getLogger(__name__)
+__all__ = ["build_node"]
+
+NAME = "chat"
+TAGS = {"llm", "stream", NAME}
 
 
-def build(cfg: LLMConfig, *, llm: ChatOllama, **kwargs) -> StateNode:
-    async def _chat(state: ChatSession, config: RunnableConfig) -> dict[str, Any]:
-        log.info("Entering node 'chat'")
-        node_config: RunnableConfig = {
-            **config,
-            "tags": [*(config.get("tags", [])), "node_chat", "out_stream"],
-        }
-
-        prompt = cfg.prompt.format_messages(
-            chat_history=state.get_abridged_history(),
-            context=state.get_documents(),
+def build_node(llm: BaseChatModel, **_: Any):
+    async def _factory(state: Session, config: RunnableConfig) -> Session:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are an AI assistant."),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}"),
+            ]
+        ).format_messages(
+            chat_history=[msg.as_tuple() for msg in state.get_history_abridged()],
             input=state.get_last_message(),
         )
 
-        tokens: list[str] = []
-        async for chunk in llm.astream(prompt, config=node_config):
-            tokens.append(str(chunk.content) or "")
+        cfg: RunnableConfig = {
+            **config,
+            "tags": [*(config.get("tags", [])), *TAGS],
+        }
+        run = llm
+        if "callbacks" in cfg:
+            run = cast(BaseChatModel, llm.with_config(callbacks=cfg.pop("callbacks")))
 
-        ai_message = ("assistant", "".join(tokens))
-        return {"history": [*state.history, ai_message]}
+        chunks: list[str] = []
+        async for chunk in run.astream(prompt, config=cfg):
+            chunks.append(str(chunk.content) or "")
 
-    return _chat
+        return state.with_message(Message("ai", "".join(chunks)))
+
+    return Node(
+        name=NAME,
+        factory=_factory,
+        tags=frozenset(TAGS),
+    )

@@ -1,8 +1,0 @@
-[llm]
-max_chat_rounds_to_llm = 5
-doc_format_str = "## [{index}]({source})\n{content}"
-max_doc_length = 2_000
-max_docs = 3
-
-[rag]
-relevance_threshold = 0.3

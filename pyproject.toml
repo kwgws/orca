@@ -3,40 +3,29 @@ name = "orca"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-license = "Apache-2.0"
-requires-python = ">=3.12, <4"
+requires-python = ">=3.13"
 dependencies = [
-    "fastapi >=0.116, <1",
-    "grandalf >=0.8, <1",
-    "langchain-chroma >=0.2, <0.3",
-    "langchain-community >=0.3, <0.4",
-    "langchain-ollama >=0.3, <0.4",
-    "langgraph >=0.5, <1",
-    "wikipedia >=1.4, <2",
+    "langchain-community>=0.3.27",
+    "langchain-openai>=0.3.28",
+    "langgraph>=0.6.2",
 ]
-
-[project.urls]
-Repository = "https://github.com/kwgws/orca.git"
 
 [dependency-groups]
 dev = [
-    "pytest >=8.4",
-    "pytest-asyncio >=1",
-    "ruff >=0.12, <1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "ruff>=0.12.7",
 ]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
-fix = true
+target-version = "py313"
+fix=true
 lint.select = [
-    "E",  # pycodestyle errors
-    "F",  # Pyflakes
-    "B",  # Bugbear
+    "B",  # bugbear
+    "E",  # pycodestyle
+    "F",  # pyflakes
     "I",  # isort
-    "UP", # pyupgrade
-    "RUF" # Ruff-specific goodies
+    "RUF",  # ruff
+    "UP",  # pyupgrade
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["src"]

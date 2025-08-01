@@ -2,170 +2,203 @@
 
 import asyncio
 import json
-from collections.abc import Callable, Mapping, MutableMapping, Sequence
-from dataclasses import asdict, dataclass, field, replace
-from pathlib import Path
-from typing import Any, Self, overload
+from collections.abc import Iterator, Mapping, Set
+from dataclasses import dataclass, field, replace
+from typing import Any, Final, Self
+from uuid import uuid4
 
-from langchain_core.documents import Document
-from langchain_core.messages import (
-    AIMessage,
-    BaseMessage,
-    HumanMessage,
-    SystemMessage,
-    ToolMessage,
-)
+from .message import Message
 
-from ..loaders import load_config
-
-# ...
-Predicate = Callable[["ChatSession"], bool]
-
-# ...
-_CONFIG = load_config()
-_DOC_FORMAT_STR: str = _CONFIG.llm.doc_format_str
-_MAX_DOC_LENGTH: int = _CONFIG.llm.max_doc_length
-_MAX_DOCS: int = _CONFIG.llm.max_docs
-_MAX_ROUNDS: int = _CONFIG.llm.max_chat_rounds_to_llm
-
-# ...
-_MSG_TYPE_MAP: dict[str, type[BaseMessage]] = {
-    "system": SystemMessage,
-    "ai": AIMessage,
-    "assistant": AIMessage,
-    "tool": ToolMessage,
-    "human": HumanMessage,
-    "user": HumanMessage,
-}
+__all__: Final = ["Session", "SessionStore"]
 
 
-def tuple_to_message(role: str, content: str) -> BaseMessage:
-    """Return :class:`BaseMessage` from ``role`` and ``content``."""
-    try:
-        cls = _MSG_TYPE_MAP[role.lower()]
-        return cls(content=content)
-    except KeyError as e:
-        role_list = "[" + ", ".join(f"'{k}'" for k in _MSG_TYPE_MAP.keys()) + "]"
-        raise ValueError(f"Role '{role}' does not match any of {role_list}") from e
+# ===============================
+# Session class
+# ===============================
 
 
-def message_to_tuple(msg: BaseMessage) -> tuple[str, str]:
-    """Return ``(role, content)`` from :class:`BaseMessage`."""
-    return msg.type.lower(), str(msg.content)
-
-
-@dataclass(slots=True)
-class ChatSession:
-    """Container for chat history and arbitrary payload data.
+@dataclass(slots=True, frozen=True)
+class Session:
+    """Immutable container for conversation state.
 
     Parameters
     ----------
+    session_id
+        Unique hex-encoded UUID4 generated on demand.
     history
-        Chronological ``(role, content)`` pairs. Role names follow the
-        LangChain convention.
+        Ordered list of :class:`Message` objects.
     payload
-        Additional JSON-serializable data.
+        Arbitrary key/value store for *derived* data (eg summaries,
+        embeddings, sentiment scores, user metadata, etc).
     """
 
-    history: list[tuple[str, str]] = field(default_factory=list)
+    session_id: str = field(default_factory=lambda: uuid4().hex)
+    history: list[Message] = field(default_factory=list)
     payload: dict[str, Any] = field(default_factory=dict)
 
-    def as_messages(self) -> list[BaseMessage]:
-        """Return ``history`` as :class:`BaseMessage` instances."""
-        return [tuple_to_message(r, c) for r, c in self.history]
+    # - - - - - - - - - - - - - - - -
+    # Constructors
+    # - - - - - - - - - - - - - - - -
 
     @classmethod
-    def from_messages(cls, messages: Sequence[BaseMessage], **payload: Mapping[str, Any]) -> Self:
-        """Create session from sequence of :class:`BaseMessage`."""
-        return cls(history=[message_to_tuple(msg) for msg in messages], payload=dict(payload))
+    def from_dict(cls, data: Mapping[str, Any], **kwargs: Any) -> Self:
+        """Re-hydrate from a JSON-like mapping.
+
+        Unknown keys are ignored; explicit *kwargs* win over *data*. Raises
+        :class:`ValueError` when mandatory fields are missing or malformed.
+        """
+        try:
+            params: dict[str, Any] = {}
+            if "session_id" in data:
+                params["session_id"] = data["session_id"]
+            if "history" in data:
+                history = [Message.from_dict(msg) for msg in data["history"]]
+                params["history"] = history
+            if "payload" in data:
+                params["payload"] = data["payload"]
+            return cls(**params | kwargs)
+        except (KeyError, ValueError, TypeError) as e:
+            raise ValueError("Could not parse session") from e
 
     @classmethod
-    def from_state(cls, state: Mapping[str, Any]) -> Self:
-        """Create session from raw state mapping."""
-        return cls(**state)
+    def from_json(cls, json_str: str, **kwargs: Any) -> Self:
+        """Parse from a raw JSON string."""
+        try:
+            return cls.from_dict(json.loads(json_str), **kwargs)
+        except (ValueError, json.JSONDecodeError) as e:
+            raise ValueError("Could not parse session") from e
 
-    def get_last_message(self, *, roles: tuple[str, ...] = ("human",), use_disambiguation=True):
-        """Return most recent message as tuple matching ``roles``."""
-        for role, content in reversed(self.history):
-            if role not in roles:
-                continue
-            if role in {"human", "user"} and use_disambiguation:
-                return self.payload.get("disambiguation", "") or content
-            return content
-        return ""
+    # - - - - - - - - - - - - - - - -
+    # Copy helpers; state updates
+    # - - - - - - - - - - - - - - - -
 
-    def get_abridged_history(self) -> list[BaseMessage]:
-        """Return conversation history excluding last message."""
-        history = self.as_messages()[-_MAX_ROUNDS * 2 : -1]
-        if summary := self.payload.get("summary"):
-            history = [AIMessage(summary), *history]
-        return history
-
-    def get_documents(
-        self,
-        *,
-        max_docs: int | None = _MAX_DOCS,
-        max_doc_length: int | None = _MAX_DOC_LENGTH,
-        prefer_summary=False,
-    ) -> str:
-        """Return document list as string from payload."""
-        docs: list[Document] = self.payload.get("documents", [])
-        if not docs:
-            return ""
-        if max_docs and max_docs > 0:
-            docs = docs[:max_docs]
-
-        documents: list[str] = []
-        for i, doc in enumerate(docs):
-            content = (
-                doc.metadata.get("summary") or doc.page_content
-                if prefer_summary
-                else doc.page_content
-            )
-            if max_doc_length and max_doc_length > 0:
-                content = content[:max_doc_length]
-            documents.append(
-                _DOC_FORMAT_STR.format(
-                    index=i,
-                    source=doc.metadata.get("source", "<unknown>"),
-                    content=doc.page_content,
-                )
-            )
-        return "\n\n\n---\n\n\n".join(documents)
-
-    @overload
-    def with_message(self, msg: tuple[str, str]) -> Self: ...
-
-    @overload
-    def with_message(self, msg: BaseMessage) -> Self: ...
-
-    def with_message(self, msg) -> Self:
-        """Copy session with ``msg`` appended to history."""
-        role, content = msg if isinstance(msg, tuple) else message_to_tuple(msg)
-        new_history = [*self.history, (role, content)]
-        return replace(self, history=new_history)
+    def with_message(self, msg: Message, **kwargs: Any) -> Self:
+        """Return new session with *msg* appended to the chat history."""
+        return replace(self, history=[*self.history, msg], **kwargs)
 
     def with_payload(self, **kwargs: Any) -> Self:
-        """Copy session with updated payload values."""
-        new_payload: MutableMapping[str, Any] = {**self.payload, **kwargs}
-        return replace(self, payload=new_payload)
+        """Return new session with *kwargs* merged into the payload."""
+        return replace(self, payload=self.payload | kwargs)
 
-    async def save(self, path: str | Path) -> None:
-        """Write session to ``path`` as JSON."""
-        path = Path(path)
-        await asyncio.to_thread(path.write_text, json.dumps(asdict(self), indent=2))
+    # - - - - - - - - - - - - - - - -
+    # Interfaces
+    # - - - - - - - - - - - - - - - -
 
-    @classmethod
-    async def load(cls, path: str | Path) -> Self:
-        """Load session from ``path`` written by :meth:`save`."""
-        path = Path(path)
-        if not path.is_file():
-            raise FileNotFoundError(path)
+    def get_history(
+        self,
+        *,
+        drop_input=False,
+    ) -> list[Message]:
+        """Entire chat log, optionally hiding the last human turn.
 
-        raw = await asyncio.to_thread(path.read_text)
-        data: Mapping[str, Any] = json.loads(raw)
+        Parameters
+        ----------
+        drop_input
+            Use when you do *not* see the user's current question again (e.g.
+            because it is being provided to the LLM as ``input``).
+        """
+        if self.history and drop_input and self.history[-1].role == "human":
+            return self.history[:-1]
+        return self.history
 
-        return cls(
-            history=[tuple(msg) for msg in data.get("history", [])],
-            payload=data.get("payload", {}),
-        )
+    def get_history_abridged(
+        self,
+        *,
+        max_rounds: int | None = None,
+        drop_input=True,
+    ) -> list[Message]:
+        """Abridged chat log, optionally hiding the last human turn.
+
+        When a *summary* exists in *payload*, it is subbed in for the oldest
+        ai message so the model keeps the gist of older turns.
+
+        Parameters
+        ----------
+        max_rounds
+            If given, returns at most that many (human+AI) pairs.
+        drop_input
+            Use when you do *not* see the user's current question again (e.g.
+            because it is being provided to the LLM as ``input``).
+        """
+        if max_rounds and max_rounds > len(self) > 0:
+            history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
+            if (summary := self.payload.get("summary")) is not None:
+                history = [Message("ai", summary), *history]
+            return history
+        return self.get_history(drop_input=drop_input)
+
+    def get_last_message(
+        self,
+        *,
+        roles: Set[str] = {"human"},
+    ) -> str:
+        """Return *content* of the last message whose role matches *roles*.
+
+        If no matches are found, an empty string is returned.
+        """
+        for msg in reversed(self.history):
+            if msg.role not in roles:
+                continue
+            return msg.content
+        return ""
+
+    # - - - - - - - - - - - - - - - -
+    # Serializers
+    # - - - - - - - - - - - - - - - -
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return as a JSON-friendly dict mapping."""
+        return {
+            "session_id": self.session_id,
+            "history": [msg.as_dict() for msg in self.history],
+            "payload": self.payload,
+        }
+
+    def as_json(self, **kwargs: Any) -> str:
+        """Return as a raw JSON string."""
+        return json.dumps(self.as_dict(), **kwargs)
+
+    def __iter__(self) -> Iterator[Message]:
+        return iter(self.history)
+
+    def __len__(self) -> int:
+        return len(self.history)
+
+
+# ===============================
+# SessionStore class
+# ===============================
+
+
+@dataclass(slots=True)
+class SessionStore:
+    """In-memory mapping of *session_id* to :class:`Session`."""
+
+    _store: dict[str, Session] = field(default_factory=dict)
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    async def put(self, session: Session) -> None:
+        async with self._lock:
+            self._store[session.session_id] = session
+
+    async def get(self, session_id: str) -> Session | None:
+        async with self._lock:
+            return self._store.get(session_id)
+
+    async def delete(self, session_id: str) -> None:
+        async with self._lock:
+            self._store.pop(session_id, None)
+
+    async def all(self) -> list[Session]:
+        async with self._lock:
+            return [s for s in self._store.values()]
+
+    async def clear(self) -> None:
+        async with self._lock:
+            self._store.clear()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *_: Any) -> None:
+        await self.clear()

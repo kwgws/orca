@@ -12,7 +12,7 @@ from .message import Message
 __all__: Final = ["DEFAULT_MAX_ROUNDS", "Session", "SessionStore"]
 
 
-DEFAULT_MAX_ROUNDS: Final[int] = 2
+DEFAULT_MAX_ROUNDS: Final[int] = 6
 
 
 # ===============================
@@ -126,7 +126,7 @@ class Session:
         if len(self) > max_rounds * 2:
             history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
             if (summary := self.payload.get("summary")) is not None:
-                history = [Message("ai", summary), *history]
+                history = [Message("ai", summary), *history[-2:]]
             return history
         return self.get_history(drop_input=drop_input)
 

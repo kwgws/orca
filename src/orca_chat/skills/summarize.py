@@ -16,14 +16,15 @@ class SummarizeSkill(LLMSkillMixin, Skill):
     """Summarize the conversation and store it in the session payload."""
 
     name: ClassVar[str] = "summarize"
-    tags: ClassVar[frozenset] = frozenset({"llm", name})
+    tags: ClassVar[frozenset] = frozenset({"llm", "stream", name})
     llm_alias: ClassVar[str] = "llama3"
 
     async def __call__(self, state: Session, config: RunnableConfig) -> Session:
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "Summarize the following conversation in no more than a paragraph."),
+                ("system", "You are an AI assistant."),
                 MessagesPlaceholder("chat_history"),
+                ("human", "Summarize the conversation so far in no more than a paragraph."),
             ]
         ).format_messages(
             chat_history=[msg.as_tuple() for msg in state.get_history_abridged()],

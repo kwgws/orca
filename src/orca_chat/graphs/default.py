@@ -34,7 +34,7 @@ async def build_graph_default():
             (
                 chat_node,
                 summarize_node,
-                lambda state: len(state.history) >= DEFAULT_MAX_ROUNDS,
+                lambda state: len(state.history) >= DEFAULT_MAX_ROUNDS * 2,
             )
         ],
     )

@@ -10,21 +10,23 @@ class StreamStdOut(BaseCallbackHandler):
 
     def on_llm_start(
         self,
-        *args: Any,
-        tags: list[str] | None = None,
+        serialized: dict[str, Any],
+        prompts: list[str],
         **kwargs: Any,
     ) -> Any:
         """Run when LLM starts running."""
-        if tags and "stream" in tags:
-            print("\nThinking...\n")
+        print("## TO MODEL ##")
+        for prompt in prompts:
+            print(prompt)
+        print("####\n")
 
     @override
     def on_llm_new_token(
         self,
         token: str,
-        *,
+        *args,
         tags: list[str] | None = None,
-        **kwargs: Any,
+        **_,
     ) -> None:
         """Run on new LLM token."""
         if tags and "stream" in tags:
@@ -34,7 +36,7 @@ class StreamStdOut(BaseCallbackHandler):
         self,
         *args: Any,
         tags: list[str] | None = None,
-        **kwargs: Any,
+        **_,
     ) -> None:
         """Run when LLM ends running."""
         if tags and "stream" in tags:

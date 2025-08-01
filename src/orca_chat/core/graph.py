@@ -6,7 +6,7 @@ from typing import Final, Protocol
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from .node import Node, NodeStore
+from .node import Node
 from .session import Session
 
 __all__: Final = ["build_graph"]
@@ -30,15 +30,13 @@ ConditionalEdge = tuple[Node, Node, Predicate]
 * **predicate**: A :pydata:`Predicate`, evaluates ``True`` or ``False``.
 """
 
-RoutingTable = dict[Node, list[tuple[Node, Predicate]]]
+RoutingTable = dict[str, list[tuple[str, Predicate]]]
 """Mapping of ``src`` to list of ``(dst, predicate)`` pairs."""
 
 
 async def build_graph(
     pipeline: Sequence[Node],
     conditionals: Sequence[ConditionalEdge] | None = None,
-    *,
-    node_store: NodeStore,
 ) -> CompiledStateGraph:
     """Wire *pipeline* nodes into a :class:`CompiledStateGraph`.
 
@@ -52,9 +50,6 @@ async def build_graph(
         ``(src, dst, predicate)``. During runtime the *predicate* is evaluated
         **sequentially**; the first ``dst`` whose predicate returns ``True`` is
         taken. When none match, the graph falls through to :pydata:`END`.
-    node_store
-        Registry of node *factories*. Factories must accept an optional LLM
-        instance as their first argument when they are tagged accordingly.
 
     Returns
     -------
@@ -74,7 +69,6 @@ async def build_graph(
     ...     conditionals=[
     ...         (parse_node, parse_node, lambda s: s.ok),
     ...     ],
-    ...     node_store=my_node_store,
     ... )
     >>> result = await graph.arun(Session())
     """
@@ -83,22 +77,18 @@ async def build_graph(
         raise ValueError("Cannot build graph with empty pipeline")
 
     graph = StateGraph(Session)
-    conditional_srcs = {src for src, *_ in conditionals or ()}
 
     # - - - - - - - - - - - - - - - -
     # 1. Add linear edges
     # - - - - - - - - - - - - - - - -
 
     for i, node in enumerate(pipeline):
-        node = await node_store.get(node.name)
-
-        # Add a default RunnableConfig, just in case.
         graph.add_node(node.name, node.factory)
 
         # Connect the previous node to *name* **unless** that previous node is
         # the *source* of a conditional edge. Conditional sources need to
         # decide at runtime where to go, so we leave them dangling for now.
-        if i > 0 and pipeline[i - 1] not in conditional_srcs:
+        if i > 0 and pipeline[i - 1].name not in {src.name for src, *_ in conditionals or ()}:
             graph.add_edge(pipeline[i - 1].name, node.name)
 
     # - - - - - - - - - - - - - - - -
@@ -112,7 +102,7 @@ async def build_graph(
         for src, dst, predicate in conditionals:
             if src not in pipeline or dst not in pipeline:
                 raise ValueError(f"Unknown conditional: {src.name!r}->{dst.name!r}")
-            routing_table.setdefault(src, []).append((dst, predicate))
+            routing_table.setdefault(src.name, []).append((dst.name, predicate))
 
         # Build a dedicated router closure for each *src*.
         for src, cases in routing_table.items():
@@ -129,7 +119,7 @@ async def build_graph(
                 return END
 
             # Wire up our dangling edges.
-            graph.add_conditional_edges(src.name, _router)
+            graph.add_conditional_edges(src, _router)
 
     # - - - - - - - - - - - - - - - -
     # 3. Finalize; return

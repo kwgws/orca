@@ -1,27 +1,28 @@
 """orca_chat/core/graph.py"""
 
-from collections.abc import Callable, Sequence
-from functools import partial
-from typing import Final
+from collections.abc import Sequence
+from typing import Final, Protocol
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from .llm import LLMStore
-from .node import NodeStore
+from .node import Node, NodeStore
 from .session import Session
 
 __all__: Final = ["build_graph"]
 
 
-Predicate = Callable[[], bool]
-"""A predicate evaluated against *Session* **state**.
+class Predicate(Protocol):
+    """A predicate evaluated against *Session* **state**.
 
-The predicate receives the **current** :class:`Session` and must return
-``True`` if the edge should be taken, ``False`` otherwise.
-"""
+    The predicate receives the **current** :class:`Session` and must return
+    ``True`` if the edge should be taken, ``False`` otherwise.
+    """
 
-ConditionalEdge = tuple[str, str, Predicate]
+    def __call__(self, state: Session) -> bool: ...
+
+
+ConditionalEdge = tuple[Node, Node, Predicate]
 """A conditional edge of the form ``(src, dst, predicate)``.
 
 * **src**: Node where the routing decision is made.
@@ -29,37 +30,28 @@ ConditionalEdge = tuple[str, str, Predicate]
 * **predicate**: A :pydata:`Predicate`, evaluates ``True`` or ``False``.
 """
 
-RoutingTable = dict[str, list[tuple[str, Predicate]]]
+RoutingTable = dict[Node, list[tuple[Node, Predicate]]]
 """Mapping of ``src`` to list of ``(dst, predicate)`` pairs."""
 
 
 async def build_graph(
-    pipeline: Sequence[str],
+    pipeline: Sequence[Node],
     conditionals: Sequence[ConditionalEdge] | None = None,
     *,
-    llm_store: LLMStore,
     node_store: NodeStore,
 ) -> CompiledStateGraph:
     """Wire *pipeline* nodes into a :class:`CompiledStateGraph`.
 
-    The function constructs a *LangGraph* state machine from a linear list of
-    *pipeline* node names. Every node is looked-up in *node_store* and, if it
-    requires an LLM, is partially applied with a model returned from the
-    provided :class:`LLMStore`.
-
     Parameters
     ----------
     pipeline
-        Names of the nodes **in execution order**. The first element becomes
+        Sequence of nodes **in execution order**. The first element becomes
         the *entry point*, the last the *finish point*.
     conditionals
         Optional list of *conditional edges* expressed as triples
         ``(src, dst, predicate)``. During runtime the *predicate* is evaluated
         **sequentially**; the first ``dst`` whose predicate returns ``True`` is
         taken. When none match, the graph falls through to :pydata:`END`.
-    llm_store
-        Registry of named chat models, consulted whenever a node factory is
-        tagged with ``"llm"``.
     node_store
         Registry of node *factories*. Factories must accept an optional LLM
         instance as their first argument when they are tagged accordingly.
@@ -78,11 +70,10 @@ async def build_graph(
     Examples
     --------
     >>> graph = await build_graph(
-    ...     pipeline=["load", "parse", "respond"],
+    ...     pipeline=[load_node, parse_node, parse_node],
     ...     conditionals=[
-    ...         ("parse", "respond", lambda s: s.ok),
+    ...         (parse_node, parse_node, lambda s: s.ok),
     ...     ],
-    ...     llm_store=my_llm_store,
     ...     node_store=my_node_store,
     ... )
     >>> result = await graph.arun(Session())
@@ -92,31 +83,23 @@ async def build_graph(
         raise ValueError("Cannot build graph with empty pipeline")
 
     graph = StateGraph(Session)
+    conditional_srcs = {src for src, *_ in conditionals or ()}
 
     # - - - - - - - - - - - - - - - -
     # 1. Add linear edges
     # - - - - - - - - - - - - - - - -
 
-    for i, name in enumerate(pipeline):
-        node = await node_store.get(name)
-        factory = node.factory
+    for i, node in enumerate(pipeline):
+        node = await node_store.get(node.name)
 
-        # Some factories expect an LLM as their first positional argument. We
-        # detect those via the "llm" tag and freeze the model into the partial
-        # so the graph can call it without knowing about LLMs.
-        if "llm" in node.tags:
-            llm = llm_store.get(node.llm_alias)
-            runnable = partial(factory, llm)
-        else:
-            runnable = factory
-        graph.add_node(name, runnable)
+        # Add a default RunnableConfig, just in case.
+        graph.add_node(node.name, node.factory)
 
         # Connect the previous node to *name* **unless** that previous node is
         # the *source* of a conditional edge. Conditional sources need to
         # decide at runtime where to go, so we leave them dangling for now.
-        skip_starts = {src for src, *_ in conditionals or ()}
-        if i > 0 and pipeline[i - 1] not in skip_starts:
-            graph.add_edge(pipeline[i - 1], name)
+        if i > 0 and pipeline[i - 1] not in conditional_srcs:
+            graph.add_edge(pipeline[i - 1].name, node.name)
 
     # - - - - - - - - - - - - - - - -
     # 2. Add conditional edges
@@ -128,7 +111,7 @@ async def build_graph(
         # Group edges by *src* to simplify router creation.
         for src, dst, predicate in conditionals:
             if src not in pipeline or dst not in pipeline:
-                raise ValueError(f"Unknown conditional: {src!r}->{dst!r}")
+                raise ValueError(f"Unknown conditional: {src.name!r}->{dst.name!r}")
             routing_table.setdefault(src, []).append((dst, predicate))
 
         # Build a dedicated router closure for each *src*.
@@ -146,12 +129,12 @@ async def build_graph(
                 return END
 
             # Wire up our dangling edges.
-            graph.add_conditional_edges(src, _router)
+            graph.add_conditional_edges(src.name, _router)
 
     # - - - - - - - - - - - - - - - -
     # 3. Finalize; return
     # - - - - - - - - - - - - - - - -
 
-    graph.set_entry_point(pipeline[0])
-    graph.set_finish_point(pipeline[-1])
+    graph.set_entry_point(pipeline[0].name)
+    graph.set_finish_point(pipeline[-1].name)
     return graph.compile()

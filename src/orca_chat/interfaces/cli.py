@@ -3,16 +3,9 @@
 import asyncio
 from collections.abc import AsyncIterator
 
-from langchain_openai import ChatOpenAI
-
-from ..core.callbacks import StreamStdOut
-
-llm = ChatOpenAI(
-    base_url="http://192.168.1.15:1234/v1",
-    model="meta-llama-3.1-8b-instruct",
-    streaming=True,
-    callbacks=[StreamStdOut()],
-)
+from ..callbacks import StreamStdOut
+from ..core import Message, Session
+from ..graphs.default import build_graph_default
 
 
 async def _yield_user_input() -> AsyncIterator[str]:
@@ -29,9 +22,16 @@ async def _yield_user_input() -> AsyncIterator[str]:
 
 
 async def _chat_loop() -> None:
+    graph = await build_graph_default()
+    session = Session()
     async for msg in _yield_user_input():
+        session = session.with_message(Message("human", msg))
         try:
-            await llm.ainvoke(msg)
+            result = await graph.ainvoke(
+                session,
+                config={"callbacks": [StreamStdOut()]},
+            )
+            session = Session.from_dict(result)
         except asyncio.CancelledError:
             print("\nRequest cancelled.")
 

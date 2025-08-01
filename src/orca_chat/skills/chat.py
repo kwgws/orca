@@ -1,23 +1,23 @@
 """orca_chat/skills/chat.py"""
 
-from typing import Any, Final, cast
+from dataclasses import dataclass
+from typing import ClassVar, Final
 
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
 
-from ..core import Message, Node, Session
+from ..core import LLMSkillMixin, Message, Session, Skill
 
-__all__: Final = ["build_node"]
-
-NAME: Final = "chat"
-TAGS: Final = {"llm", "stream", NAME}
-LLM_ALIAS: Final = "llama3"
+__all__: Final = ["ChatSkill"]
 
 
-def build_node(llm: BaseChatModel, **_: Any):
-    async def _factory(state: Session, config: RunnableConfig) -> Session:
+@dataclass(slots=True, frozen=True)
+class ChatSkill(LLMSkillMixin, Skill):
+    name: ClassVar[str] = "chat"
+    tags: ClassVar[frozenset] = frozenset({"llm", "stream", name})
+    llm_alias: ClassVar[str] = "llama3"
+
+    async def __call__(self, state: Session, config: RunnableConfig) -> Session:
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "You are an AI assistant."),
@@ -29,18 +29,15 @@ def build_node(llm: BaseChatModel, **_: Any):
             input=state.get_last_message(),
         )
 
-        cfg: RunnableConfig = {
-            **config,
-            "tags": [*(config.get("tags", [])), *TAGS],
-        }
-        run = llm
-        if "callbacks" in cfg:
-            run = cast(BaseChatModel, llm.with_config(callbacks=cfg.pop("callbacks")))
+        cfg: RunnableConfig = {**config, "tags": [*config.get("tags", []), *self.tags]}
+        run = (
+            self.llm.with_config(callbacks=cfg.pop("callbacks", None))
+            if "callbacks" in cfg
+            else self.llm
+        )
 
         chunks: list[str] = []
         async for chunk in run.astream(prompt, config=cfg):
             chunks.append(str(chunk.content) or "")
 
         return state.with_message(Message("ai", "".join(chunks)))
-
-    return Node(NAME, _factory, tags=frozenset(TAGS), llm_alias=LLM_ALIAS)

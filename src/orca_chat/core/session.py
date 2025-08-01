@@ -52,7 +52,7 @@ class Session:
             if "session_id" in data:
                 params["session_id"] = data["session_id"]
             if "history" in data:
-                history = [Message.from_dict(msg) for msg in data["history"]]
+                history = data["history"]
                 params["history"] = history
             if "payload" in data:
                 params["payload"] = data["payload"]
@@ -120,7 +120,7 @@ class Session:
             Use when you do *not* see the user's current question again (e.g.
             because it is being provided to the LLM as ``input``).
         """
-        if max_rounds and max_rounds > len(self) > 0:
+        if max_rounds and len(self) > max_rounds * 2:
             history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
             if (summary := self.payload.get("summary")) is not None:
                 history = [Message("ai", summary), *history]

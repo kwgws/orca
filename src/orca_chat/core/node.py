@@ -3,16 +3,16 @@
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Self, TypeVar, cast
+from typing import Any, Final, Self, TypeVar, cast
 
-__all__ = ["Node", "NodeStore"]
+__all__: Final = ["Node", "NodeStore"]
 
 T = TypeVar("T")
 
 
 @dataclass(slots=True, frozen=True)
 class Node[T]:
-    """A registry entry describing *how* to produce a resource.
+    """A registry entry describing how to create a graph node.
 
     The factory may be sync or async. Calling the Node returns the produced
     instance.
@@ -21,7 +21,7 @@ class Node[T]:
     name: str
     factory: Callable[..., Awaitable[T]]
     tags: frozenset[str] = field(default_factory=frozenset)
-    llm_alias: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     async def __call__(self, *args: Any, **kwargs: Any) -> T:
         return await self.factory(*args, **kwargs)
@@ -40,21 +40,20 @@ class NodeStore:
         factory: Callable[..., Any],
         *,
         tags: set[str] | None = None,
-        llm_alias: str | None = None,
-        **kwargs: Any,
+        metadata: dict[str, Any] | None = None,
     ) -> Node:
         """Add a node to the store."""
-        node = Node(
-            name=name,
-            factory=_make_async(factory),
-            tags=frozenset(tags or ()),
-            llm_alias=llm_alias,
-            **kwargs,
-        )
 
         async with self._lock:
             if name in self._store:
-                raise KeyError(f"Node {name!r} already exists")
+                raise KeyError(f"Node already exists: {name!r}")
+
+            node = Node(
+                name=name,
+                factory=_make_async(factory),
+                tags=frozenset(tags or {}),
+                metadata=metadata or {},
+            )
             self._store[name] = node
 
         return node
@@ -69,11 +68,7 @@ class NodeStore:
 
     async def get_factory(self, name: str) -> Callable[..., Awaitable[Any]]:
         """Return the factory callable registered under name."""
-        async with self._lock:
-            try:
-                return self._store[name].factory
-            except KeyError:
-                raise ValueError(f"Node not found: {name!r}") from None
+        return (await self.get(name)).factory
 
     async def all(self, *, filter_tags: set[str] | None = None) -> list[str]:
         """Return sorted list of node names, filtered by *filter_tags*."""
@@ -99,9 +94,8 @@ class NodeStore:
 
     async def __aiter__(self) -> AsyncGenerator[str]:
         async with self._lock:
-            names = sorted(self._store.keys())
-        for name in names:
-            yield name
+            for name in sorted(self._store.keys()):
+                yield name
 
     async def __aenter__(self) -> Self:
         return self
@@ -113,10 +107,11 @@ class NodeStore:
 def _make_async[T](factory: Callable[..., T | Awaitable[T]]) -> Callable[..., Awaitable[T]]:
     """Normalize *factory* so the result is always awaitable."""
 
-    async def _call(*args: Any, **kwargs: Any) -> T:
-        value = factory(*args, **kwargs)
-        if asyncio.iscoroutine(value):
-            return await value
-        return cast(T, value)
+    if asyncio.iscoroutinefunction(factory):
+        return factory
 
-    return _call
+    async def _wrapper(*args: Any, **kwargs: Any) -> T:
+        result = factory(*args, **kwargs)
+        return await result if asyncio.iscoroutine(result) else cast(T, result)
+
+    return _wrapper

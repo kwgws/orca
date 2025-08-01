@@ -9,10 +9,10 @@ from uuid import uuid4
 
 from .message import Message
 
-__all__: Final = ["Session", "SessionStore"]
+__all__: Final = ["DEFAULT_MAX_ROUNDS", "Session", "SessionStore"]
 
 
-ABRIDGED_ROUNDS: Final[int] = 2
+DEFAULT_MAX_ROUNDS: Final[int] = 2
 
 
 # ===============================
@@ -107,7 +107,7 @@ class Session:
     def get_history_abridged(
         self,
         *,
-        max_rounds=ABRIDGED_ROUNDS,
+        max_rounds=DEFAULT_MAX_ROUNDS,
         drop_input=True,
     ) -> list[Message]:
         """Abridged chat log, optionally hiding the last human turn.

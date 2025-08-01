@@ -9,24 +9,31 @@ class StreamStdOut(BaseCallbackHandler):
     def on_llm_start(
         self,
         *args: Any,
+        tags: list[str] | None = None,
         **kwargs: Any,
     ) -> Any:
         """Run when LLM starts running."""
-        print("\nThinking...\n")
+        if tags and "stream" in tags:
+            print("\nThinking...\n")
 
     @override
     def on_llm_new_token(
         self,
         token: str,
+        *,
+        tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         """Run on new LLM token."""
-        print(token, end="", flush=True)
+        if tags and "stream" in tags:
+            print(token, end="", flush=True)
 
     def on_llm_end(
         self,
         *args: Any,
+        tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         """Run when LLM ends running."""
-        print()
+        if tags and "stream" in tags:
+            print()

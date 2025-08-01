@@ -1,6 +1,6 @@
 """orca_chat/skills/chat.py"""
 
-from typing import Any, cast
+from typing import Any, Final, cast
 
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
@@ -9,10 +9,11 @@ from langchain_core.runnables import RunnableConfig
 
 from ..core import Message, Node, Session
 
-__all__ = ["build_node"]
+__all__: Final = ["build_node"]
 
-NAME = "chat"
-TAGS = {"llm", "stream", NAME}
+NAME: Final = "chat"
+TAGS: Final = {"llm", "stream", NAME}
+LLM_ALIAS: Final = "llama3"
 
 
 def build_node(llm: BaseChatModel, **_: Any):
@@ -42,8 +43,4 @@ def build_node(llm: BaseChatModel, **_: Any):
 
         return state.with_message(Message("ai", "".join(chunks)))
 
-    return Node(
-        name=NAME,
-        factory=_factory,
-        tags=frozenset(TAGS),
-    )
+    return Node(NAME, _factory, tags=frozenset(TAGS), llm_alias=LLM_ALIAS)

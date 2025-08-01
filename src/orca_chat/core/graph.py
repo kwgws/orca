@@ -39,14 +39,13 @@ async def build_graph(
     *,
     llm_store: LLMStore,
     node_store: NodeStore,
-    default_llm_alias="default",
 ) -> CompiledStateGraph:
     """Wire *pipeline* nodes into a :class:`CompiledStateGraph`.
 
     The function constructs a *LangGraph* state machine from a linear list of
     *pipeline* node names. Every node is looked-up in *node_store* and, if it
-    requires an LLM, is partially applied with the *default* model retrieved
-    from *llm_store*.
+    requires an LLM, is partially applied with a model returned from the
+    provided :class:`LLMStore`.
 
     Parameters
     ----------
@@ -64,9 +63,6 @@ async def build_graph(
     node_store
         Registry of node *factories*. Factories must accept an optional LLM
         instance as their first argument when they are tagged accordingly.
-    default_llm_alias
-        Alias to look-up in *llm_store* whenever an LLM-aware factory is wired
-        and a specific LLM alias is not provided internally.
 
     Returns
     -------
@@ -102,13 +98,14 @@ async def build_graph(
     # - - - - - - - - - - - - - - - -
 
     for i, name in enumerate(pipeline):
-        factory = await node_store.get_factory(name)
+        node = await node_store.get(name)
+        factory = node.factory
 
         # Some factories expect an LLM as their first positional argument. We
         # detect those via the "llm" tag and freeze the model into the partial
         # so the graph can call it without knowing about LLMs.
-        if "llm" in getattr(factory, "tags", ()):
-            llm = llm_store.get(default_llm_alias)
+        if "llm" in node.tags:
+            llm = llm_store.get(node.llm_alias)
             runnable = partial(factory, llm)
         else:
             runnable = factory

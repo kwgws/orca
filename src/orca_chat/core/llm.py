@@ -37,7 +37,7 @@ class LLMStore:
 
     def get(
         self,
-        alias: str,
+        alias: str | None,
         callbacks: Sequence[BaseCallbackHandler] | None = None,
         *,
         use_cache=True,
@@ -50,10 +50,18 @@ class LLMStore:
         """
 
         # Are we working with an instantiated LLM?
+        target = alias or "default"
         try:
-            llm = self._store[alias]
-        except KeyError as e:
-            raise ValueError(f"Unknown LLM alias: {alias!r}") from e
+            llm = self._store[target]
+        except KeyError:
+            if target != "default":
+                try:
+                    llm = self._store["default"]
+                except KeyError as e:
+                    raise ValueError(f"Unknown LLM alias: {alias!r}") from e
+            else:
+                raise ValueError("No default LLM registered") from None
+
         if isinstance(llm, BaseChatModel):
             return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
 

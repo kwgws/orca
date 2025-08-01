@@ -21,6 +21,7 @@ class Node[T]:
     name: str
     factory: Callable[..., Awaitable[T]]
     tags: frozenset[str] = field(default_factory=frozenset)
+    llm_alias: str | None = None
 
     async def __call__(self, *args: Any, **kwargs: Any) -> T:
         return await self.factory(*args, **kwargs)
@@ -37,14 +38,17 @@ class NodeStore:
         self,
         name: str,
         factory: Callable[..., Any],
+        *,
         tags: set[str] | None = None,
+        llm_alias: str | None = None,
         **kwargs: Any,
     ) -> Node:
         """Add a node to the store."""
         node = Node(
-            name,
-            _make_async(factory),
-            frozenset(tags or ()),
+            name=name,
+            factory=_make_async(factory),
+            tags=frozenset(tags or ()),
+            llm_alias=llm_alias,
             **kwargs,
         )
 
@@ -55,13 +59,21 @@ class NodeStore:
 
         return node
 
+    async def get(self, name: str) -> Node[Any]:
+        """Return the :class:`Node` registered under *name*."""
+        async with self._lock:
+            try:
+                return self._store[name]
+            except KeyError:
+                raise ValueError(f"Node not found: {name!r}") from None
+
     async def get_factory(self, name: str) -> Callable[..., Awaitable[Any]]:
         """Return the factory callable registered under name."""
         async with self._lock:
             try:
                 return self._store[name].factory
             except KeyError:
-                raise KeyError(f"Node {name!r} not found") from None
+                raise ValueError(f"Node not found: {name!r}") from None
 
     async def all(self, *, filter_tags: set[str] | None = None) -> list[str]:
         """Return sorted list of node names, filtered by *filter_tags*."""

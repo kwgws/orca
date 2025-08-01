@@ -1,5 +1,6 @@
 """orca_chat/core/__init__.py"""
 
+from .graph import build_graph
 from .llm import LLMStore
 from .message import Message
 from .node import Node, NodeStore
@@ -12,4 +13,5 @@ __all__ = [
     "NodeStore",
     "Session",
     "SessionStore",
+    "build_graph",
 ]

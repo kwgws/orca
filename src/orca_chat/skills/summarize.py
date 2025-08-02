@@ -16,7 +16,7 @@ class SummarizeSkill(LLMSkillMixin, Skill):
     """Summarize the conversation and store it in the session payload."""
 
     name: ClassVar[str] = "summarize"
-    tags: ClassVar[frozenset] = frozenset({"llm", "stream", name})
+    tags: ClassVar[frozenset] = frozenset({"summarize", "llm"})
     llm_alias: ClassVar[str] = "llama3"
 
     async def __call__(self, state: Session, config: RunnableConfig) -> Session:

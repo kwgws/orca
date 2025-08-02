@@ -44,18 +44,26 @@ class Session:
         Unknown keys are ignored; explicit *kwargs* win over *data*. Raises
         :class:`ValueError` when mandatory fields are missing or malformed.
         """
+        params: dict[str, Any] = {}
+
         try:
-            params: dict[str, Any] = {}
-            if "session_id" in data:
+            if isinstance(data.get("session_id"), str):
                 params["session_id"] = data["session_id"]
-            if "history" in data:
+
+            if isinstance(data.get("history"), list | tuple):
                 history = data["history"]
-                params["history"] = [Message.from_dict(msg) for msg in history]
-            if "payload" in data:
+                if isinstance(history[0], dict):
+                    params["history"] = (Message.from_dict(msg) for msg in history)
+                elif isinstance(history[0], list | tuple):
+                    params["history"] = (Message(r, c) for r, c in history)
+
+            if isinstance(data.get("payload"), dict):
                 params["payload"] = data["payload"]
+
             return cls(**params | kwargs)
+
         except (KeyError, ValueError, TypeError) as e:
-            raise ValueError("Could not parse session") from e
+            raise ValueError("Could not parse session dict") from e
 
     @classmethod
     def from_json(cls, json_str: str, **kwargs: Any) -> Self:
@@ -63,7 +71,7 @@ class Session:
         try:
             return cls.from_dict(json.loads(json_str), **kwargs)
         except (ValueError, json.JSONDecodeError) as e:
-            raise ValueError("Could not parse session") from e
+            raise ValueError("Could not parse session JSON") from e
 
     # - - - - - - - - - - - - - - - -
     # Copy helpers; state updates
@@ -71,7 +79,7 @@ class Session:
 
     def with_message(self, msg: Message, **kwargs: Any) -> Self:
         """Return new session with *msg* appended to the chat history."""
-        return replace(self, history=[*self.history, msg], **kwargs)
+        return replace(self, history=(*self.history, msg), **kwargs)
 
     def with_payload(self, **kwargs: Any) -> Self:
         """Return new session with *kwargs* merged into the payload."""

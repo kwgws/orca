@@ -14,7 +14,7 @@ __all__: Final = ["ChatSkill"]
 @dataclass(slots=True, frozen=True)
 class ChatSkill(LLMSkillMixin, Skill):
     name: ClassVar[str] = "chat"
-    tags: ClassVar[frozenset] = frozenset({"llm", "stream", name})
+    tags: ClassVar[frozenset] = frozenset({"chat", "llm", "stream"})
     llm_alias: ClassVar[str] = "llama3"
 
     async def __call__(self, state: Session, config: RunnableConfig) -> Session:

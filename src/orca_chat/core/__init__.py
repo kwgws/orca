@@ -7,7 +7,7 @@ from .llm import LLMStore
 from .message import Message
 from .node import Node, NodeStore
 from .session import Session, SessionStore
-from .skill import LLMSkillMixin, Skill, register_skill
+from .skill import LLMSkillMixin, Skill, register_skill, register_skills
 
 __all__: Final = [
     "LLMSkillMixin",
@@ -20,4 +20,5 @@ __all__: Final = [
     "Skill",
     "build_graph",
     "register_skill",
+    "register_skills",
 ]

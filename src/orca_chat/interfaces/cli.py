@@ -34,6 +34,8 @@ async def _chat_loop() -> None:
             session = Session.from_dict(result)
         except asyncio.CancelledError:
             print("\nRequest cancelled.")
+        except Exception:
+            raise
 
 
 def run() -> None:

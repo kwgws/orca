@@ -27,22 +27,8 @@ class SummarizeSkill(LLMSkillMixin, Skill):
                 ("human", "Summarize the conversation so far in no more than a paragraph."),
             ]
         ).format_messages(
-            chat_history=[msg.as_tuple() for msg in state.get_history_abridged()],
+            chat_history=state.get_history_abridged(),
         )
 
-        cfg: RunnableConfig = {
-            **config,
-            "tags": [*config.get("tags", []), *self.tags],
-        }
-        run = (
-            self.llm.with_config(callbacks=cfg.pop("callbacks", None))
-            if "callbacks" in cfg
-            else self.llm
-        )
-
-        chunks: list[str] = []
-        async for chunk in run.astream(prompt, config=cfg):
-            chunks.append(str(chunk.content) or "")
-
-        summary = "".join(chunks).strip()
-        return state.with_payload(summary=summary)
+        reply = await self._run_llm(prompt, config)
+        return state.with_payload(summary=reply)

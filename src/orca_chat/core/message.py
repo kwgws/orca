@@ -11,17 +11,20 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 __all__: Final = ["Message"]
 
+TupleMessage = tuple[str, str]
+LangChainMessage = AIMessage | HumanMessage | SystemMessage | ToolMessage
 
-RE_WHITESPACE: Final = re.compile(r"\s+")
-"""Match all whitespace (incl. newlines, tabs)."""
 
-ROLE_TO_TYPE_MAP: Final[dict[str, type[AIMessage | HumanMessage | SystemMessage | ToolMessage]]] = {
+_RE_WHITESPACE: Final = re.compile(r"\s+")
+"""Match all whitespace incl. newlines, tabs, etc."""
+
+ROLE_TO_TYPE_MAP: Final[dict[str, type[LangChainMessage]]] = {
     "ai": AIMessage,
     "human": HumanMessage,
     "system": SystemMessage,
     "tool": ToolMessage,
 }
-"""Mapping of *role* strings to concrete *LangChain* message classes."""
+"""Mapping of role strings to LangChain message classes."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -35,7 +38,7 @@ class Message:
     content
         Raw text payload.
     msg_id
-        Unique identifier (hex=encoded UUID4).
+        Unique identifier; hex-encoded UUID4.
     timestamp
         Creation time as UTC-aware :class:`datetime`.
     """
@@ -48,7 +51,7 @@ class Message:
     def __post_init__(self) -> None:
         # Double-check role against langchain message type literals.
         if self.role not in ROLE_TO_TYPE_MAP:
-            raise ValueError(f"Invalid message role: '{self.role}'")
+            raise ValueError(f"Invalid message role: '{self.role!r}'")
 
     # - - - - - - - - - - - - - - - -
     # Constructors
@@ -60,10 +63,10 @@ class Message:
         data: Mapping[str, Any],
         **kwargs: Any,
     ) -> Self:
-        """Build a :class:`Message` from a JSON-serialised mapping.
+        """Build a :class:`Message` from a JSON-serialized mapping.
 
         Unknown keys are ignored, additional keyword arguments override their
-        counterparts from *data*.
+        counterparts from ``data``.
 
         Raises
         ------
@@ -81,46 +84,14 @@ class Message:
             raise ValueError("Could not parse message") from e
 
     @classmethod
-    def from_message(
-        cls,
-        msg: AIMessage | HumanMessage | SystemMessage | ToolMessage,
-        **kwargs: Any,
-    ) -> Self:
-        """Create from an existing langchain message instance."""
+    def from_message(cls, msg: LangChainMessage, **kwargs: Any) -> Self:
+        """Create from an existing LangChain message instance."""
         return cls(role=msg.type, content=str(msg.content), **kwargs)
 
     @classmethod
-    def from_tuple(
-        cls,
-        msg: tuple[str, str],
-        **kwargs,
-    ) -> Self:
-        """Create from tuple ``(role, content)``."""
+    def from_tuple(cls, msg: TupleMessage, **kwargs) -> Self:
+        """Create from ``(role, content)``."""
         return cls(*msg, **kwargs)
-
-    # - - - - - - - - - - - - - - - -
-    # Interfaces
-    # - - - - - - - - - - - - - - - -
-
-    def get_content(self, *, trim=False, max_chars: int | None = None) -> str:
-        """Return *content* with optional whitespace normalization & cropping.
-
-        This is especially useful for logging or other cases where a short
-        version of the content string might be needed.
-
-        Parameters
-        ----------
-        trim
-            When *True* collapse all whitespace into single spaces.
-        max_chars
-            Truncate to this many characters (+ ellipsis) when provided.
-        """
-        content = self.content
-        if trim:
-            content = RE_WHITESPACE.sub(" ", content)
-        if max_chars and len(self.content) > max_chars > 0:
-            content = content[:max_chars] + "..."
-        return content
 
     # - - - - - - - - - - - - - - - -
     # Serializers
@@ -135,11 +106,31 @@ class Message:
             "content": self.content,
         }
 
-    def as_message(self) -> AIMessage | HumanMessage | SystemMessage | ToolMessage:
+    def as_message(self) -> LangChainMessage:
         """Convert to the corresponding langchain message class."""
         cls = ROLE_TO_TYPE_MAP[self.role.lower()]
         return cls(content=self.content)
 
-    def as_tuple(self) -> tuple[str, str]:
+    def as_str(self, *, trim=False, max_chars: int | None = None) -> str:
+        """Return as ``str`` with optional whitespace normalization & cropping.
+
+        This is especially useful for debug logging or other cases where a
+        short version of the message is needed.
+
+        Parameters
+        ----------
+        trim
+            When *True* collapse all whitespace into single spaces.
+        max_chars
+            Truncate to this many characters (+ ellipsis) when provided.
+        """
+        content = f"{self.role}: {self.content}".strip()
+        if trim:
+            content = _RE_WHITESPACE.sub(" ", content)
+        if max_chars and len(self.content) > max_chars > 0:
+            content = content[: max_chars - 3] + "..."
+        return content
+
+    def as_tuple(self) -> TupleMessage:
         """Return ``(role, content)`` tuple."""
         return (self.role, self.content)

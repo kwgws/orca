@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import Iterator, Mapping, Set
+from collections.abc import Mapping, Set
 from dataclasses import dataclass, field, replace
 from typing import Any, Final, Self
 from uuid import uuid4
@@ -11,13 +11,7 @@ from .message import Message
 
 __all__: Final = ["DEFAULT_MAX_ROUNDS", "Session", "SessionStore"]
 
-
 DEFAULT_MAX_ROUNDS: Final[int] = 6
-
-
-# ===============================
-# Session class
-# ===============================
 
 
 @dataclass(slots=True, frozen=True)
@@ -36,8 +30,8 @@ class Session:
     """
 
     session_id: str = field(default_factory=lambda: uuid4().hex)
-    history: list[Message] = field(default_factory=list)
-    payload: dict[str, Any] = field(default_factory=dict)
+    history: tuple[Message] = field(default_factory=tuple)
+    payload: Mapping[str, Any] = field(default_factory=dict)
 
     # - - - - - - - - - - - - - - - -
     # Constructors
@@ -56,7 +50,7 @@ class Session:
                 params["session_id"] = data["session_id"]
             if "history" in data:
                 history = data["history"]
-                params["history"] = history
+                params["history"] = [Message.from_dict(msg) for msg in history]
             if "payload" in data:
                 params["payload"] = data["payload"]
             return cls(**params | kwargs)
@@ -81,7 +75,7 @@ class Session:
 
     def with_payload(self, **kwargs: Any) -> Self:
         """Return new session with *kwargs* merged into the payload."""
-        return replace(self, payload=self.payload | kwargs)
+        return replace(self, payload={**self.payload} | kwargs)
 
     # - - - - - - - - - - - - - - - -
     # Interfaces
@@ -101,16 +95,16 @@ class Session:
             because it is being provided to the LLM as ``input``).
         """
         if self.history and drop_input and self.history[-1].role == "human":
-            return self.history[:-1]
-        return self.history
+            return list(self.history[:-1])
+        return list(self.history)
 
     def get_history_abridged(
         self,
-        *,
         max_rounds=DEFAULT_MAX_ROUNDS,
+        *,
         drop_input=True,
-    ) -> list[Message]:
-        """Abridged chat log, optionally hiding the last human turn.
+    ) -> list[tuple[str, str]]:
+        """Abridged chat log formatted as a list of tuples for processing.
 
         When a *summary* exists in *payload*, it is subbed in for the oldest
         ai message so the model keeps the gist of older turns.
@@ -123,18 +117,15 @@ class Session:
             Use when you do *not* see the user's current question again (e.g.
             because it is being provided to the LLM as ``input``).
         """
-        if len(self) > max_rounds * 2:
-            history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
-            if (summary := self.payload.get("summary")) is not None:
-                history = [Message("ai", summary), *history[-2:]]
-            return history
-        return self.get_history(drop_input=drop_input)
+        history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
+        if (
+            len(self.history) > max_rounds * 2
+            and (summary := self.payload.get("summary")) is not None
+        ):
+            history = [Message("ai", summary), *history]
+        return [msg.as_tuple() for msg in history]
 
-    def get_last_message(
-        self,
-        *,
-        roles: Set[str] = {"human"},
-    ) -> str:
+    def get_last_message(self, roles: Set[str] = {"human"}) -> str:
         """Return *content* of the last message whose role matches *roles*.
 
         If no matches are found, an empty string is returned.
@@ -160,17 +151,6 @@ class Session:
     def as_json(self, **kwargs: Any) -> str:
         """Return as a raw JSON string."""
         return json.dumps(self.as_dict(), **kwargs)
-
-    def __iter__(self) -> Iterator[Message]:
-        return iter(self.history)
-
-    def __len__(self) -> int:
-        return len(self.history)
-
-
-# ===============================
-# SessionStore class
-# ===============================
 
 
 @dataclass(slots=True)
@@ -199,9 +179,3 @@ class SessionStore:
     async def clear(self) -> None:
         async with self._lock:
             self._store.clear()
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, *_: Any) -> None:
-        await self.clear()

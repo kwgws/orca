@@ -44,7 +44,7 @@ class LLMStore:
       instance each time it is invoked.
     """
 
-    _store: dict[str, LLMFactory | BaseChatModel] = field(default_factory=dict)
+    _store: dict[str, LLMFactory] = field(default_factory=dict)
     _cache: dict[CacheKey, BaseChatModel] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
@@ -77,38 +77,51 @@ class LLMStore:
             If the alias is unknown and automatic registration fails (should
             only occur in exotic env-var misconfigurations).
         """
-        target = alias or "default"
+        name = alias or "default"
+        factory = self._store.get(name)
 
-        try:
+        if factory is None:  # Not found; lock and check again.
             async with self._lock:
-                llm = self._store[target]
+                factory = self._store.get(name)
 
-        except KeyError:
-            # Fallback to "default" if present; else lazily register alias.
+        if factory is None:  # Still not found; create a new factory.
             async with self._lock:
-                if target != "default" and "default" in self._store:
-                    llm = self._store["default"]
+                if name != "default" and "default" in self._store:
+                    factory = self._store["default"]
                 else:
-                    llm = _default_llm_factory(target)
-                    self._store[target] = llm
+                    instance = _default_llm_instance(name)
+                    factory = _wrap_as_factory(instance)
+                self._store[name] = factory
 
-        # Are we working with an instantiated LLM?
-        if isinstance(llm, BaseChatModel):
-            return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
-
-        # ...or a factory?
-        factory = cast(LLMFactory, llm)
-        if not use_cache:
+        if not use_cache:  # If we're not using the cache we can stop here.
             return factory(callbacks)
 
+        # Otherwise, we repeat the pattern: check first...
         key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
+        model = self._cache.get(key)
+        if model:
+            return model
+
+        # ...then lock and recheck.
+        built = factory(callbacks)
         async with self._lock:
-            if key not in self._cache:
-                self._cache[key] = factory(callbacks)
-            return self._cache[key]
+            return self._cache.setdefault(key, built)
 
 
-def _default_llm_factory(alias: str) -> BaseChatModel:
+def _wrap_as_factory(obj: LLMFactory | BaseChatModel) -> LLMFactory:
+    """Return a factory if we got an instance."""
+    if isinstance(obj, BaseChatModel):
+        model = obj
+
+        def _factory(callbacks: Callbacks) -> BaseChatModel:
+            return cast(BaseChatModel, model.with_config(callbacks=callbacks))
+
+        return _factory
+
+    return cast(LLMFactory, obj)
+
+
+def _default_llm_instance(alias: str) -> BaseChatModel:
     """Create a streaming ``ChatOpenAI`` for ``alias`` using environment vars.
 
     This is only invoked when an alias is first requested and has never been

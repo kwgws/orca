@@ -62,9 +62,8 @@ class LLMStore:
             Optional sequence of LangChain callback handlers to inject via
             ``with_config`` (for instances) or to pass into a factory call.
         use_cache:
-            When ``True`` (default) and the alias maps to a *factory*,
-            results are cached so identical `(factory, callbacks)` pairs
-            share a single model instance.
+            When ``True`` (default) results are cached so identical
+            `(factory, callbacks)` pairs share a single model instance.
 
         Returns
         -------
@@ -75,7 +74,7 @@ class LLMStore:
         ------
         ValueError
             If the alias is unknown and automatic registration fails (should
-            only occur in exotic env-var misconfigurations).
+            only occur in exotic misconfigurations).
         """
         name = alias or "default"
         factory = self._store.get(name)

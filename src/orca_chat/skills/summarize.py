@@ -31,4 +31,5 @@ class SummarizeSkill(LLMSkillMixin, Skill):
         )
 
         reply = await self._run_llm(prompt, config)
-        return state.with_payload(summary=reply)
+        state.payload["summary"] = reply
+        return state

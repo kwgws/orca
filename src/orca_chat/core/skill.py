@@ -102,7 +102,7 @@ async def register_skill(
 
     # Is it a LLM-backed skill?
     if issubclass(skill, LLMSkillMixin):
-        llm = llm_store.get(skill.llm_alias)
+        llm = await llm_store.get(skill.llm_alias)
 
         async def _factory(state: Session, config: RunnableConfig) -> Session:
             return await skill(llm)(state, config)  # type: ignore[arg-type]

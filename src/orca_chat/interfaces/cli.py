@@ -25,13 +25,12 @@ async def _chat_loop() -> None:
     graph = await build_graph_default()
     session = Session()
     async for msg in _yield_user_input():
-        session = session.with_message(Message("human", msg))
+        session.history.append(Message("human", msg))
         try:
-            result = await graph.ainvoke(
+            await graph.ainvoke(
                 session,
                 config={"callbacks": [StreamStdOut()]},
             )
-            session = Session.from_dict(result)
         except asyncio.CancelledError:
             print("\nRequest cancelled.")
         except Exception:

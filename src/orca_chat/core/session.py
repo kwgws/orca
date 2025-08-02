@@ -3,7 +3,7 @@
 import asyncio
 import json
 from collections.abc import Mapping, Set
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Any, Final, Self
 from uuid import uuid4
 
@@ -30,8 +30,8 @@ class Session:
     """
 
     session_id: str = field(default_factory=lambda: uuid4().hex)
-    history: tuple[Message] = field(default_factory=tuple)
-    payload: Mapping[str, Any] = field(default_factory=dict)
+    history: list[Message] = field(default_factory=list)
+    payload: dict[str, Any] = field(default_factory=dict)
 
     # - - - - - - - - - - - - - - - -
     # Constructors
@@ -53,9 +53,9 @@ class Session:
             if isinstance(data.get("history"), list | tuple):
                 history = data["history"]
                 if isinstance(history[0], dict):
-                    params["history"] = (Message.from_dict(msg) for msg in history)
+                    params["history"] = [Message.from_dict(msg) for msg in history]
                 elif isinstance(history[0], list | tuple):
-                    params["history"] = (Message(r, c) for r, c in history)
+                    params["history"] = [Message(r, c) for r, c in history]
 
             if isinstance(data.get("payload"), dict):
                 params["payload"] = data["payload"]
@@ -72,18 +72,6 @@ class Session:
             return cls.from_dict(json.loads(json_str), **kwargs)
         except (ValueError, json.JSONDecodeError) as e:
             raise ValueError("Could not parse session JSON") from e
-
-    # - - - - - - - - - - - - - - - -
-    # Copy helpers; state updates
-    # - - - - - - - - - - - - - - - -
-
-    def with_message(self, msg: Message, **kwargs: Any) -> Self:
-        """Return new session with *msg* appended to the chat history."""
-        return replace(self, history=(*self.history, msg), **kwargs)
-
-    def with_payload(self, **kwargs: Any) -> Self:
-        """Return new session with *kwargs* merged into the payload."""
-        return replace(self, payload={**self.payload} | kwargs)
 
     # - - - - - - - - - - - - - - - -
     # Interfaces

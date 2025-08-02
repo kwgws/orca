@@ -77,30 +77,32 @@ class LLMStore:
             If the alias is unknown and automatic registration fails (should
             only occur in exotic env-var misconfigurations).
         """
-        async with self._lock:
-            target = alias or "default"
+        target = alias or "default"
 
-            try:
+        try:
+            async with self._lock:
                 llm = self._store[target]
 
-            except KeyError:
-                # Fallback to "default" if present; else lazily register alias.
+        except KeyError:
+            # Fallback to "default" if present; else lazily register alias.
+            async with self._lock:
                 if target != "default" and "default" in self._store:
                     llm = self._store["default"]
                 else:
                     llm = _default_llm_factory(target)
                     self._store[target] = llm
 
-            # Are we working with an instantiated LLM?
-            if isinstance(llm, BaseChatModel):
-                return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
+        # Are we working with an instantiated LLM?
+        if isinstance(llm, BaseChatModel):
+            return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
 
-            # ...or a factory?
-            factory = cast(LLMFactory, llm)
-            if not use_cache:
-                return factory(callbacks)
+        # ...or a factory?
+        factory = cast(LLMFactory, llm)
+        if not use_cache:
+            return factory(callbacks)
 
-            key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
+        key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
+        async with self._lock:
             if key not in self._cache:
                 self._cache[key] = factory(callbacks)
             return self._cache[key]

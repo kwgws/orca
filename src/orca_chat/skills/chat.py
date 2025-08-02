@@ -29,6 +29,6 @@ class ChatSkill(LLMSkillMixin, Skill):
             input=state.get_last_message(),
         )
 
-        reply = await self._run_llm(prompt, config)
-        state.history.append(Message("ai", reply))
+        reply, metadata = await self._run_llm(prompt, config)
+        state.history.append(Message("ai", reply, metadata=metadata))
         return state

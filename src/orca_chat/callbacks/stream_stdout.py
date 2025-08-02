@@ -10,15 +10,11 @@ class StreamStdOut(BaseCallbackHandler):
 
     def on_llm_start(
         self,
-        serialized: dict[str, Any],
-        prompts: list[str],
+        *args: Any,
         **kwargs: Any,
     ) -> Any:
         """Run when LLM starts running."""
-        print("## TO MODEL ##")
-        for prompt in prompts:
-            print(prompt)
-        print("####\n")
+        print("Thinking...")
 
     @override
     def on_llm_new_token(

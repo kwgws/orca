@@ -30,6 +30,6 @@ class SummarizeSkill(LLMSkillMixin, Skill):
             chat_history=state.get_history_abridged(),
         )
 
-        reply = await self._run_llm(prompt, config)
+        reply, _ = await self._run_llm(prompt, config)
         state.payload["summary"] = reply
         return state

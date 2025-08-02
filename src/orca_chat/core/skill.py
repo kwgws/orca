@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 
 from .llm import LLMStore
@@ -58,13 +59,19 @@ class LLMSkillMixin(ABC):
     llm: BaseChatModel
     llm_alias: ClassVar[str]
 
-    async def _run_llm(self, prompt: Sequence, config: RunnableConfig) -> str:
+    async def _run_llm(
+        self, prompt: Sequence[BaseMessage], config: RunnableConfig
+    ) -> tuple[str, dict]:
         """Stream `prompt` through :pyattr:`llm` and return the full text.
 
         The method merges the caller's :class:`RunnableConfig` with our tags,
-        injects callbacks (if any), and concatenates streamed chunks from the
-        model into a single, stripped string.
+        injects callbacks (if any), concatenates streamed chunks from the model
+        into a single, stripped string, and returns it with metadata.
         """
+        metadata = {
+            "prompt": [{"role": msg.type, "content": str(msg.content)} for msg in prompt],
+        }
+
         cfg: RunnableConfig = {
             **config,
             "tags": [*config.get("tags", []), *getattr(self, "tags", [])],
@@ -77,7 +84,7 @@ class LLMSkillMixin(ABC):
         chunks: list[str] = []
         async for chunk in runnable.astream(prompt, config=cfg):
             chunks.append(str(chunk.content) or "")
-        return "".join(chunks).strip()
+        return "".join(chunks).strip(), metadata
 
 
 async def register_skill(

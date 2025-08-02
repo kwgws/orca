@@ -47,6 +47,7 @@ class Message:
     content: str
     msg_id: str = field(default_factory=lambda: uuid4().hex)
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Double-check role against langchain message type literals.
@@ -79,6 +80,8 @@ class Message:
                 params["msg_id"] = data["msg_id"]
             if "timestamp" in data:
                 params["timestamp"] = datetime.fromisoformat(data["timestamp"])
+            if "metadata" in data:
+                params["metadata"] = data["metadata"]
             return cls(**params | kwargs)
         except (KeyError, ValueError) as e:
             raise ValueError("Could not parse message") from e
@@ -97,13 +100,14 @@ class Message:
     # Serializers
     # - - - - - - - - - - - - - - - -
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly ``dict``."""
         return {
             "msg_id": self.msg_id,
             "timestamp": self.timestamp.isoformat(),
             "role": self.role,
             "content": self.content,
+            "metadata": self.metadata,
         }
 
     def as_message(self) -> LangChainMessage:

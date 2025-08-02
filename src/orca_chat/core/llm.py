@@ -14,6 +14,7 @@ Results from user-supplied factories are cached by ``(factory, callbacks)``
 so multiple skills can share the same connection without rebuilding it.
 """
 
+import asyncio
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from os import getenv
@@ -45,8 +46,9 @@ class LLMStore:
 
     _store: dict[str, LLMFactory | BaseChatModel] = field(default_factory=dict)
     _cache: dict[CacheKey, BaseChatModel] = field(default_factory=dict)
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    def get(
+    async def get(
         self, alias: str | None, callbacks: Callbacks = None, *, use_cache=True
     ) -> BaseChatModel:
         """Return an LLM for ``alias``, cloning or instantiating as needed.
@@ -75,31 +77,33 @@ class LLMStore:
             If the alias is unknown and automatic registration fails (should
             only occur in exotic env-var misconfigurations).
         """
+        async with self._lock:
+            target = alias or "default"
 
-        target = alias or "default"
-        try:
-            llm = self._store[target]
-        except KeyError:
-            # Fallback to "default" if present; else lazily register alias.
-            if target != "default" and "default" in self._store:
-                llm = self._store["default"]
-            else:
-                llm = _default_llm_factory(target)
-                self._store[target] = llm
+            try:
+                llm = self._store[target]
 
-        # Are we working with an instantiated LLM?
-        if isinstance(llm, BaseChatModel):
-            return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
+            except KeyError:
+                # Fallback to "default" if present; else lazily register alias.
+                if target != "default" and "default" in self._store:
+                    llm = self._store["default"]
+                else:
+                    llm = _default_llm_factory(target)
+                    self._store[target] = llm
 
-        # ...or a factory?
-        factory = cast(LLMFactory, llm)
-        if not use_cache:
-            return factory(callbacks)
+            # Are we working with an instantiated LLM?
+            if isinstance(llm, BaseChatModel):
+                return cast(BaseChatModel, llm.with_config(callbacks=callbacks))
 
-        key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
-        if key not in self._cache:
-            self._cache[key] = factory(callbacks)
-        return self._cache[key]
+            # ...or a factory?
+            factory = cast(LLMFactory, llm)
+            if not use_cache:
+                return factory(callbacks)
+
+            key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
+            if key not in self._cache:
+                self._cache[key] = factory(callbacks)
+            return self._cache[key]
 
 
 def _default_llm_factory(alias: str) -> BaseChatModel:

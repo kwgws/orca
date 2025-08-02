@@ -63,13 +63,12 @@ class NodeStore:
 
         Raises
         ------
-        KeyError
+        ValueError
             If ``name`` is already registered.
         """
-
         async with self._lock:
             if name in self._store:
-                raise KeyError(f"Node already exists: {name!r}")
+                raise ValueError(f"Node already exists: {name!r}")
 
             node = Node[T](
                 name=name,
@@ -85,7 +84,7 @@ class NodeStore:
 
         Raises
         ------
-        ValueError
+        KeyError
             If ``name`` is unknown.
         """
         async with self._lock:

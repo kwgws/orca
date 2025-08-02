@@ -14,11 +14,20 @@ __all__ = ["build_graph_default", "llm_store", "node_store"]
 
 node_store = NodeStore()
 llm_store = LLMStore()
+
 llm_store.register(
     ChatSkill.llm_alias,
     ChatOpenAI(
-        base_url=getenv("OPENAI_URL", "http://localhost:1234/v1"),
-        model=getenv("OPENAI_MODEL", "llama3"),
+        base_url=getenv("CHAT_URL", "http://localhost:1234/v1"),
+        model=getenv("CHAT_LLM", ChatSkill.llm_alias),
+        streaming=True,
+    ),
+)
+llm_store.register(
+    SummarizeSkill.llm_alias,
+    ChatOpenAI(
+        base_url=getenv("SUMMARIZE_URL", "http://localhost:1234/v1"),
+        model=getenv("SUMMARIZE_MODEL", SummarizeSkill.llm_alias),
         streaming=True,
     ),
 )

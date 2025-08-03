@@ -1,4 +1,4 @@
-"""orca_chat/interfaces/cli.py"""
+# orca_chat/interfaces/cli.py
 
 import asyncio
 from collections.abc import AsyncIterator

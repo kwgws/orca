@@ -1,4 +1,4 @@
-"""orca_chat/core/graph.py"""
+# orca_chat/core/graph.py
 
 from collections.abc import Sequence
 from typing import Final, Protocol

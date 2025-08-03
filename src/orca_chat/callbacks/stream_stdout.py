@@ -1,4 +1,4 @@
-"""orca_chat/callbacks/stream_stdout.py"""
+# orca_chat/callbacks/stream_stdout.py
 
 from typing import Any, override
 

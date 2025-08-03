@@ -1,5 +1,6 @@
-"""orca_chat.core.llm
-Central registry for Large-Language-Model (LLM) objects.
+# orca_chat.core.llm
+
+"""Central registry for Large-Language-Model (LLM) objects.
 
 `LLMStore` lets skills ask for a model by alias and forget the rest.
 On first access the store will:

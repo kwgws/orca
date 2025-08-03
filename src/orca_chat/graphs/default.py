@@ -1,4 +1,4 @@
-"""orca_chat/graphs/default.py"""
+# orca_chat/graphs/default.py
 
 from ..core import LLMStore, NodeStore, build_graph, register_skills
 from ..core.session import DEFAULT_MAX_ROUNDS

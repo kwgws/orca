@@ -1,5 +1,6 @@
-"""orca_chat.core.node
-Light-weight registry for  anything that can be invoked by the state graph.
+# orca_chat/core/node.py
+
+"""Light-weight registry for  anything that can be invoked by the state graph.
 
 A :class:`Node` is a factory that can create an LLM-driven skill, call a
 microservice, read a database, whatever.

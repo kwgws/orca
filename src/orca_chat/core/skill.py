@@ -1,5 +1,6 @@
-"""orca_chat.core.skills
-Base abstractions for skills.
+# orca_chat/core/skills.py
+
+"""Base abstractions for skills.
 
 A skill is the smallest unit of work that can mutate a :class:`Session`
 (answer a question, summarize a chat, call an external API, etc).

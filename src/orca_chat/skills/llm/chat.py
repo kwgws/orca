@@ -1,4 +1,4 @@
-"""orca_chat/skills/chat.py"""
+# orca_chat/skills/llm/chat.py
 
 from dataclasses import dataclass
 from typing import ClassVar, Final

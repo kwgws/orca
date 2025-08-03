@@ -1,4 +1,4 @@
-"""orca_chat/core/message.py"""
+# orca_chat/core/message.py
 
 import re
 from collections.abc import Mapping

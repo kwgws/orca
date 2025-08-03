@@ -6,7 +6,7 @@ from typing import ClassVar, Final
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
 
-from ..core import LLMSkillMixin, Session, Skill
+from ...core import LLMSkillMixin, Session, Skill
 
 __all__: Final = ["SummarizeSkill"]
 

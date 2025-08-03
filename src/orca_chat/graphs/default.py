@@ -2,8 +2,8 @@
 
 from ..core import LLMStore, NodeStore, build_graph, register_skills
 from ..core.session import DEFAULT_MAX_ROUNDS
-from ..skills.chat import ChatSkill
-from ..skills.summarize import SummarizeSkill
+from ..skills.llm.chat import ChatSkill
+from ..skills.llm.summarize import SummarizeSkill
 
 __all__ = ["build_graph_default", "llm_store", "node_store"]
 

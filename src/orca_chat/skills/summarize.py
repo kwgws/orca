@@ -1,4 +1,4 @@
-# orca_chat/skills/llm/chat.py
+# orca_chat/skills/llm/summarize.py
 
 from dataclasses import dataclass
 from typing import ClassVar, Final
@@ -6,15 +6,17 @@ from typing import ClassVar, Final
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
 
-from ...core import LLMSkillMixin, Message, Session, Skill
+from ..core import LLMSkillMixin, Session, Skill
 
-__all__: Final = ["ChatSkill"]
+__all__: Final = ["SummarizeSkill"]
 
 
 @dataclass(slots=True, frozen=True)
-class ChatSkill(LLMSkillMixin, Skill):
-    name: ClassVar[str] = "chat"
-    tags: ClassVar[frozenset] = frozenset({"chat", "llm", "stream"})
+class SummarizeSkill(LLMSkillMixin, Skill):
+    """Summarize the conversation and store it in the session payload."""
+
+    name: ClassVar[str] = "summarize"
+    tags: ClassVar[frozenset] = frozenset({"summarize", "llm", "skill"})
     llm_alias: ClassVar[str] = "llama3"
 
     async def __call__(self, state: Session, config: RunnableConfig) -> Session:
@@ -22,13 +24,12 @@ class ChatSkill(LLMSkillMixin, Skill):
             [
                 ("system", "You are an AI assistant."),
                 MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
+                ("human", "Summarize the conversation so far in no more than a paragraph."),
             ]
         ).format_messages(
             chat_history=state.get_history_abridged(),
-            input=state.get_last_message(),
         )
 
-        reply, metadata = await self._run_llm(prompt, config)
-        state.history.append(Message("ai", reply, metadata=metadata))
+        reply, _ = await self._run_llm(prompt, config)
+        state.payload["summary"] = str(reply.content)
         return state

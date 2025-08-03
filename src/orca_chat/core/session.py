@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Any, Final, Self
 from uuid import uuid4
 
+from langchain_core.messages import BaseMessage
+
 from .message import Message
 
 __all__: Final = ["DEFAULT_MAX_ROUNDS", "Session", "SessionStore"]
@@ -99,11 +101,11 @@ class Session:
         max_rounds=DEFAULT_MAX_ROUNDS,
         *,
         drop_input=True,
-    ) -> list[tuple[str, str]]:
-        """Abridged chat log formatted as a list of tuples for processing.
+    ) -> list[BaseMessage]:
+        """Abridged chat log formatted as a list of :class:`BaseMessage`.
 
-        When a *summary* exists in *payload*, it is subbed in for the oldest
-        ai message so the model keeps the gist of older turns.
+        When a *summary* exists in *payload*, it is prepended as the oldest
+        AI message so the model keeps the gist of older turns.
 
         Parameters
         ----------
@@ -114,14 +116,11 @@ class Session:
             because it is being provided to the LLM as ``input``).
         """
         history = self.get_history(drop_input=drop_input)[-max_rounds * 2 :]
-        if (
-            len(self.history) > max_rounds * 2
-            and (summary := self.payload.get("summary")) is not None
-        ):
+        if summary := self.payload.get("summary"):
             history = [Message("ai", summary), *history]
-        return [msg.as_tuple() for msg in history]
+        return [msg.as_message() for msg in history]
 
-    def get_last_message(self, roles: Set[str] = {"human"}) -> str:
+    def get_last_message(self, roles: Set[str] = {"human"}) -> Message:
         """Return *content* of the last message whose role matches *roles*.
 
         If no matches are found, an empty string is returned.
@@ -129,8 +128,13 @@ class Session:
         for msg in reversed(self.history):
             if msg.role not in roles:
                 continue
-            return msg.content
-        return ""
+            return msg
+        raise ValueError(f"No messages in session with roles: {roles}")
+
+    @property
+    def input(self) -> str:
+        """Content of last user message, if any."""
+        return self.get_last_message({"human"}).as_str()
 
     # - - - - - - - - - - - - - - - -
     # Serializers

@@ -62,8 +62,8 @@ class LLMSkillMixin(ABC):
 
     async def _run_llm(
         self, prompt: Sequence[BaseMessage], config: RunnableConfig
-    ) -> tuple[str, dict]:
-        """Stream `prompt` through :pyattr:`llm` and return the full text.
+    ) -> tuple[BaseMessage, dict]:
+        """Invoke `prompt` through :pyattr:`llm` and return the response.
 
         The method merges the caller's :class:`RunnableConfig` with our tags,
         injects callbacks (if any), concatenates streamed chunks from the model
@@ -77,15 +77,14 @@ class LLMSkillMixin(ABC):
             **config,
             "tags": [*config.get("tags", []), *getattr(self, "tags", [])],
         }
-        runnable = (
+
+        reply = await (
             self.llm.with_config(callbacks=cfg.pop("callbacks", None))
             if "callbacks" in cfg
             else self.llm
-        )
-        chunks: list[str] = []
-        async for chunk in runnable.astream(prompt, config=cfg):
-            chunks.append(str(chunk.content) or "")
-        return "".join(chunks).strip(), metadata
+        ).ainvoke(prompt, config=cfg)
+
+        return reply, metadata
 
 
 async def register_skill(

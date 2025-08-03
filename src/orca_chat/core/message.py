@@ -89,7 +89,15 @@ class Message:
     @classmethod
     def from_message(cls, msg: LangChainMessage, **kwargs: Any) -> Self:
         """Create from an existing LangChain message instance."""
-        return cls(role=msg.type, content=str(msg.content), **kwargs)
+        meta: dict[str, Any] = {}
+        if isinstance(msg, ToolMessage) and msg.name:
+            meta["name"] = msg.name
+        return cls(
+            role=msg.type,
+            content=str(msg.content),
+            metadata=meta | kwargs.pop("metadata", {}),
+            **kwargs,
+        )
 
     @classmethod
     def from_tuple(cls, msg: TupleMessage, **kwargs) -> Self:
@@ -113,6 +121,9 @@ class Message:
     def as_message(self) -> LangChainMessage:
         """Convert to the corresponding langchain message class."""
         cls = ROLE_TO_TYPE_MAP[self.role.lower()]
+        if cls is ToolMessage:
+            name = self.metadata.get("name")
+            return ToolMessage(content=self.content, name=name)
         return cls(content=self.content)
 
     def as_str(self, *, trim=False, max_chars: int | None = None) -> str:
@@ -128,7 +139,7 @@ class Message:
         max_chars
             Truncate to this many characters (+ ellipsis) when provided.
         """
-        content = f"{self.role}: {self.content}".strip()
+        content = f"{self.content}".strip()
         if trim:
             content = _RE_WHITESPACE.sub(" ", content)
         if max_chars and len(self.content) > max_chars > 0:

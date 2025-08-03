@@ -23,6 +23,7 @@ from typing import Final, cast
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
 __all__: Final = ["LLMStore"]
@@ -47,7 +48,19 @@ class LLMStore:
 
     _store: dict[str, LLMFactory] = field(default_factory=dict)
     _cache: dict[CacheKey, BaseChatModel] = field(default_factory=dict)
+    _toolbox: set[BaseTool] = field(default_factory=set)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    async def add_tools(self, *tools) -> None:
+        """Add LangChain tool specs; flush cache if there's a change."""
+        flush_cache = False
+        async with self._lock:
+            for tool in tools:
+                if tool not in self._toolbox:
+                    self._toolbox.add(tool)
+                    flush_cache = True
+            if flush_cache:
+                self._cache.clear()
 
     async def get(
         self, alias: str | None, callbacks: Callbacks = None, *, use_cache=True
@@ -94,7 +107,7 @@ class LLMStore:
                 self._store[name] = factory
 
         if not use_cache:  # If we're not using the cache we can stop here.
-            return factory(callbacks)
+            return self._with_toolbox(factory(callbacks))
 
         # Otherwise, we repeat the pattern: check first...
         key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
@@ -103,9 +116,15 @@ class LLMStore:
             return model
 
         # ...then lock and recheck.
-        built = factory(callbacks)
+        built = self._with_toolbox(factory(callbacks))
         async with self._lock:
             return self._cache.setdefault(key, built)
+
+    def _with_toolbox(self, model: BaseChatModel) -> BaseChatModel:
+        """Return `model.bind_tools(toolbox)`."""
+        return (
+            cast(BaseChatModel, model.bind_tools(list(self._toolbox))) if self._toolbox else model
+        )
 
 
 def _wrap_as_factory(obj: LLMFactory | BaseChatModel) -> LLMFactory:

@@ -13,7 +13,7 @@ llm_store = LLMStore()
 
 
 async def build_graph_default():
-    await llm_store.add_tools([word_count])
+    await llm_store.add_tools(word_count)
 
     (
         chat,

@@ -3,14 +3,16 @@
 from typing import Final
 
 from .graph import build_graph
-from .llm import LLMStore
+from .llm import LLM, LLMStore
 from .message import Message
 from .node import Node, NodeStore
 from .session import Session, SessionStore
 from .skill import LLMSkillMixin, Skill, register_skill, register_skills
 
 __all__: Final = [
+    "LLM",
     "LLMSkillMixin",
+    "LLMStore",
     "LLMStore",
     "Message",
     "Node",

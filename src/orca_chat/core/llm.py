@@ -1,159 +1,135 @@
 # orca_chat.core.llm
 
-"""Central registry for Large-Language-Model (LLM) objects.
-
-`LLMStore` lets skills ask for a model by alias and forget the rest.
-On first access the store will:
-
-1. Look for a factory/instance already registered under that alias.
-2. Otherwise, create and register a streaming `ChatOpenAI` using
-   environment variables of the form ``<ALIAS>_URL`` / ``<ALIAS>_MODEL``
-   (falling back to the global ``OPENAI_URL`` / ``OPENAI_MODEL`` and,
-   finally, to sensible defaults).
-
-Results from user-supplied factories are cached by ``(factory, callbacks)``
-so multiple skills can share the same connection without rebuilding it.
-"""
+"""Central registry for Large-Language-Model (LLM) objects."""
 
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from os import getenv
-from typing import Final, cast
+from typing import Any, Final, Self, cast
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-__all__: Final = ["LLMStore"]
+__all__: Final = ["LLM", "LLMStore"]
+_SENTINEL: Final = object()
 
-Callbacks = Sequence[BaseCallbackHandler] | None
-LLMFactory = Callable[[Callbacks], BaseChatModel]
-CacheKey = tuple[LLMFactory, tuple[BaseCallbackHandler, ...]]
+CacheKey = tuple[str, bool, frozenset[Any]]
 
-DEFAULT_URL: Final = getenv("OPENAI_URL", "http://localhost:1234/v1")
-DEFAULT_MODEL: Final = getenv("OPENAI_MODEL", "")
+DEFAULT_URL = getenv("OPENAI_URL", "http://localhost:1234/v1")
+DEFAULT_MODEL = getenv("OPENAI_MODEL", "llama3")
+DEFAULT_USE_TOOLS = getenv("OPENAI_USE_TOOLS", "false")
 
 
-@dataclass(slots=True)
-class LLMStore:
-    """Lightweight registry mapping string aliases to LLMs.
+@dataclass(slots=True, frozen=True)
+class LLM:
+    """Wrapper for LangChain chat model.
 
-    Entries can be either:
-    - Instances: ready-to-use ``BaseChatModel`` subclass.
-    - Factories: ``callable(callbacks) -> BaseChatModel`` that returns a fresh
-      instance each time it is invoked.
+    Instances are frozen so they can be safely shared across asyncio tasks.
+
+    Parameters
+    ----------
+    model
+        The underlying LangChain model instance.
+    supports_tools
+        Whether the model can make structured tool calls.
+    tools
+        Tools bound to the model, if any.
     """
 
-    _store: dict[str, LLMFactory] = field(default_factory=dict)
-    _cache: dict[CacheKey, BaseChatModel] = field(default_factory=dict)
+    model: Runnable
+    tool_calling: bool = False
+    tools: frozenset[BaseTool] | None = None
+
+    @classmethod
+    def from_env(
+        cls,
+        alias="default",
+        *,
+        callbacks: Sequence[BaseCallbackHandler] | None = None,
+        tool_calling: bool | None = None,
+        tools: Sequence[BaseTool] | None = None,
+    ) -> Self:
+        """Build a :class:`LLM` from the environment.
+
+        Parameters are resolved in this order:
+        1. ``<ALIAS>_URL`` / ``<ALIAS>_MODEL`` (most specific)
+        2. ``OPENAI_URL``  / ``OPENAI_MODEL`` (project-wide default)
+        3. Hard-coded URL ``"http://localhost:1234/v1"`` and model ``alias``
+        """
+        prefix = alias.upper()
+        name = getenv(f"{prefix}_MODEL", DEFAULT_MODEL or alias)
+        url = getenv(f"{prefix}_URL", DEFAULT_URL)
+
+        model = ChatOpenAI(model=name, base_url=url)
+        if callbacks:
+            model = model.with_config(callbacks=callbacks)
+
+        tool_calling = (
+            getenv(f"{prefix}_USE_TOOLS", DEFAULT_USE_TOOLS).lower() in {"true", "yes"}
+            if tool_calling is None
+            else tool_calling
+        )
+        if tool_calling:
+            tool_set = frozenset(tools or ())
+            model = cast(BaseChatModel, model).bind_tools(list(tool_set))
+            return cls(model=model, tool_calling=True, tools=tool_set)
+        return cls(model=model, tool_calling=tool_calling)
+
+    async def ainvoke(
+        self, prompt: Sequence[BaseMessage], config: RunnableConfig | None = None
+    ) -> BaseMessage:
+        """Proxy for ``model.ainvoke()``."""
+        return await self.model.ainvoke(prompt, config)
+
+
+@dataclass(slots=True, frozen=True)
+class LLMStore:
+    """Lightweight registry mapping string aliases to LLMs."""
+
+    _store: dict[CacheKey, LLM] = field(default_factory=dict)
     _toolbox: set[BaseTool] = field(default_factory=set)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    async def add_tools(self, *tools) -> None:
-        """Add LangChain tool specs; flush cache if there's a change."""
-        flush_cache = False
-        async with self._lock:
-            for tool in tools:
-                if tool not in self._toolbox:
-                    self._toolbox.add(tool)
-                    flush_cache = True
-            if flush_cache:
-                self._cache.clear()
-
     async def get(
-        self, alias: str | None, callbacks: Callbacks = None, *, use_cache=True
-    ) -> BaseChatModel:
-        """Return an LLM for ``alias``, cloning or instantiating as needed.
-
-        Parameters
-        ----------
-        alias:
-            Symbolic name for the model. ``None`` resolves to the literal
-            ``"default"`` alias.
-        callbacks:
-            Optional sequence of LangChain callback handlers to inject via
-            ``with_config`` (for instances) or to pass into a factory call.
-        use_cache:
-            When ``True`` (default) results are cached so identical
-            `(factory, callbacks)` pairs share a single model instance.
-
-        Returns
-        -------
-        BaseChatModel
-            The requested LLM, configured with the provided callbacks.
-
-        Raises
-        ------
-        ValueError
-            If the alias is unknown and automatic registration fails (should
-            only occur in exotic misconfigurations).
-        """
+        self,
+        alias: str | None,
+        *,
+        callbacks: Sequence[BaseCallbackHandler] | None = None,
+        tool_calling: bool | object = _SENTINEL,
+        tools: Sequence[BaseTool] | None = None,
+    ) -> LLM:
         name = alias or "default"
-        factory = self._store.get(name)
+        tools = tools or tuple(self._toolbox)
 
-        if factory is None:  # Not found; lock and check again.
-            async with self._lock:
-                factory = self._store.get(name)
+        uses_tools = None if tool_calling is _SENTINEL else cast(bool | None, tool_calling)
+        cache_key: CacheKey = (name, bool(uses_tools), frozenset(tools))
 
-        if factory is None:  # Still not found; create a new factory.
-            async with self._lock:
-                if name != "default" and "default" in self._store:
-                    factory = self._store["default"]
-                else:
-                    instance = _default_llm_instance(name)
-                    factory = _wrap_as_factory(instance)
-                self._store[name] = factory
-
-        if not use_cache:  # If we're not using the cache we can stop here.
-            return self._with_toolbox(factory(callbacks))
-
-        # Otherwise, we repeat the pattern: check first...
-        key: CacheKey = (factory, tuple(callbacks) if callbacks else ())
-        model = self._cache.get(key)
-        if model:
-            return model
-
-        # ...then lock and recheck.
-        built = self._with_toolbox(factory(callbacks))
+        # Cached?
+        if (llm := self._store.get(cache_key)) is not None:
+            return llm
         async with self._lock:
-            return self._cache.setdefault(key, built)
+            if (llm := self._store.get(cache_key)) is not None:
+                return llm
 
-    def _with_toolbox(self, model: BaseChatModel) -> BaseChatModel:
-        """Return `model.bind_tools(toolbox)`."""
-        return (
-            cast(BaseChatModel, model.bind_tools(list(self._toolbox))) if self._toolbox else model
-        )
+        # Not cached -- (re)build.
+        llm = LLM.from_env(name, callbacks=callbacks, tool_calling=uses_tools, tools=tools)
+        async with self._lock:
+            self._store[cache_key] = llm
+        return llm
 
+    async def add_tools(self, *tools: BaseTool) -> None:
+        async with self._lock:
+            self._toolbox.update(tools)
 
-def _wrap_as_factory(obj: LLMFactory | BaseChatModel) -> LLMFactory:
-    """Return a factory if we got an instance."""
-    if isinstance(obj, BaseChatModel):
-        model = obj
+    async def remove_tools(self, *tools: BaseTool) -> None:
+        async with self._lock:
+            [self._toolbox.discard(tool) for tool in tools]
 
-        def _factory(callbacks: Callbacks) -> BaseChatModel:
-            return cast(BaseChatModel, model.with_config(callbacks=callbacks))
-
-        return _factory
-
-    return cast(LLMFactory, obj)
-
-
-def _default_llm_instance(alias: str) -> BaseChatModel:
-    """Create a streaming ``ChatOpenAI`` for ``alias`` using environment vars.
-
-    This is only invoked when an alias is first requested and has never been
-    manually registered, effectively making lazy registration the default.
-
-    Notes
-    -----
-    Parameters are resolved in this order:
-    1. ``<ALIAS>_URL`` / ``<ALIAS>_MODEL`` (most specific)
-    2. ``OPENAI_URL``  / ``OPENAI_MODEL`` (project-wide default)
-    3. Hard-coded URL ``"http://localhost:1234/v1"`` and model ``alias``
-    """
-    prefix = alias.upper()
-    url = getenv(f"{prefix}_URL", DEFAULT_URL)
-    model = getenv(f"{prefix}_MODEL", DEFAULT_MODEL or alias)
-    return ChatOpenAI(base_url=url, model=model, streaming=True)
+    async def clear_tools(self) -> None:
+        async with self._lock:
+            self._toolbox.clear()

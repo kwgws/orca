@@ -12,11 +12,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Final
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 
-from .llm import LLMStore
+from .llm import LLM, LLMStore
 from .node import Node, NodeStore
 from .session import Session
 
@@ -51,13 +50,12 @@ class LLMSkillMixin(ABC):
     Attributes
     ----------
     llm:
-        A concrete, callback-ready :class:`BaseChatModel`, to be injected by
-        :func:`register_skill`.
+        :class:`LLM` wrapper injected by :func:`register_skill`.
     llm_alias:
         Symbolic name used when fetching the model from :class:`LLMStore`.
     """
 
-    llm: BaseChatModel
+    llm: LLM
     llm_alias: ClassVar[str]
 
     async def _run_llm(
@@ -79,7 +77,7 @@ class LLMSkillMixin(ABC):
         }
 
         reply = await (
-            self.llm.with_config(callbacks=cfg.pop("callbacks", None))
+            await self.llm.with_config(callbacks=cfg.pop("callbacks", None))
             if "callbacks" in cfg
             else self.llm
         ).ainvoke(prompt, config=cfg)

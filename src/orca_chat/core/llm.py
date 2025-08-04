@@ -4,7 +4,7 @@
 
 import asyncio
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from os import getenv
 from typing import Any, Final, Self, cast
 
@@ -18,7 +18,7 @@ from langchain_openai import ChatOpenAI
 __all__: Final = ["LLM", "LLMStore"]
 _SENTINEL: Final = object()
 
-CacheKey = tuple[str, bool, frozenset[Any]]
+CacheKey = tuple[str, bool, str]
 
 DEFAULT_URL = getenv("OPENAI_URL", "http://localhost:1234/v1")
 DEFAULT_MODEL = getenv("OPENAI_MODEL", "llama3")
@@ -43,7 +43,7 @@ class LLM:
 
     model: Runnable
     tool_calling: bool = False
-    tools: frozenset[BaseTool] | None = None
+    tools: tuple[BaseTool, ...] | None = None
 
     @classmethod
     def from_env(
@@ -74,10 +74,9 @@ class LLM:
             if tool_calling is None
             else tool_calling
         )
-        if tool_calling:
-            tool_set = frozenset(tools or ())
-            model = cast(BaseChatModel, model).bind_tools(list(tool_set))
-            return cls(model=model, tool_calling=True, tools=tool_set)
+        if tool_calling and tools:
+            model = cast(BaseChatModel, model).bind_tools(tools)
+            return cls(model=model, tool_calling=True, tools=tuple(tools))
         return cls(model=model, tool_calling=tool_calling)
 
     async def ainvoke(
@@ -86,13 +85,17 @@ class LLM:
         """Proxy for ``model.ainvoke()``."""
         return await self.model.ainvoke(prompt, config)
 
+    async def with_config(self, **kwargs: Any) -> Self:
+        """Proxy for ``model.with_config()``."""
+        return replace(self, model=self.model.with_config(**kwargs))
+
 
 @dataclass(slots=True, frozen=True)
 class LLMStore:
     """Lightweight registry mapping string aliases to LLMs."""
 
     _store: dict[CacheKey, LLM] = field(default_factory=dict)
-    _toolbox: set[BaseTool] = field(default_factory=set)
+    _toolbox: dict[str, BaseTool] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def get(
@@ -104,10 +107,9 @@ class LLMStore:
         tools: Sequence[BaseTool] | None = None,
     ) -> LLM:
         name = alias or "default"
-        tools = tools or tuple(self._toolbox)
-
         uses_tools = None if tool_calling is _SENTINEL else cast(bool | None, tool_calling)
-        cache_key: CacheKey = (name, bool(uses_tools), frozenset(tools))
+        tools = tools or [t for t in self._toolbox.values()]
+        cache_key: CacheKey = (name, bool(uses_tools), ",".join(t.name for t in tools))
 
         # Cached?
         if (llm := self._store.get(cache_key)) is not None:
@@ -124,11 +126,11 @@ class LLMStore:
 
     async def add_tools(self, *tools: BaseTool) -> None:
         async with self._lock:
-            self._toolbox.update(tools)
+            self._toolbox.update({t.name: t for t in tools})
 
     async def remove_tools(self, *tools: BaseTool) -> None:
         async with self._lock:
-            [self._toolbox.discard(tool) for tool in tools]
+            [self._toolbox.pop(t.name, None) for t in tools]
 
     async def clear_tools(self) -> None:
         async with self._lock:

@@ -10,6 +10,17 @@ from ..core import LLMSkillMixin, Message, Session, Skill
 
 __all__: Final = ["ChatSkill"]
 
+_SYSTEM = """
+You are an AI assistant.
+You have access to the following tool:
+
+- `word_count(text: str)` -> {{ "word_count": n }}
+  - Returns how many words are in `text`.
+
+**When to use the tool**
+- Anytime the user asks for a word count.
+"""
+
 
 @dataclass(slots=True, frozen=True)
 class ChatSkill(LLMSkillMixin, Skill):
@@ -20,7 +31,7 @@ class ChatSkill(LLMSkillMixin, Skill):
     async def __call__(self, state: Session, config: RunnableConfig) -> Session:
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "You are an AI assistant."),
+                ("system", _SYSTEM),
                 MessagesPlaceholder("chat_history"),
                 ("human", "{input}"),
             ]

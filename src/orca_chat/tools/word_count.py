@@ -8,4 +8,6 @@ from langchain_core.tools import tool
 @tool
 def word_count(text: str) -> dict[str, Any]:
     """Return {"word_count": N} where N is the number of words in `text`."""
-    return {"word_count": len(text.split())}
+    count = len(text.split())
+    print(f"[word_count] counted {count} words")
+    return {"word_count": count}

@@ -1,66 +1,117 @@
 # orca_chat/skills/route.py
 
-from textwrap import dedent
 from typing import Any, Final
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import StateNode
 
 from ..llm import get_llm
 from ..state import ConversationState, get_history
+from ..tools.routes import (
+    route_to_archive_retriever,
+    route_to_chat,
+    route_to_secondary_source_retriever,
+    route_to_wikipedia,
+)
 
-__all__: Final = ["route_node"]
+__all__: Final = [
+    "route_node",
+]
 
 
-def route_node(**llm_kwargs) -> StateNode:
-    """..."""
-    prompt = dedent(f"""
-    {{input}}
-    
-    {"-" * 20}
-    
-    Decide whether this request should be answered directly (“chat”)
-    or by calling one of our tools (“tools”).
+_INSTRUCTIONS = """
+You are a router node for a Warren Court archival research tool. Your task is
+to decide which channel(s) is/are needed for the user's most recent message.
 
-    Available tool(s):
-    - wikipedia_search — Search Wikipedia for background facts, dates, and short
-      summaries about people, places, events, or concepts. Input is a concise
-      search query.
+You MUST call AT LEAST ONE of these tools:
+- route_to_archive_retriever
+- route_to_secondary_source_retriever
+- route_to_wikipedia
+- route_to_chat
 
-    Choose “tools” when the user:
-    - asks to “look up”, “search”, “check Wikipedia”, or explicitly requests
-      factual background information;
-    - asks “who/what/when is ...”, or about named entities you may not know;
-    - seeks definitions, dates, biographies, places, historical events, or
-      other scholarly knowledge that that Wikipedia typically covers.
+Rules
+-----
+1) If one or more retrievers is/are clearly needed, call them. You may call
+   multiple retrievers if each is individually justified.
+2) If no retriever criteria are clearly met (> 90% confidence), route **ONLY**
+   to the chat node. If you are uncertain, prefer this route.
+3) Do **NOT** respond to the conversation or interact in any other way.
+"""
 
-    Otherwise choose “chat”.
+_REMINDER = f"""
+\n{'-' * 20}\n
+Decide which routing tools are needed for this message and call them. You may
+call multiple retrievers. If no retriever criteria are clearly met, route
+**ONLY** to the chat node. If you are uncertain, prefer this route.
 
-    Do **NOT** explain or contextualize your choice.
-    Respond **ONLY** one word: tools or chat.
-    If you are uncertain, default to chat.
-    """)
+Do **NOT** respond to the conversation or interact in any other way.
+"""
+
+_TOOLS = [
+    route_to_archive_retriever,
+    route_to_secondary_source_retriever,
+    route_to_wikipedia,
+    route_to_chat,
+]
+
+
+def route_node(**llm_kwargs: Any) -> StateNode:
+    """Router that selects retriever nodes or falls back to the chat node.
+
+    The router binds four selection tools: the archive retriever, the secondary
+    source retriever, the wikipedia retriever, and the chat. The model should
+    call any/some/all of the retrievers OR fall back to the chat node.
+    """
 
     async def _route(
         state: ConversationState, config: RunnableConfig, **_
     ) -> dict[str, Any]:
-        """..."""
-        llm = await get_llm(**llm_kwargs)
+        patch = {"payload": {"retrievers": [], "route": "chat"}}
 
         history = get_history(state, include_summary=False)
+        if not history:
+            return patch
 
         if len(history) == 1:
-            messages = [HumanMessage(prompt.format(input=history[0]))]
-
+            prompt = [
+                SystemMessage(_INSTRUCTIONS),
+                HumanMessage(str(history[0].content) + _REMINDER),
+            ]
         else:  # len(history) > 1
-            last_message = history.pop()
-            messages = [
+            last = history.pop()
+            prompt = [
+                SystemMessage(_INSTRUCTIONS),
                 *history,
-                HumanMessage(prompt.format(input=last_message)),
+                HumanMessage(str(last.content) + _REMINDER),
             ]
 
-        reply = await llm.ainvoke(messages, config=config)
-        return {"payload": {"route": str(reply.content)}}
+        llm = await get_llm(tools=_TOOLS, **llm_kwargs)
+        reply = await llm.ainvoke(prompt, config=config)
+
+        # Collect route calls
+        routes: list[str] = []
+        for tc in getattr(reply, "tool_calls", []) or []:
+            route = (tc.get("name") or "").strip()
+            if route == "route_to_chat":
+                return patch  # Mutually exclusive--break here.
+            elif route in {
+                "route_to_archive_retriever",
+                "route_to_secondary_source_retriever",
+                "route_to_wikipedia",
+            }:
+                routes.append(route)
+        if not routes:
+            return patch  # Something went wrong here--push through to chat.
+
+        seen = set()  # De-dupe.
+        routes = [r for r in routes if not (r in seen or seen.add(r))]
+
+        patch["payload"] = {
+            # Happily, alphabetical order is also order of priority. Neat!
+            "retrievers": sorted(routes),
+            "route": "tools",
+        }
+        return patch
 
     return _route

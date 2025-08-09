@@ -25,26 +25,26 @@ Flowchart
 ```mermaid
 flowchart TD
     %% Nodes
-    RouterNode[Router]
-    ChatToolsNode[Chat w/ Tools]
+    RouterNode[ROUTER]
+    ChatToolsNode[CHAT_TOOLS]
     ToolNode[ToolNode]
-    ChatNode[Chat]
-    SummarizeNode[Summarize]
+    ChatNode[CHAT]
+    SummarizeNode[SUMMARIZE]
 
     %% Edges
-    RouterEdge{ }
-    ChatToolsEdge{ }
-    SummarizeEdge{ }
+    NeedsTools?{_needs_tools}
+    ToolsCalled?{_calls_tools}
+    NeedsSummary?{_needs_summary}
 
     %% Graph
-    START((START)) --> RouterNode --> RouterEdge
-    RouterEdge -->|tools| ChatToolsNode --> ChatToolsEdge
-    RouterEdge -->ChatNode
-    ChatToolsEdge -->|tool_calls| ToolNode --> ChatNode
-    ChatToolsEdge -->ChatNode
-    ChatNode --> SummarizeEdge
-    SummarizeEdge -->|MAX_HUMAN_MESSAGES| SummarizeNode --> END
-    SummarizeEdge --> END(((END)))
+    START((START)) --> RouterNode --> NeedsTools?
+    NeedsTools? -->|tools| ChatToolsNode --> ToolsCalled?
+    NeedsTools? -->|chat| ChatNode
+    ToolsCalled? -->|tool_calls| ToolNode --> ChatNode
+    ToolsCalled? -->ChatNode
+    ChatNode --> NeedsSummary?
+    NeedsSummary? -->|should_summarize| SummarizeNode --> END
+    NeedsSummary? --> END(((END)))
 ```
 """
 

@@ -1,35 +1,34 @@
-# orca_chat/skills/llm/summarize.py
+# orca_chat/skills/summarize.py
 
-from dataclasses import dataclass
-from typing import ClassVar, Final
+from textwrap import dedent
+from typing import Any, Final
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.graph.state import StateNode
 
-from ..core import LLMSkillMixin, Session, Skill
+from ..llm import get_llm
+from ..state import ConversationState, get_history
 
-__all__: Final = ["SummarizeSkill"]
+__all__: Final = ["summarize_node"]
 
 
-@dataclass(slots=True, frozen=True)
-class SummarizeSkill(LLMSkillMixin, Skill):
-    """Summarize the conversation and store it in the session payload."""
+def summarize_node(**llm_kwargs) -> StateNode:
+    prompt = dedent("""
+    Summarize our conversation so far in a single, concise paragraph.
+    """)
 
-    name: ClassVar[str] = "summarize"
-    tags: ClassVar[frozenset] = frozenset({"summarize", "llm", "skill"})
-    llm_alias: ClassVar[str] = "llama3"
+    async def _summarize(
+        state: ConversationState, config: RunnableConfig, **_
+    ) -> dict[str, Any]:
+        llm = await get_llm(**llm_kwargs)
 
-    async def __call__(self, state: Session, config: RunnableConfig) -> Session:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are an AI assistant."),
-                MessagesPlaceholder("chat_history"),
-                ("human", "Summarize the conversation so far in no more than a paragraph."),
-            ]
-        ).format_messages(
-            chat_history=state.get_history_abridged(),
-        )
+        messages = [
+            *get_history(state),
+            HumanMessage(prompt),
+        ]
 
-        reply, _ = await self._run_llm(prompt, config)
-        state.payload["summary"] = str(reply.content)
-        return state
+        reply = await llm.ainvoke(messages, config=config)
+        return {"payload": {"summary": str(reply.content)}}
+
+    return _summarize

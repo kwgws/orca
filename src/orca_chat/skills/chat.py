@@ -1,45 +1,38 @@
-# orca_chat/skills/llm/chat.py
+# orca_chat/skills/chat.py
 
-from dataclasses import dataclass
-from typing import ClassVar, Final
+from textwrap import dedent
+from typing import Any, Final, cast
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import (
+    AIMessage,
+    SystemMessage,
+)
 from langchain_core.runnables import RunnableConfig
+from langgraph.graph.state import StateNode
 
-from ..core import LLMSkillMixin, Message, Session, Skill
+from ..llm import get_llm
+from ..state import ConversationState, get_history
 
-__all__: Final = ["ChatSkill"]
-
-_SYSTEM = """
-You are an AI assistant.
-You have access to the following tool:
-
-- `word_count(text: str)` -> {{ "word_count": n }}
-  - Returns how many words are in `text`.
-
-**When to use the tool**
-- Anytime the user asks for a word count.
-"""
+__all__: Final = ["chat_node"]
 
 
-@dataclass(slots=True, frozen=True)
-class ChatSkill(LLMSkillMixin, Skill):
-    name: ClassVar[str] = "chat"
-    tags: ClassVar[frozenset] = frozenset({"chat", "llm", "skill", "stream"})
-    llm_alias: ClassVar[str] = "llama3"
+def chat_node(**llm_kwargs) -> StateNode:
+    prompt = dedent("""
+    You are Orca, a helpful AI assistant.
+    """)
 
-    async def __call__(self, state: Session, config: RunnableConfig) -> Session:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", _SYSTEM),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        ).format_messages(
-            chat_history=state.get_history_abridged(),
-            input=state.input,
-        )
+    async def _chat(
+        state: ConversationState, config: RunnableConfig, **_
+    ) -> dict[str, Any]:
+        """..."""
+        llm = await get_llm(**llm_kwargs)
 
-        reply, metadata = await self._run_llm(prompt, config)
-        state.history.append(Message("ai", str(reply.content), metadata=metadata))
-        return state
+        messages = [
+            SystemMessage(prompt),
+            *get_history(state),
+        ]
+
+        reply = await llm.ainvoke(messages, config=config)
+        return {"messages": [cast(AIMessage, reply)]}
+
+    return _chat

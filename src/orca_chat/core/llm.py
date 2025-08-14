@@ -1,4 +1,4 @@
-# orca_chat/llm.py
+# --- orca_chat/core/llm.py ---------------------------------------------------
 
 """LLM utilities for managing LangChain-compatible chat models."""
 
@@ -11,24 +11,17 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-__all__: Final = ["clear_cache", "get_llm"]
+__all__: Final = [
+    "clear_llm_cache",
+    "get_llm",
+]
 
 _MODEL_CACHE: dict[tuple[Hashable, ...], ChatOpenAI] = {}
 _INFLIGHT: dict[tuple[Hashable, ...], asyncio.Task[ChatOpenAI]] = {}
 _CACHE_LOCK = asyncio.Lock()
 
-
-# -----------------------------------------------------------------------------
-# Default Client Settings
-# -----------------------------------------------------------------------------
-
 DEFAULT_URL = getenv("OPENAI_URL", "http://localhost:1234/v1")
 DEFAULT_MODEL = getenv("OPENAI_MODEL", "default")
-
-
-# -----------------------------------------------------------------------------
-# Public API
-# -----------------------------------------------------------------------------
 
 
 async def get_llm(
@@ -96,15 +89,10 @@ async def get_llm(
     return llm
 
 
-def clear_cache() -> None:
+def clear_llm_cache() -> None:
     """Clear the internal LLM model cache."""
     _MODEL_CACHE.clear()
     _INFLIGHT.clear()
-
-
-# -----------------------------------------------------------------------------
-# Internal Helpers
-# -----------------------------------------------------------------------------
 
 
 async def _get_llm(

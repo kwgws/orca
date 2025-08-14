@@ -1,4 +1,4 @@
-# orca_chat/cli.py
+# --- orca_chat/interfaces/cli.py ---------------------------------------------
 
 """Demo CLI
 
@@ -21,14 +21,17 @@ from typing import cast
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
 from langchain_core.messages import HumanMessage
 from langchain_core.messages.base import messages_to_dict
+from langchain_core.runnables import RunnableConfig
 
-from .graph import ConversationState, build_graph
-from .tools.wikipedia import wikipedia_search
+from orca_chat.core import get_llm
+from orca_chat.graph import State, add_msgs, make_graph
 
-__all__ = ["run"]
+__all__ = [
+    "run_cli",
+]
 
 
-def run() -> None:
+def run_cli() -> None:
     try:
         asyncio.run(_chat())
     except KeyboardInterrupt:
@@ -52,22 +55,20 @@ async def _user_input() -> AsyncIterator[str]:
 
 
 async def _chat() -> None:
-    graph = build_graph(tools=[wikipedia_search])
-    state: ConversationState = {"messages": [], "payload": {}}
+    llm = await get_llm()
+    graph = make_graph(llm=llm, tools=[]).compile()
+
+    state: State = {"messages": []}
+    config: RunnableConfig = {"callbacks": [StreamingStdOutCallbackHandler()]}
 
     log_file = Path("logs/cli_session.json")
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     async for line in _user_input():
-        state["messages"].append(HumanMessage(line))
+        state = add_msgs(state, [HumanMessage(line)])
         try:
-            state = cast(
-                ConversationState,
-                await graph.ainvoke(
-                    state,
-                    config={"callbacks": [StreamingStdOutCallbackHandler()]},
-                ),
-            )
+            reply = await graph.ainvoke(state, config=config)
+            state = cast(State, reply)
             _to_json(state, log_file)
         except asyncio.CancelledError:
             print("\nRequest cancelled.")

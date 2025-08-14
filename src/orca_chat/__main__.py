@@ -1,5 +1,6 @@
-# orca_chat/__main__.py
+# --- orca_chat/__main__.py ---------------------------------------------------
 
-from .cli import run
+from orca_chat.interfaces import run_cli
 
-run()
+if __name__ == "__main__":
+    run_cli()

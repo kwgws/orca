@@ -49,6 +49,8 @@ async def _user_input() -> AsyncIterator[str]:
             )
         except EOFError:
             break
+        if not line:
+            continue
         if line.lower() in {"/exit", "/quit", "/bye"}:
             break
         yield line

@@ -3,6 +3,7 @@
 """LLM utilities for managing LangChain-compatible chat models."""
 
 import asyncio
+import json
 from collections.abc import Callable, Coroutine, Hashable, Sequence
 from os import getenv
 from typing import Any, Final, cast
@@ -89,10 +90,11 @@ async def get_llm(
     return llm
 
 
-def clear_llm_cache() -> None:
+async def clear_llm_cache() -> None:
     """Clear the internal LLM model cache."""
-    _MODEL_CACHE.clear()
-    _INFLIGHT.clear()
+    async with _CACHE_LOCK:
+        _MODEL_CACHE.clear()
+        _INFLIGHT.clear()
 
 
 async def _get_llm(
@@ -166,5 +168,5 @@ def _get_key(
     Non-hashable extra kwargs are converted to their string representations
     using `repr`.
     """
-    extra = tuple(sorted((k, repr(v)) for k, v in kwargs.items()))
+    extra = json.dumps(kwargs, sort_keys=True, default=str)
     return (model, base_url, streaming, extra)
